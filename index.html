@@ -416,6 +416,23 @@
     color: white;
     border-color: var(--matcha);
   }
+  .agenda-postpone {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    transition: all 0.12s;
+  }
+  .agenda-postpone:hover {
+    background: var(--sky);
+    color: var(--cocoa);
+    border-color: var(--sky);
+  }
   .agenda-empty {
     padding: 30px 20px;
     text-align: center;
@@ -1069,6 +1086,40 @@
     background: var(--matcha);
     color: white;
     border-color: var(--matcha);
+  }
+  .today-check-postpone {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+    transition: all 0.12s;
+  }
+  .today-check-postpone:hover {
+    background: var(--sky);
+    color: var(--cocoa);
+    border-color: var(--sky);
+  }
+  .today-check-block.postponed {
+    background: var(--sky-soft);
+    border-color: var(--sky);
+  }
+  .today-check-block.postponed .today-check-label { color: #4a7fb0; }
+  .postpone-icon {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--sky);
+    color: var(--cocoa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
   }
 
   /* schedule table */
@@ -2218,7 +2269,12 @@ function buildSchedule(task) {
   const startNum = task.startNum || 0;
   const totalEnd = startNum + task.total;
 
-  const remainingDates = allDates.filter(d => d >= tdy);
+  // Skipped dates: days the user explicitly postponed. They're removed from the
+  // remaining session days so the leftover amount auto-redistributes to other days.
+  const skipSet = new Set(task.skipDates || []);
+  const isSkipped = (d) => skipSet.has(fmtDate(d));
+
+  const remainingDates = allDates.filter(d => d >= tdy && !isSkipped(d));
   const passedDates = allDates.filter(d => d < tdy);
   const originalPerSession = allDates.length > 0 ? task.total / allDates.length : 0;
   const expectedProgress = Math.min(task.total, Math.round(passedDates.length * originalPerSession));
@@ -2503,6 +2559,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
           </div>
         </div>
         <button class="agenda-copy" data-action="copy-item" data-copy="${escapeAttr(copyText)}" title="복사: ${escapeAttr(copyText)}">⧉</button>
+        ${isToday && !completed ? `<button class="agenda-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
       </div>
     `;
   }).join('');
@@ -2542,6 +2599,12 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       copyToClipboard(btn.dataset.copy, btn);
+    });
+  });
+  el.querySelectorAll('[data-action="postpone-today"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      postponeToday(btn.dataset.id);
     });
   });
 }
@@ -2747,6 +2810,10 @@ function renderTasks() {
     const todaysSession = plan.schedule.find(s => fmtDate(s.date) === fmtDate(tdy) && !s.isPast);
     const todayStr = fmtDate(tdy);
     const todayCompleted = todaysSession ? isCompleted(task.id, todayStr) : false;
+    // Is today postponed? (in skipDates AND today is actually a planned session day)
+    const todayPostponed = !isArchived && !task.paused
+      && Array.isArray(task.skipDates) && task.skipDates.includes(todayStr)
+      && plan.allDates.some(d => fmtDate(d) === todayStr);
 
     let todayRangeText = '—';
     if (todaysSession) {
@@ -2771,7 +2838,19 @@ function renderTasks() {
     }
 
     let todayCheckHtml = '';
-    if (!isArchived && todaysSession) {
+    if (!isArchived && todayPostponed) {
+      todayCheckHtml = `
+        <div class="today-check-block postponed">
+          <div class="postpone-icon">⤳</div>
+          <div class="today-check-info">
+            <div class="today-check-label">오늘 미룸</div>
+            <div class="today-check-range" style="font-size:14px;">남은 날에 나눠 담았어요</div>
+            <div class="today-check-amount">오늘은 이 목표를 쉬어요</div>
+          </div>
+          <button class="today-check-postpone" data-action="unpostpone-today" data-id="${escapeAttr(task.id)}" title="미루기 취소">되돌리기</button>
+        </div>
+      `;
+    } else if (!isArchived && todaysSession) {
       const copyText = buildCopyText(task, todaysSession);
       todayCheckHtml = `
         <div class="today-check-block ${todayCompleted ? 'completed' : ''}">
@@ -2781,6 +2860,7 @@ function renderTasks() {
             <div class="today-check-range">${todayRangeText}</div>
             <div class="today-check-amount">${todaysSession.amount}${ti.unit} ${todayCompleted ? '완료!' : '진행 예정'}</div>
           </div>
+          ${!todayCompleted ? `<button class="today-check-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
           <button class="today-check-copy" data-action="copy-today-card" data-copy="${escapeAttr(copyText)}">⧉</button>
         </div>
       `;
@@ -2921,6 +3001,48 @@ function renderTasks() {
   attachTaskHandlers();
 }
 
+// Postpone today's session for a task: add today to its skipDates so the planned
+// amount redistributes across the remaining (non-skipped) days. Today's plan then
+// disappears from today/week/schedule views. Clears any today completion record.
+function postponeToday(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  const todayStr = fmtDate(today());
+  if (!Array.isArray(task.skipDates)) task.skipDates = [];
+  if (!task.skipDates.includes(todayStr)) task.skipDates.push(todayStr);
+  // If today was marked complete, undo that (since we're postponing it)
+  if (isCompleted(taskId, todayStr)) {
+    const recorded = getCompletedAmount(taskId, todayStr);
+    task.progress = Math.max(0, task.progress - recorded);
+    setCompleted(taskId, todayStr, false);
+  }
+  persistTasks();
+
+  // Check whether any remaining days exist to absorb the work
+  const plan = buildSchedule(task);
+  if (plan.remainingDates.length === 0) {
+    showToast('⚠️ 남은 날이 없어 미룰 수 없어요. 마감일을 늘려보세요');
+    // revert the skip since it can't be absorbed
+    task.skipDates = task.skipDates.filter(d => d !== todayStr);
+    persistTasks();
+    rerender();
+    return;
+  }
+  showToast('오늘은 건너뛰고 남은 날에 나눠 담았어요');
+  rerender();
+}
+
+// Undo a postponement: remove today from skipDates so today's session reappears.
+function unpostponeToday(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task || !Array.isArray(task.skipDates)) return;
+  const todayStr = fmtDate(today());
+  task.skipDates = task.skipDates.filter(d => d !== todayStr);
+  persistTasks();
+  showToast('미루기를 취소했어요');
+  rerender();
+}
+
 function attachTaskHandlers() {
   document.querySelectorAll('[data-action="update-progress"]').forEach(el => {
     el.addEventListener('change', (e) => {
@@ -2967,6 +3089,18 @@ function attachTaskHandlers() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       copyToClipboard(btn.dataset.copy, btn);
+    });
+  });
+  document.querySelectorAll('[data-action="postpone-today"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      postponeToday(btn.dataset.id);
+    });
+  });
+  document.querySelectorAll('[data-action="unpostpone-today"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      unpostponeToday(btn.dataset.id);
     });
   });
   document.querySelectorAll('[data-action="archive"]').forEach(el => {
@@ -3177,6 +3311,7 @@ function addNewTask() {
     created: Date.now(),
     todayAnchorDate: fmtDate(today()),
     todayAnchor: 0,
+    skipDates: [],
   };
   tasks.push(task);
   persistTasks();
@@ -3551,6 +3686,7 @@ function setupDataIO() {
       archived: typeof item.archived === 'boolean' ? item.archived : false,
       startNum: item.startNum || 0,
       categoryId: item.categoryId || null,
+      skipDates: Array.isArray(item.skipDates) ? item.skipDates : [],
     }));
     if (Array.isArray(data.categories)) {
       categories = data.categories.filter(c => c.id && c.name && c.color);
