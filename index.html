@@ -2068,54 +2068,56 @@ function setCompleted(taskId, dateStr, completed, amount = 0) {
   persistCompleted();
 }
 
-// At the start of each day, capture each task's progress as the "today anchor"
-// — the point from which today's session is measured. This is set ONCE per day
-// (on first page load of the day) and stays fixed even when progress changes,
-// so today's displayed range (e.g. "66~95") doesn't drift when the user updates progress.
-function ensureTodayAnchors() {
-  const todayStr = fmtDate(today());
-  let updated = false;
-  tasks.forEach(task => {
-    if (task.todayAnchorDate !== todayStr) {
-      task.todayAnchorDate = todayStr;
-      task.todayAnchor = task.progress;
-      updated = true;
-    }
-  });
-  if (updated) persistTasks();
-}
-
-// Read today's anchor for a task, with safe bounds and fallback to current progress
+// "Today's start anchor" = the progress position at the START of today, i.e. before
+// any of today's work. We DERIVE it directly from current state with no stored field
+// and no dependency on page-reload timing:
+//
+//   anchor = current progress − (amount already recorded as done today)
+//
+// - If today is checked with amount A: anchor = progress − A  (= where today began)
+// - If today is NOT checked: amount is 0, so anchor = progress
+//     · handles "read ahead yesterday" — yesterday's record is on a different date,
+//       so today's amount is 0 and anchor correctly equals current progress.
+//
+// This is robust: it can't drift if the user leaves the app open overnight, and it
+// stays consistent however many times progress is edited during the day.
 function getTodayAnchor(task) {
-  if (task.todayAnchorDate === fmtDate(today()) && typeof task.todayAnchor === 'number') {
-    return Math.max(0, Math.min(task.total, task.todayAnchor));
-  }
-  return task.progress;
+  const todayStr = fmtDate(today());
+  const amt = isCompleted(task.id, todayStr) ? getCompletedAmount(task.id, todayStr) : 0;
+  const anchor = task.progress - amt;
+  return Math.max(0, Math.min(task.total, anchor));
 }
 
 // When task.progress is changed directly (input field or edit modal), keep today's
-// completion record in sync. Today's start point is the day-anchor (fixed at the start
-// of the day), so today's amount = current progress - anchor. This is consistent with
-// how buildSchedule computes today's range, so the checkbox and the displayed range
-// always agree — whether the user did less, exactly, or more than planned.
-function syncTodayCompletion(task) {
+// completion record in sync.
+//
+// CRITICAL: today's start point must be computed from the progress value BEFORE this
+// change. `oldProgress` is the value the caller saw before reassigning task.progress.
+//   startOfToday = oldProgress − (today's recorded amount before the change)
+//   today's new amount = newProgress − startOfToday
+// This keeps today's displayed range starting at the right page no matter how the user
+// edits progress (less / exactly / more than planned), and never drifts across days.
+function syncTodayCompletion(task, oldProgress) {
   const taskId = task.id;
   const todayStr = fmtDate(today());
 
-  // Only sync if today is a planned session day
+  // Only sync if today is a planned session day (and not postponed)
   const paceCfg = { type: task.pace, value: task.paceValue };
   const allDates = getActiveDates(task.start, task.end, paceCfg);
-  const todayIsPlanned = allDates.some(d => fmtDate(d) === todayStr);
+  const skipSet = new Set(task.skipDates || []);
+  const todayIsPlanned = allDates.some(d => fmtDate(d) === todayStr) && !skipSet.has(todayStr);
   if (!todayIsPlanned) return;
 
-  const anchor = Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
   const wasChecked = isCompleted(taskId, todayStr);
+  const oldAmount = wasChecked ? getCompletedAmount(taskId, todayStr) : 0;
+  const refProgress = (oldProgress != null) ? oldProgress : task.progress;
+  const startOfToday = Math.max(0, Math.min(task.total, refProgress - oldAmount));
 
-  if (task.progress > anchor) {
+  if (task.progress > startOfToday) {
     // Progress made past today's start → record today's actual amount
-    setCompleted(taskId, todayStr, true, task.progress - anchor);
+    setCompleted(taskId, todayStr, true, task.progress - startOfToday);
   } else {
-    // No net progress today → clear today's record if present
+    // No net progress today (or moved backward) → clear today's record if present
     if (wasChecked) setCompleted(taskId, todayStr, false);
   }
 }
@@ -2279,15 +2281,12 @@ function buildSchedule(task) {
   const originalPerSession = allDates.length > 0 ? task.total / allDates.length : 0;
   const expectedProgress = Math.min(task.total, Math.round(passedDates.length * originalPerSession));
 
-  // Today's starting anchor = the progress position captured at the START of today
-  // (fixed once per day via ensureTodayAnchors). This stays stable no matter how the
-  // user edits progress during the day, so today's displayed range never drifts:
-  //   - Overshoot within today (plan 66~95, read to 102) → anchor stays 65 → shows 66~102
-  //   - Ahead from past days (read to 102 yesterday, today fresh) → anchor is 102 → shows 103~
-  // We also clamp so the anchor never exceeds current progress (e.g. if progress was
-  // manually lowered below where today began).
-  let anchor = getTodayAnchor(task);
-  anchor = Math.max(0, Math.min(task.total, Math.min(anchor, task.progress)));
+  // Today's starting anchor = progress at the START of today, derived from completion
+  // records (current progress minus today's recorded amount). No stored field, no
+  // reload-timing dependency — see getTodayAnchor for details.
+  //   - Overshoot within today (plan 134~162, read to 170) → anchor 133 → shows 134~170
+  //   - Ahead from past days (read to 102 yesterday, today fresh) → anchor 102 → shows 103~
+  const anchor = getTodayAnchor(task);
 
   const remainingFromAnchor = Math.max(0, task.total - anchor);
   const perSession = remainingDates.length > 0
@@ -3050,8 +3049,9 @@ function attachTaskHandlers() {
       const val = parseInt(e.target.value) || 0;
       const task = tasks.find(t => t.id === id);
       if (!task) return;
+      const oldProgress = task.progress;
       task.progress = Math.max(0, Math.min(task.total, val));
-      syncTodayCompletion(task);
+      syncTodayCompletion(task, oldProgress);
       persistTasks();
       rerender();
     });
@@ -3309,8 +3309,6 @@ function addNewTask() {
     progress: 0,
     archived: false,
     created: Date.now(),
-    todayAnchorDate: fmtDate(today()),
-    todayAnchor: 0,
     skipDates: [],
   };
   tasks.push(task);
@@ -3457,10 +3455,9 @@ function setupEditModal() {
     }
 
     // After an explicit edit, treat the entered "current position" as today's starting
-    // point: reset the day-anchor to the new progress and clear today's completion record.
-    // This way today's plan recomputes cleanly from where the user says they are now.
-    task.todayAnchorDate = fmtDate(today());
-    task.todayAnchor = task.progress;
+    // point by clearing today's completion record. With anchor derived as
+    // (progress − today's amount), clearing today's record makes the anchor equal the
+    // new progress, so today's plan recomputes cleanly from where the user says they are.
     const todayStr = fmtDate(today());
     if (isCompleted(task.id, todayStr)) setCompleted(task.id, todayStr, false);
 
@@ -3701,7 +3698,6 @@ function setupDataIO() {
       persistCompleted();
     }
     persistTasks();
-    ensureTodayAnchors();
     document.getElementById('importModal').classList.remove('show');
     showToast(`✓ ${incoming.length}개 목표를 불러왔어요`);
     rerender();
@@ -3711,7 +3707,6 @@ function setupDataIO() {
 // ===== INIT =====
 function init() {
   loadAll();
-  ensureTodayAnchors();
   setupForm();
   setupEditModal();
   setupCategoryModal();
