@@ -1735,6 +1735,14 @@
         <button class="chip" data-copyfmt="day">day (day1, day2...)</button>
       </div>
     </div>
+    <div id="eApplyTimingGroup" style="margin-top: 16px; display: none; background: var(--cream-light); padding: 14px; border-radius: var(--radius-sm);">
+      <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 4px; display: block; font-weight: 600;">오늘 할 일을 이미 완료했어요</label>
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;">변경한 계획을 언제부터 적용할까요?</div>
+      <div class="pace-row" id="e-apply-timing-row">
+        <button class="chip active" data-apply="keep">오늘 건 유지, 다음 일정부터</button>
+        <button class="chip" data-apply="reset">오늘부터 다시 계산</button>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn" id="e-cancel">취소</button>
       <button class="btn btn-primary" id="e-save">저장</button>
@@ -1833,6 +1841,7 @@ let editingTaskId = null;
 let editPace = 'daily';
 let editCopyFmt = 'no';
 let editCustomDays = [];
+let editApplyTiming = 'keep'; // 'keep' = preserve today's completion, 'reset' = recalc from today
 let expandedSchedules = new Set();
 let draggingCategoryId = null;
 
@@ -2072,18 +2081,22 @@ function setCompleted(taskId, dateStr, completed, amount = 0) {
 // any of today's work. We DERIVE it directly from current state with no stored field
 // and no dependency on page-reload timing:
 //
-//   anchor = current progress − (amount already recorded as done today)
+//   anchor = current progress − (today's recorded amount, only if today is a session day)
 //
-// - If today is checked with amount A: anchor = progress − A  (= where today began)
-// - If today is NOT checked: amount is 0, so anchor = progress
-//     · handles "read ahead yesterday" — yesterday's record is on a different date,
-//       so today's amount is 0 and anchor correctly equals current progress.
+// - Today is a planned session day AND checked → anchor = progress − A (where today began)
+// - Today not checked → amount 0 → anchor = progress
+// - Today is NOT a session day (e.g. after switching to specific weekdays, or postponed)
+//   → we do NOT subtract, so the next session correctly continues from current progress.
 //
-// This is robust: it can't drift if the user leaves the app open overnight, and it
-// stays consistent however many times progress is edited during the day.
+// This is robust: it can't drift if the user leaves the app open overnight, stays
+// consistent across edits, and handles schedule changes that drop today as a session.
 function getTodayAnchor(task) {
   const todayStr = fmtDate(today());
-  const amt = isCompleted(task.id, todayStr) ? getCompletedAmount(task.id, todayStr) : 0;
+  const paceCfg = { type: task.pace, value: task.paceValue };
+  const allDates = getActiveDates(task.start, task.end, paceCfg);
+  const skipSet = new Set(task.skipDates || []);
+  const todayIsSession = allDates.some(d => fmtDate(d) === todayStr) && !skipSet.has(todayStr);
+  const amt = (todayIsSession && isCompleted(task.id, todayStr)) ? getCompletedAmount(task.id, todayStr) : 0;
   const anchor = task.progress - amt;
   return Math.max(0, Math.min(task.total, anchor));
 }
@@ -3366,6 +3379,24 @@ function openEditModal(id) {
     c.classList.toggle('active', c.dataset.copyfmt === editCopyFmt);
   });
 
+  // Apply-timing option: only relevant when today's session is already completed.
+  // Detect whether today is a completed session day for this task.
+  const todayStr = fmtDate(today());
+  const tplan = buildSchedule(task);
+  const todaySession = tplan.schedule.find(s => fmtDate(s.date) === todayStr && !s.isPast);
+  const todayDone = !!todaySession && isCompleted(task.id, todayStr);
+  const applyGroup = document.getElementById('eApplyTimingGroup');
+  if (todayDone) {
+    applyGroup.style.display = 'block';
+    editApplyTiming = 'keep'; // default to non-destructive
+    document.querySelectorAll('#e-apply-timing-row .chip[data-apply]').forEach(c => {
+      c.classList.toggle('active', c.dataset.apply === editApplyTiming);
+    });
+  } else {
+    applyGroup.style.display = 'none';
+    editApplyTiming = 'reset'; // no completed today → behave as before (recompute)
+  }
+
   document.getElementById('editModal').classList.add('show');
 }
 
@@ -3385,6 +3416,13 @@ function setupEditModal() {
       document.querySelectorAll('#e-copyfmt-row .chip[data-copyfmt]').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       editCopyFmt = chip.dataset.copyfmt;
+    });
+  });
+  document.querySelectorAll('#e-apply-timing-row .chip[data-apply]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#e-apply-timing-row .chip[data-apply]').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      editApplyTiming = chip.dataset.apply;
     });
   });
   document.querySelectorAll('#e-day-toggles .day-toggle').forEach(btn => {
@@ -3448,18 +3486,25 @@ function setupEditModal() {
 
     if (task.type === 'other') task.copyFmt = editCopyFmt;
 
+    const todayStr = fmtDate(today());
+    // Capture today's completion BEFORE any structural wipe, so "keep" can preserve it.
+    const todayWasDone = isCompleted(task.id, todayStr);
+    const todayDoneAmount = todayWasDone ? getCompletedAmount(task.id, todayStr) : 0;
+
     const structuralChange = (oldStartNum !== newStartNum || oldTotal !== newTotal);
     if (structuralChange) {
       [...completedMap.keys()].forEach(k => { if (k.startsWith(task.id + '|')) completedMap.delete(k); });
       persistCompleted();
     }
 
-    // After an explicit edit, treat the entered "current position" as today's starting
-    // point by clearing today's completion record. With anchor derived as
-    // (progress − today's amount), clearing today's record makes the anchor equal the
-    // new progress, so today's plan recomputes cleanly from where the user says they are.
-    const todayStr = fmtDate(today());
-    if (isCompleted(task.id, todayStr)) setCompleted(task.id, todayStr, false);
+    if (editApplyTiming === 'keep' && todayWasDone) {
+      // Keep today's completion: today stays done, and the changed plan applies from the
+      // next session day onward. (anchor = progress − today's amount → today unaffected)
+      setCompleted(task.id, todayStr, true, todayDoneAmount);
+    } else {
+      // Reset: recompute today fresh from the entered current position.
+      if (isCompleted(task.id, todayStr)) setCompleted(task.id, todayStr, false);
+    }
 
     persistTasks();
     document.getElementById('editModal').classList.remove('show');
