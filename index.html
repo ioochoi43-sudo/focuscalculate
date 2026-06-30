@@ -308,14 +308,6 @@
   }
   .agenda-item:last-child { border-bottom: none; }
   .agenda-item:hover { background: var(--cream-light); }
-  /* category color stripe */
-  .agenda-item::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    background: var(--item-color, var(--text-muted));
-  }
   .agenda-item.completed {
     background: #F2EFE5;
     opacity: 0.62;
@@ -543,7 +535,6 @@
     padding: 6px 8px;
     font-size: 11px;
     line-height: 1.35;
-    border-left: 3px solid var(--item-color, var(--text-muted));
     min-width: 0;
     overflow: hidden;
   }
@@ -846,13 +837,6 @@
   .task-card:hover {
     box-shadow: var(--shadow);
     transform: translateY(-1px);
-  }
-  .task-card::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 4px;
-    background: var(--item-color, var(--text-muted));
   }
   .task-card-top {
     display: flex;
@@ -1284,7 +1268,6 @@
   .archived .progress-block { background: var(--cream); }
   .task-card.paused .task-title { opacity: 0.75; }
   .task-card.paused .progress-block { background: var(--cream); }
-  .task-card.paused::before { opacity: 0.5; }
 
   /* MODAL */
   .modal-backdrop {
