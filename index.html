@@ -2113,6 +2113,19 @@ function loadAll() {
         if (Array.isArray(arr)) arr.forEach(k => completedMap.set(k, { amount: 0 }));
       } catch (e) {}
     }
+    // Migration: pre-checks on FUTURE dates must carry amount 0. Older versions
+    // recorded the planned amount, which corrupts that day's anchor when it arrives.
+    // Clean any such records so legacy data can't skew calculations.
+    const todayKeyStr = fmtDate(today());
+    let migrated = false;
+    completedMap.forEach((v, k) => {
+      const dateStr = k.split('|')[1];
+      if (dateStr && dateStr > todayKeyStr && v && v.amount > 0) {
+        completedMap.set(k, { amount: 0 });
+        migrated = true;
+      }
+    });
+    if (migrated) persistCompleted();
   } catch (e) { completedMap = new Map(); }
 }
 function persistTasks() {
@@ -2328,10 +2341,20 @@ function getActiveDates(startStr, endStr, paceCfg) {
   } else if (paceCfg.type === 'every-other') {
     for (let i = 0; i < total; i += 2) dates.push(addDays(start, i));
   } else if (paceCfg.type === 'weekly-n') {
-    const n = paceCfg.value || 3;
+    const n = Math.min(7, Math.max(1, paceCfg.value || 3));
     const step = 7 / n;
     let acc = 0;
-    while (acc < total) { dates.push(addDays(start, Math.round(acc))); acc += step; }
+    const usedIdx = new Set();
+    while (acc < total) {
+      // Clamp to the last valid day index so rounding never schedules a session
+      // past the deadline (e.g. total=9, acc=8.75 → round=9 would be out of range).
+      const idx = Math.min(total - 1, Math.round(acc));
+      if (!usedIdx.has(idx)) {
+        usedIdx.add(idx);
+        dates.push(addDays(start, idx));
+      }
+      acc += step;
+    }
   } else if (paceCfg.type === 'custom-days') {
     const allowed = paceCfg.value || [];
     if (allowed.length === 0) {
@@ -2670,7 +2693,11 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
           persistTasks();
         }
       } else {
-        setCompleted(id, dateStr, !wasCompleted, amount);
+        // Pre-checking a FUTURE day (e.g. tomorrow) is visual-only: record amount 0.
+        // Recording the planned amount here would corrupt that day's anchor when it
+        // arrives (anchor = progress − recorded amount, but progress never moved),
+        // and unchecking it later would wrongly subtract from progress.
+        setCompleted(id, dateStr, !wasCompleted, 0);
       }
       rerender();
     });
@@ -3432,7 +3459,7 @@ function addNewTask() {
   const total = toVal - fromVal + 1;
 
   let paceValue = null;
-  if (pace === 'weekly-n') paceValue = parseInt(document.getElementById('weekly-n-val').value) || 3;
+  if (pace === 'weekly-n') paceValue = Math.min(7, Math.max(1, parseInt(document.getElementById('weekly-n-val').value) || 3));
   if (pace === 'custom-days') {
     if (customDays.length === 0) return showToast('요일을 하나 이상 선택해 주세요');
     paceValue = [...customDays];
@@ -3602,7 +3629,7 @@ function setupEditModal() {
     task.start = newStart;
     task.end = newEnd;
     task.pace = editPace;
-    if (editPace === 'weekly-n') task.paceValue = parseInt(document.getElementById('e-weekly-n-val').value) || 3;
+    if (editPace === 'weekly-n') task.paceValue = Math.min(7, Math.max(1, parseInt(document.getElementById('e-weekly-n-val').value) || 3));
     else if (editPace === 'custom-days') {
       if (editCustomDays.length === 0) return showToast('요일을 선택해 주세요');
       task.paceValue = [...editCustomDays];
