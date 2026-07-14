@@ -573,6 +573,24 @@
     color: white;
     border-color: var(--matcha);
   }
+  .week-goal-refresh {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.12s;
+    font-size: 14px;
+  }
+  .week-goal-refresh:hover {
+    background: var(--sky-soft);
+    color: var(--cocoa);
+    border-color: var(--sky);
+  }
   .week-day {
     background: var(--surface);
     border: 1px solid var(--border-soft);
@@ -865,6 +883,12 @@
     background: var(--matcha);
     color: white;
     border-color: var(--matcha);
+  }
+  .review-toggle.active {
+    background: var(--sky);
+    color: var(--cocoa);
+    border-color: var(--sky);
+    font-weight: 700;
   }
 
   /* Quick deadline chips */
@@ -1178,6 +1202,13 @@
     border-color: var(--sky);
   }
   .today-check-block.postponed .today-check-label { color: #4a7fb0; }
+  .today-check-block.review {
+    background: var(--sky-soft);
+    border-color: var(--sky);
+  }
+  .today-check-block.review .today-check-label { color: #4a7fb0; }
+  .schedule-row.review .range { color: #4a7fb0; }
+  .agenda-item.review .agenda-type-icon { background: var(--sky-soft); }
   .postpone-icon {
     width: 24px; height: 24px;
     border-radius: 50%;
@@ -1732,6 +1763,19 @@
           </div>
         </div>
       </div>
+      <div style="margin-top: 16px;">
+        <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 4px; display: block; font-weight: 500;">복습 요일 <span style="color: var(--text-muted);">(선택)</span></label>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">이 요일엔 새 진도 대신 그동안 나간 범위를 복습해요</div>
+        <div style="display:flex; gap:6px; flex-wrap: wrap;">
+          <button class="chip review-toggle" data-day="0">일</button>
+          <button class="chip review-toggle" data-day="1">월</button>
+          <button class="chip review-toggle" data-day="2">화</button>
+          <button class="chip review-toggle" data-day="3">수</button>
+          <button class="chip review-toggle" data-day="4">목</button>
+          <button class="chip review-toggle" data-day="5">금</button>
+          <button class="chip review-toggle" data-day="6">토</button>
+        </div>
+      </div>
       <div id="copyFormatGroup" style="margin-top: 16px; display: none;">
         <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 8px; display: block; font-weight: 500;">복사 형식 <span style="color: var(--text-muted);">(기타 목표만)</span></label>
         <div class="pace-row">
@@ -1795,6 +1839,19 @@
           <button class="chip day-toggle" data-day="5">금</button>
           <button class="chip day-toggle" data-day="6">토</button>
         </div>
+      </div>
+    </div>
+    <div style="margin-top: 16px;">
+      <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 4px; display: block; font-weight: 500;">복습 요일 <span style="color: var(--text-muted);">(선택)</span></label>
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">이 요일엔 새 진도 대신 그동안 나간 범위를 복습해요</div>
+      <div style="display:flex; gap:6px; flex-wrap: wrap;" id="e-review-toggles">
+        <button class="chip review-toggle" data-day="0">일</button>
+        <button class="chip review-toggle" data-day="1">월</button>
+        <button class="chip review-toggle" data-day="2">화</button>
+        <button class="chip review-toggle" data-day="3">수</button>
+        <button class="chip review-toggle" data-day="4">목</button>
+        <button class="chip review-toggle" data-day="5">금</button>
+        <button class="chip review-toggle" data-day="6">토</button>
       </div>
     </div>
     <div id="eCopyFormatGroup" style="margin-top: 16px; display: none;">
@@ -1884,6 +1941,7 @@ const STORAGE_KEY = 'focus-calculate-tasks-v1';
 const SORT_KEY = 'focus-calculate-sort';
 const COMPLETED_KEY = 'focus-calculate-completed-v2';
 const CATEGORIES_KEY = 'focus-calculate-categories-v1';
+const WEEKGOALS_KEY = 'focus-calculate-weekgoals-v1';
 
 const DEFAULT_TYPE_COLORS = {
   book: '#563526',
@@ -1899,6 +1957,9 @@ const PRESET_COLORS = [
 let tasks = [];
 let categories = []; // {id, name, color}
 let completedMap = new Map();
+// Frozen weekly goals: key `taskId|weekStartStr` → {from, to, amount}. Snapshotted once
+// when the week becomes current, so the "이번 주 목표" numbers don't drift day by day.
+let weekGoalsMap = new Map();
 let currentView = 'today';
 let currentCategoryFilter = null; // null = all, or category id
 let currentSort = 'deadline-asc';
@@ -1906,10 +1967,12 @@ let weekOffset = 0;
 let pace = 'daily';
 let copyFmt = 'no';
 let customDays = [];
+let reviewDaysSel = [];
 let editingTaskId = null;
 let editPace = 'daily';
 let editCopyFmt = 'no';
 let editCustomDays = [];
+let editReviewDays = [];
 let editApplyTiming = 'keep'; // 'keep' = preserve today's completion, 'reset' = recalc from today
 let expandedSchedules = new Set();
 let draggingCategoryId = null;
@@ -2042,16 +2105,17 @@ function formatRangeDisplay(task, from, to) {
 
 function buildCopyText(task, item) {
   const rangeText = formatRange(item.from, item.to);
+  const prefix = item.isReview ? '복습 ' : '';
   if (task.type === 'book') {
-    return `${task.title} p.${rangeText}`;
+    return `${task.title} ${prefix}p.${rangeText}`;
   } else if (task.type === 'lecture') {
-    return `${task.title} ${rangeText}강`;
+    return `${task.title} ${prefix}${rangeText}강`;
   } else {
     const fmt = task.copyFmt || 'no';
     if (fmt === 'day') {
-      return `${task.title} day${rangeText}`;
+      return `${task.title} ${prefix}day${rangeText}`;
     }
-    return `${task.title} no.${rangeText}`;
+    return `${task.title} ${prefix}no.${rangeText}`;
   }
 }
 
@@ -2127,6 +2191,21 @@ function loadAll() {
     });
     if (migrated) persistCompleted();
   } catch (e) { completedMap = new Map(); }
+  try {
+    const rawWG = localStorage.getItem(WEEKGOALS_KEY);
+    if (rawWG) {
+      const obj = JSON.parse(rawWG);
+      weekGoalsMap = new Map(Object.entries(obj));
+    }
+    // Prune snapshots older than ~9 weeks to keep storage tidy
+    const cutoff = fmtDate(addDays(today(), -63));
+    let pruned = false;
+    weekGoalsMap.forEach((v, k) => {
+      const ws = k.split('|')[1];
+      if (ws && ws < cutoff) { weekGoalsMap.delete(k); pruned = true; }
+    });
+    if (pruned) persistWeekGoals();
+  } catch (e) { weekGoalsMap = new Map(); }
 }
 function persistTasks() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
@@ -2140,6 +2219,13 @@ function persistCompleted() {
     const obj = {};
     completedMap.forEach((v, k) => { obj[k] = v; });
     localStorage.setItem(COMPLETED_KEY, JSON.stringify(obj));
+  } catch (e) {}
+}
+function persistWeekGoals() {
+  try {
+    const obj = {};
+    weekGoalsMap.forEach((v, k) => { obj[k] = v; });
+    localStorage.setItem(WEEKGOALS_KEY, JSON.stringify(obj));
   } catch (e) {}
 }
 function persistSort() {
@@ -2174,8 +2260,7 @@ function setCompleted(taskId, dateStr, completed, amount = 0) {
 // consistent across edits, and handles schedule changes that drop today as a session.
 function getTodayAnchor(task) {
   const todayStr = fmtDate(today());
-  const paceCfg = { type: task.pace, value: task.paceValue };
-  const allDates = getActiveDates(task.start, task.end, paceCfg);
+  const allDates = getContentDates(task);
   const skipSet = new Set(task.skipDates || []);
   const todayIsSession = allDates.some(d => fmtDate(d) === todayStr) && !skipSet.has(todayStr);
   const amt = (todayIsSession && isCompleted(task.id, todayStr)) ? getCompletedAmount(task.id, todayStr) : 0;
@@ -2196,9 +2281,8 @@ function syncTodayCompletion(task, oldProgress) {
   const taskId = task.id;
   const todayStr = fmtDate(today());
 
-  // Only sync if today is a planned session day (and not postponed)
-  const paceCfg = { type: task.pace, value: task.paceValue };
-  const allDates = getActiveDates(task.start, task.end, paceCfg);
+  // Only sync if today is a planned NEW-CONTENT session day (not postponed, not a review day)
+  const allDates = getContentDates(task);
   const skipSet = new Set(task.skipDates || []);
   const todayIsPlanned = allDates.some(d => fmtDate(d) === todayStr) && !skipSet.has(todayStr);
   if (!todayIsPlanned) return;
@@ -2369,9 +2453,19 @@ function getActiveDates(startStr, endStr, paceCfg) {
   return dates;
 }
 
-function buildSchedule(task) {
+// Content dates = active session dates for NEW material, i.e. pace dates minus review
+// weekdays. Review weekdays never receive new content; the amount auto-redistributes
+// across the remaining content days (same mechanism as postponing).
+function getContentDates(task) {
   const paceCfg = { type: task.pace, value: task.paceValue };
   const allDates = getActiveDates(task.start, task.end, paceCfg);
+  const reviewSet = new Set(task.reviewDays || []);
+  if (reviewSet.size === 0) return allDates;
+  return allDates.filter(d => !reviewSet.has(d.getDay()));
+}
+
+function buildSchedule(task) {
+  const allDates = getContentDates(task);
   const tdy = today();
   const startNum = task.startNum || 0;
   const totalEnd = startNum + task.total;
@@ -2449,6 +2543,39 @@ function buildSchedule(task) {
     });
     cursor = to;
   });
+
+  // === Review entries: for each calendar day in range matching a review weekday,
+  // show a review of the content covered since the previous review day (planned
+  // ranges). Review entries carry no new amount and never affect progress math.
+  if (Array.isArray(task.reviewDays) && task.reviewDays.length > 0) {
+    const reviewSet = new Set(task.reviewDays);
+    const startD = parseDate(task.start);
+    const endD = parseDate(task.end);
+    const spanDays = daysBetween(startD, endD) + 1;
+    const contentSessions = schedule.slice(); // content only at this point
+    let prevReviewDate = null;
+    for (let i = 0; i < spanDays; i++) {
+      const d = addDays(startD, i);
+      if (!reviewSet.has(d.getDay())) continue;
+      if (isSkipped(d)) { prevReviewDate = d; continue; } // postponed review day
+      // Sessions covered between the previous review day (exclusive) and this day (exclusive)
+      const windowSessions = contentSessions.filter(s =>
+        s.date < d && (prevReviewDate === null || s.date > prevReviewDate)
+      );
+      prevReviewDate = d;
+      if (windowSessions.length === 0) continue; // nothing to review yet
+      const rFrom = Math.min(...windowSessions.map(s => s.from));
+      const rTo = Math.max(...windowSessions.map(s => s.to));
+      schedule.push({
+        date: d, from: rFrom, to: rTo,
+        amount: 0,
+        isPast: d < tdy,
+        isToday: fmtDate(d) === fmtDate(tdy),
+        isReview: true,
+      });
+    }
+    schedule.sort((a, b) => a.date - b.date);
+  }
 
   let status = 'active';
   const daysToEnd = daysBetween(tdy, parseDate(task.end));
@@ -2644,26 +2771,30 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
   const dateStr = fmtDate(targetDate);
   el.innerHTML = items.map(({ task, item }) => {
     const ti = typeInfo(task.type);
+    const isReview = !!item.isReview;
     const completed = isCompleted(task.id, dateStr);
-    const rangeText = formatRangeDisplay(task, item.from, item.to);
+    const rangeText = (isReview ? '복습 ' : '') + formatRangeDisplay(task, item.from, item.to);
     const copyText = buildCopyText(task, item);
     const color = getTaskColor(task);
     const cat = task.categoryId ? getCategoryById(task.categoryId) : null;
     const catPill = cat ? `<span class="agenda-cat-label">${escapeHtml(cat.name)}</span>` : '';
+    const detailText = isReview
+      ? (completed ? '복습 완료!' : (isToday ? '복습' : '복습 예정'))
+      : `${item.amount}${ti.unit} ${completed ? '완료!' : (isToday ? '진행' : '예정')}`;
     return `
-      <div class="agenda-item ${completed ? 'completed' : ''}" data-id="${escapeAttr(task.id)}" style="--item-color: ${escapeAttr(color)};">
-        <button class="agenda-check" data-action="toggle-complete" data-id="${escapeAttr(task.id)}" data-date="${dateStr}" data-target="${item.to - (task.startNum || 0)}" data-amount="${item.amount}" data-is-today="${isToday}">${completed ? '✓' : ''}</button>
-        <div class="agenda-type-icon">${ti.icon}</div>
+      <div class="agenda-item ${completed ? 'completed' : ''} ${isReview ? 'review' : ''}" data-id="${escapeAttr(task.id)}" style="--item-color: ${escapeAttr(color)};">
+        <button class="agenda-check" data-action="toggle-complete" data-id="${escapeAttr(task.id)}" data-date="${dateStr}" data-target="${item.to - (task.startNum || 0)}" data-amount="${item.amount}" data-is-today="${isToday}" data-review="${isReview}">${completed ? '✓' : ''}</button>
+        <div class="agenda-type-icon">${isReview ? '🔁' : ti.icon}</div>
         <div class="agenda-info">
           <div class="agenda-name">${escapeHtml(task.title)}${catPill}</div>
           <div class="agenda-detail">
             <span class="range">${rangeText}</span>
             <span style="margin: 0 6px; color: var(--text-muted);">·</span>
-            <span>${item.amount}${ti.unit} ${completed ? '완료!' : (isToday ? '진행' : '예정')}</span>
+            <span>${detailText}</span>
           </div>
         </div>
         <button class="agenda-copy" data-action="copy-item" data-copy="${escapeAttr(copyText)}" title="복사: ${escapeAttr(copyText)}">⧉</button>
-        ${isToday && !completed ? `<button class="agenda-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
+        ${isToday && !completed && !isReview ? `<button class="agenda-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
       </div>
     `;
   }).join('');
@@ -2673,14 +2804,18 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
       const id = btn.dataset.id;
       const dateStr = btn.dataset.date;
       const target = parseInt(btn.dataset.target); // planned end (relative)
-      const amount = parseInt(btn.dataset.amount);
       const isTodayItem = btn.dataset.isToday === 'true';
+      const isReviewItem = btn.dataset.review === 'true';
       const task = tasks.find(t => t.id === id);
       if (!task) return;
       const wasCompleted = isCompleted(id, dateStr);
       const startNum = task.startNum || 0;
 
-      if (isTodayItem) {
+      if (isReviewItem) {
+        // Review check is visual-only: it never touches progress. Amount 0 keeps
+        // anchor math untouched whether today or a future day.
+        setCompleted(id, dateStr, !wasCompleted, 0);
+      } else if (isTodayItem) {
         if (!wasCompleted) {
           // Ask how far they actually got
           const anchor = Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
@@ -2749,9 +2884,11 @@ function renderWeek() {
 
     let totalBook = 0, totalLec = 0, totalOther = 0, completedCnt = 0;
     dayItems.forEach(({ task, item }) => {
-      if (task.type === 'book') totalBook += item.amount;
-      else if (task.type === 'lecture') totalLec += item.amount;
-      else totalOther += item.amount;
+      if (!item.isReview) {
+        if (task.type === 'book') totalBook += item.amount;
+        else if (task.type === 'lecture') totalLec += item.amount;
+        else totalOther += item.amount;
+      }
       if (isCompleted(task.id, dateStr)) completedCnt++;
     });
 
@@ -2759,15 +2896,16 @@ function renderWeek() {
       ? `<div class="week-day-empty">없음</div>`
       : dayItems.map(({ task, item }) => {
           const ti = typeInfo(task.type);
+          const isReview = !!item.isReview;
           const isItemCompleted = isCompleted(task.id, dateStr);
-          const rangeText = formatRangeDisplay(task, item.from, item.to);
+          const rangeText = (isReview ? '복습 ' : '') + formatRangeDisplay(task, item.from, item.to);
           const copyText = buildCopyText(task, item);
           const color = getTaskColor(task);
           return `
             <div class="week-day-item ${isItemCompleted ? 'completed' : ''}" style="--item-color: ${escapeAttr(color)};">
               <div class="week-day-item-row">
                 <div class="week-day-item-content">
-                  <div class="week-day-item-title">${ti.icon} ${escapeHtml(task.title)}</div>
+                  <div class="week-day-item-title">${isReview ? '🔁' : ti.icon} ${escapeHtml(task.title)}</div>
                   <div class="week-day-item-range">${rangeText}</div>
                 </div>
                 <button class="week-day-item-copy" data-action="copy-week-item" data-copy="${escapeAttr(copyText)}" title="복사">⧉</button>
@@ -2812,35 +2950,89 @@ function renderWeek() {
 // For each active task, find its sessions falling within this week (Mon–Sun) and
 // combine them into one "start ~ end" range so the user can copy a single line like
 // "《책제목》 p.108~170" or "강의명 3~9강".
+// Live computation of a task's weekly new-content range for a given week span.
+function computeWeekGoal(task, weekStartStr, weekEndStr) {
+  const plan = buildSchedule(task);
+  const inWeek = plan.schedule.filter(s => {
+    if (s.isReview) return false; // review entries don't contribute to the weekly new-content range
+    const ds = fmtDate(s.date);
+    return ds >= weekStartStr && ds <= weekEndStr;
+  });
+  if (inWeek.length === 0) return null;
+  const from = Math.min(...inWeek.map(s => s.from));
+  const to = Math.max(...inWeek.map(s => s.to));
+  const amount = inWeek.reduce((a, s) => a + s.amount, 0);
+  return { from, to, amount };
+}
+
+// Ensure every active task has a FROZEN weekly-goal snapshot for the current week.
+// Snapshots are taken once (first app use in the week) and stay fixed all week, so the
+// "이번 주 목표" numbers don't drift as daily plans redistribute. Daily plans themselves
+// remain fully dynamic and always land exactly on the deadline.
+function ensureWeekGoalSnapshots() {
+  const monday = startOfWeek(today());
+  const weekStartStr = fmtDate(monday);
+  const weekEndStr = fmtDate(addDays(monday, 6));
+  let changed = false;
+  tasks.filter(isTaskActive).forEach(task => {
+    const key = task.id + '|' + weekStartStr;
+    if (weekGoalsMap.has(key)) return;
+    const g = computeWeekGoal(task, weekStartStr, weekEndStr);
+    if (g) { weekGoalsMap.set(key, g); changed = true; }
+  });
+  if (changed) persistWeekGoals();
+}
+
+// Re-freeze one task's current-week goal from the live plan (manual refresh / after edits).
+function refreshWeekGoal(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  const monday = startOfWeek(today());
+  const weekStartStr = fmtDate(monday);
+  const weekEndStr = fmtDate(addDays(monday, 6));
+  const key = taskId + '|' + weekStartStr;
+  const g = computeWeekGoal(task, weekStartStr, weekEndStr);
+  if (g) weekGoalsMap.set(key, g);
+  else weekGoalsMap.delete(key);
+  persistWeekGoals();
+}
+
 function renderWeekGoals(weekStart, weekEnd) {
   const container = document.getElementById('weekGoals');
   const weekStartStr = fmtDate(weekStart);
   const weekEndStr = fmtDate(weekEnd);
+  const isCurrentWeek = weekStartStr === fmtDate(startOfWeek(today()));
+
+  if (isCurrentWeek) ensureWeekGoalSnapshots();
 
   let candidates = filterByCategory(tasks.filter(isTaskActive));
   const goals = [];
 
   candidates.forEach(task => {
-    const plan = buildSchedule(task);
-    // Sessions within this week's date span
-    const inWeek = plan.schedule.filter(s => {
-      const ds = fmtDate(s.date);
-      return ds >= weekStartStr && ds <= weekEndStr;
-    });
-    if (inWeek.length === 0) return;
-    const from = Math.min(...inWeek.map(s => s.from));
-    const to = Math.max(...inWeek.map(s => s.to));
-    const amount = inWeek.reduce((a, s) => a + s.amount, 0);
-    goals.push({ task, from, to, amount });
+    let g = null;
+    let frozen = false;
+    if (isCurrentWeek) {
+      const stored = weekGoalsMap.get(task.id + '|' + weekStartStr);
+      if (stored) { g = stored; frozen = true; }
+    }
+    if (!g) g = computeWeekGoal(task, weekStartStr, weekEndStr);
+    if (!g) return;
+    goals.push({ task, from: g.from, to: g.to, amount: g.amount, frozen });
   });
 
   if (goals.length === 0) { container.innerHTML = ''; return; }
 
-  container.innerHTML = `<div class="week-goals-title">이번 주 목표</div>` + goals.map(({ task, from, to, amount }) => {
+  const titleSuffix = isCurrentWeek
+    ? ` <span style="font-weight:500; text-transform:none; letter-spacing:0; color:var(--text-muted);">· 주 시작 기준 고정</span>`
+    : '';
+  container.innerHTML = `<div class="week-goals-title">이번 주 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, frozen }) => {
     const ti = typeInfo(task.type);
     const color = getTaskColor(task);
     const rangeDisplay = formatRangeDisplay(task, from, to);
     const copyText = buildCopyText(task, { from, to });
+    const refreshBtn = frozen
+      ? `<button class="week-goal-refresh" data-action="refresh-week-goal" data-id="${escapeAttr(task.id)}" title="현재 계획 기준으로 다시 고정">↻</button>`
+      : '';
     return `
       <div class="week-goal-item" style="--item-color: ${escapeAttr(color)};">
         <div class="week-goal-icon">${ti.icon}</div>
@@ -2848,6 +3040,7 @@ function renderWeekGoals(weekStart, weekEnd) {
           <div class="week-goal-title">${escapeHtml(task.title)}</div>
           <div class="week-goal-range">${rangeDisplay}<span class="amt">총 ${amount}${ti.unit}</span></div>
         </div>
+        ${refreshBtn}
         <button class="week-goal-copy" data-action="copy-week-goal" data-copy="${escapeAttr(copyText)}" title="이번 주 전체 복사">⧉ 복사</button>
       </div>
     `;
@@ -2857,6 +3050,14 @@ function renderWeekGoals(weekStart, weekEnd) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       copyToClipboard(btn.dataset.copy, btn);
+    });
+  });
+  container.querySelectorAll('[data-action="refresh-week-goal"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      refreshWeekGoal(btn.dataset.id);
+      showToast('↻ 이번 주 목표를 다시 고정했어요');
+      rerender();
     });
   });
 }
@@ -2872,7 +3073,7 @@ function renderStats() {
   active.forEach(t => {
     const plan = buildSchedule(t);
     if (plan.status === 'behind' || plan.status === 'overdue') behindCount++;
-    const todaysSession = plan.schedule.find(s => fmtDate(s.date) === fmtDate(tdy) && !s.isPast);
+    const todaysSession = plan.schedule.find(s => fmtDate(s.date) === fmtDate(tdy) && !s.isPast && !s.isReview);
     if (todaysSession) {
       if (t.type === 'book') todayBook += todaysSession.amount;
       else if (t.type === 'lecture') todayLecture += todaysSession.amount;
@@ -2970,7 +3171,8 @@ function renderTasks() {
     else if (plan.daysToEnd === 0) ddayText = 'D-day';
     else ddayText = `D-${plan.daysToEnd}`;
 
-    const todaysSession = plan.schedule.find(s => fmtDate(s.date) === fmtDate(tdy) && !s.isPast);
+    const todaysSession = plan.schedule.find(s => fmtDate(s.date) === fmtDate(tdy) && !s.isPast && !s.isReview);
+    const todaysReview = plan.schedule.find(s => fmtDate(s.date) === fmtDate(tdy) && s.isReview);
     const todayStr = fmtDate(tdy);
     const todayCompleted = todaysSession ? isCompleted(task.id, todayStr) : false;
     // Is today postponed? (in skipDates AND today is actually a planned session day)
@@ -3027,6 +3229,21 @@ function renderTasks() {
           <button class="today-check-copy" data-action="copy-today-card" data-copy="${escapeAttr(copyText)}">⧉</button>
         </div>
       `;
+    } else if (!isArchived && todaysReview) {
+      const reviewCompleted = isCompleted(task.id, todayStr);
+      const reviewRange = formatRangeDisplay(task, todaysReview.from, todaysReview.to);
+      const copyText = buildCopyText(task, todaysReview);
+      todayCheckHtml = `
+        <div class="today-check-block review ${reviewCompleted ? 'completed' : ''}">
+          <button class="check" data-action="toggle-review-complete" data-id="${escapeAttr(task.id)}">${reviewCompleted ? '✓' : ''}</button>
+          <div class="today-check-info">
+            <div class="today-check-label">🔁 오늘은 복습</div>
+            <div class="today-check-range">복습 ${reviewRange}</div>
+            <div class="today-check-amount">${reviewCompleted ? '복습 완료!' : '그동안 나간 범위를 훑어봐요'}</div>
+          </div>
+          <button class="today-check-copy" data-action="copy-today-card" data-copy="${escapeAttr(copyText)}">⧉</button>
+        </div>
+      `;
     }
 
     let scheduleHtml = '';
@@ -3039,14 +3256,15 @@ function renderTasks() {
           <div class="schedule-title">📅 일정표</div>
           ${displaySchedule.map(s => {
             const dateStr = `${s.date.getMonth()+1}/${s.date.getDate()} (${days[s.date.getDay()]})`;
-            const rangeText = formatRangeDisplay(task, s.from, s.to);
-            const cls = s.isToday ? 'today' : (s.isPast ? 'past' : '');
+            const rangeText = (s.isReview ? '🔁 ' : '') + formatRangeDisplay(task, s.from, s.to);
+            const cls = (s.isToday ? 'today' : (s.isPast ? 'past' : '')) + (s.isReview ? ' review' : '');
             const copyText = buildCopyText(task, s);
+            const amtText = s.isReview ? '복습' : `${s.amount}${ti.unitShort}`;
             return `
               <div class="schedule-row ${cls}">
                 <div class="date">${dateStr}</div>
                 <div class="range">${rangeText}</div>
-                <div class="amount">${s.amount}${ti.unitShort}</div>
+                <div class="amount">${amtText}</div>
                 <button class="schedule-copy" data-action="copy-schedule" data-copy="${escapeAttr(copyText)}">⧉</button>
               </div>
             `;
@@ -3243,6 +3461,18 @@ function attachTaskHandlers() {
       }
     });
   });
+  document.querySelectorAll('[data-action="toggle-review-complete"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      const todayStr = fmtDate(today());
+      const wasCompleted = isCompleted(id, todayStr);
+      // Review check is visual-only (amount 0): progress and anchors are untouched.
+      setCompleted(id, todayStr, !wasCompleted, 0);
+      rerender();
+    });
+  });
   document.querySelectorAll('[data-action="copy-today-card"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -3317,8 +3547,10 @@ function attachTaskHandlers() {
       if (!confirm('정말 삭제할까요? 되돌릴 수 없습니다.')) return;
       tasks = tasks.filter(t => t.id !== id);
       [...completedMap.keys()].forEach(k => { if (k.startsWith(id + '|')) completedMap.delete(k); });
+      [...weekGoalsMap.keys()].forEach(k => { if (k.startsWith(id + '|')) weekGoalsMap.delete(k); });
       persistTasks();
       persistCompleted();
+      persistWeekGoals();
       showToast('삭제되었습니다');
       rerender();
     });
@@ -3420,6 +3652,19 @@ function setupForm() {
     });
   });
 
+  document.querySelectorAll('.form-card .review-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const day = parseInt(btn.dataset.day);
+      if (reviewDaysSel.includes(day)) {
+        reviewDaysSel = reviewDaysSel.filter(d => d !== day);
+        btn.classList.remove('active');
+      } else {
+        reviewDaysSel.push(day);
+        btn.classList.add('active');
+      }
+    });
+  });
+
   document.getElementById('btn-toggle-form').addEventListener('click', () => {
     populateCategorySelect('f-categoryId',
       currentCategoryFilter && currentCategoryFilter !== '__none__' ? currentCategoryFilter : '');
@@ -3469,18 +3714,28 @@ function addNewTask() {
     id: 'tsk_' + Date.now() + '_' + Math.floor(Math.random()*1000),
     title, type, categoryId, total, startNum, start, end,
     pace, paceValue,
+    reviewDays: [...reviewDaysSel],
     copyFmt: type === 'other' ? copyFmt : undefined,
     progress: 0,
     archived: false,
     created: Date.now(),
     skipDates: [],
   };
+
+  // Validation: review weekdays must leave at least one new-content session day
+  if (getContentDates(task).length === 0) {
+    return showToast('복습 요일이 모든 일정을 덮어요. 요일을 조정해 주세요');
+  }
+
   tasks.push(task);
   persistTasks();
+  ensureWeekGoalSnapshots();
 
   document.getElementById('f-title').value = '';
   document.getElementById('f-from').value = '';
   document.getElementById('f-to').value = '';
+  reviewDaysSel = [];
+  document.querySelectorAll('.form-card .review-toggle').forEach(b => b.classList.remove('active'));
   document.getElementById('formCard').classList.remove('show');
   showToast('✓ 새 목표를 추가했어요');
   rerender();
@@ -3521,6 +3776,12 @@ function openEditModal(id) {
   if (editPace === 'custom-days') document.getElementById('e-pace-custom-days').classList.add('show');
   document.querySelectorAll('#e-day-toggles .day-toggle').forEach(b => {
     b.classList.toggle('active', editCustomDays.includes(parseInt(b.dataset.day)));
+  });
+
+  // Review weekdays
+  editReviewDays = [...(task.reviewDays || [])];
+  document.querySelectorAll('#e-review-toggles .review-toggle').forEach(b => {
+    b.classList.toggle('active', editReviewDays.includes(parseInt(b.dataset.day)));
   });
 
   // Copy format (only for 'other')
@@ -3588,6 +3849,18 @@ function setupEditModal() {
       }
     });
   });
+  document.querySelectorAll('#e-review-toggles .review-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const day = parseInt(btn.dataset.day);
+      if (editReviewDays.includes(day)) {
+        editReviewDays = editReviewDays.filter(d => d !== day);
+        btn.classList.remove('active');
+      } else {
+        editReviewDays.push(day);
+        btn.classList.add('active');
+      }
+    });
+  });
   document.getElementById('e-cancel').addEventListener('click', () => {
     document.getElementById('editModal').classList.remove('show');
   });
@@ -3618,6 +3891,18 @@ function setupEditModal() {
     if (newCurrentPos < newStartNum) return showToast(`현재 위치는 ${newStartNum + 1}보다 작을 수 없어요`);
     if (newCurrentPos > newStartNum + newTotal) return showToast('현재 위치가 끝 번호를 넘었어요');
 
+    // Validate schedule shape BEFORE mutating the task (probe object)
+    let newPaceValue = null;
+    if (editPace === 'weekly-n') newPaceValue = Math.min(7, Math.max(1, parseInt(document.getElementById('e-weekly-n-val').value) || 3));
+    else if (editPace === 'custom-days') {
+      if (editCustomDays.length === 0) return showToast('요일을 선택해 주세요');
+      newPaceValue = [...editCustomDays];
+    }
+    const probe = { start: newStart, end: newEnd, pace: editPace, paceValue: newPaceValue, reviewDays: editReviewDays };
+    if (getContentDates(probe).length === 0) {
+      return showToast('복습 요일이 모든 일정을 덮어요. 요일을 조정해 주세요');
+    }
+
     const oldStartNum = task.startNum || 0;
     const oldTotal = task.total;
 
@@ -3629,13 +3914,10 @@ function setupEditModal() {
     task.start = newStart;
     task.end = newEnd;
     task.pace = editPace;
-    if (editPace === 'weekly-n') task.paceValue = Math.min(7, Math.max(1, parseInt(document.getElementById('e-weekly-n-val').value) || 3));
-    else if (editPace === 'custom-days') {
-      if (editCustomDays.length === 0) return showToast('요일을 선택해 주세요');
-      task.paceValue = [...editCustomDays];
-    } else task.paceValue = null;
+    task.paceValue = newPaceValue;
 
     if (task.type === 'other') task.copyFmt = editCopyFmt;
+    task.reviewDays = [...editReviewDays];
 
     const todayStr = fmtDate(today());
     // Capture today's completion BEFORE any structural wipe, so "keep" can preserve it.
@@ -3658,6 +3940,8 @@ function setupEditModal() {
     }
 
     persistTasks();
+    // The plan changed — re-freeze this task's current-week goal from the new plan.
+    refreshWeekGoal(task.id);
     document.getElementById('editModal').classList.remove('show');
     showToast('✓ 수정되었어요');
     rerender();
@@ -3830,12 +4114,15 @@ function setupDataIO() {
   document.getElementById('btn-export').addEventListener('click', () => {
     const completedObj = {};
     completedMap.forEach((v, k) => { completedObj[k] = v; });
+    const weekGoalsObj = {};
+    weekGoalsMap.forEach((v, k) => { weekGoalsObj[k] = v; });
     const data = {
-      version: 5,
+      version: 6,
       exportedAt: new Date().toISOString(),
       tasks,
       categories,
       completed: completedObj,
+      weekGoals: weekGoalsObj,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -3880,6 +4167,7 @@ function setupDataIO() {
       startNum: item.startNum || 0,
       categoryId: item.categoryId || null,
       skipDates: Array.isArray(item.skipDates) ? item.skipDates : [],
+      reviewDays: Array.isArray(item.reviewDays) ? item.reviewDays : [],
     }));
     if (Array.isArray(data.categories)) {
       categories = data.categories.filter(c => c.id && c.name && c.color);
@@ -3893,7 +4181,15 @@ function setupDataIO() {
       }
       persistCompleted();
     }
+    if (data.weekGoals && typeof data.weekGoals === 'object') {
+      weekGoalsMap = new Map(Object.entries(data.weekGoals));
+      persistWeekGoals();
+    } else {
+      weekGoalsMap = new Map();
+      persistWeekGoals();
+    }
     persistTasks();
+    ensureWeekGoalSnapshots();
     document.getElementById('importModal').classList.remove('show');
     showToast(`✓ ${incoming.length}개 목표를 불러왔어요`);
     rerender();
@@ -3903,6 +4199,7 @@ function setupDataIO() {
 // ===== INIT =====
 function init() {
   loadAll();
+  ensureWeekGoalSnapshots();
   setupForm();
   setupEditModal();
   setupCategoryModal();
