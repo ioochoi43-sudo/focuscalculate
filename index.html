@@ -1775,6 +1775,11 @@
           <button class="chip review-toggle" data-day="5">금</button>
           <button class="chip review-toggle" data-day="6">토</button>
         </div>
+        <div style="margin-top: 10px; display:flex; align-items:center; gap:8px;">
+          <label style="font-size: 12px; color: var(--text-soft); font-weight: 500; white-space:nowrap;">이름</label>
+          <input type="text" id="f-reviewLabel" placeholder="복습" maxlength="12" style="flex:1; max-width:200px; background: var(--cream-light); border: 1px solid transparent; padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
+          <span style="font-size: 11px; color: var(--text-muted);">예: 복습, 독서노트, 정리</span>
+        </div>
       </div>
       <div id="copyFormatGroup" style="margin-top: 16px; display: none;">
         <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 8px; display: block; font-weight: 500;">복사 형식 <span style="color: var(--text-muted);">(기타 목표만)</span></label>
@@ -1852,6 +1857,11 @@
         <button class="chip review-toggle" data-day="4">목</button>
         <button class="chip review-toggle" data-day="5">금</button>
         <button class="chip review-toggle" data-day="6">토</button>
+      </div>
+      <div style="margin-top: 10px; display:flex; align-items:center; gap:8px;">
+        <label style="font-size: 12px; color: var(--text-soft); font-weight: 500; white-space:nowrap;">이름</label>
+        <input type="text" id="e-reviewLabel" placeholder="복습" maxlength="12" style="flex:1; max-width:200px; background: var(--cream-light); border: 1px solid transparent; padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
+        <span style="font-size: 11px; color: var(--text-muted);">예: 복습, 독서노트, 정리</span>
       </div>
     </div>
     <div id="eCopyFormatGroup" style="margin-top: 16px; display: none;">
@@ -2103,9 +2113,15 @@ function formatRangeDisplay(task, from, to) {
   return fmt === 'day' ? `day${rangeText}` : `no.${rangeText}`;
 }
 
+// Per-task review label (e.g. "복습", "독서노트", "정리"). Defaults to 복습.
+function getReviewLabel(task) {
+  const l = (task.reviewLabel || '').trim();
+  return l || '복습';
+}
+
 function buildCopyText(task, item) {
   const rangeText = formatRange(item.from, item.to);
-  const prefix = item.isReview ? '복습 ' : '';
+  const prefix = item.isReview ? getReviewLabel(task) + ' ' : '';
   if (task.type === 'book') {
     return `${task.title} ${prefix}p.${rangeText}`;
   } else if (task.type === 'lecture') {
@@ -2773,13 +2789,14 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
     const ti = typeInfo(task.type);
     const isReview = !!item.isReview;
     const completed = isCompleted(task.id, dateStr);
-    const rangeText = (isReview ? '복습 ' : '') + formatRangeDisplay(task, item.from, item.to);
+    const rvLabel = getReviewLabel(task);
+    const rangeText = (isReview ? rvLabel + ' ' : '') + formatRangeDisplay(task, item.from, item.to);
     const copyText = buildCopyText(task, item);
     const color = getTaskColor(task);
     const cat = task.categoryId ? getCategoryById(task.categoryId) : null;
     const catPill = cat ? `<span class="agenda-cat-label">${escapeHtml(cat.name)}</span>` : '';
     const detailText = isReview
-      ? (completed ? '복습 완료!' : (isToday ? '복습' : '복습 예정'))
+      ? (completed ? `${escapeHtml(rvLabel)} 완료!` : (isToday ? escapeHtml(rvLabel) : `${escapeHtml(rvLabel)} 예정`))
       : `${item.amount}${ti.unit} ${completed ? '완료!' : (isToday ? '진행' : '예정')}`;
     return `
       <div class="agenda-item ${completed ? 'completed' : ''} ${isReview ? 'review' : ''}" data-id="${escapeAttr(task.id)}" style="--item-color: ${escapeAttr(color)};">
@@ -2898,7 +2915,7 @@ function renderWeek() {
           const ti = typeInfo(task.type);
           const isReview = !!item.isReview;
           const isItemCompleted = isCompleted(task.id, dateStr);
-          const rangeText = (isReview ? '복습 ' : '') + formatRangeDisplay(task, item.from, item.to);
+          const rangeText = (isReview ? getReviewLabel(task) + ' ' : '') + formatRangeDisplay(task, item.from, item.to);
           const copyText = buildCopyText(task, item);
           const color = getTaskColor(task);
           return `
@@ -3231,15 +3248,16 @@ function renderTasks() {
       `;
     } else if (!isArchived && todaysReview) {
       const reviewCompleted = isCompleted(task.id, todayStr);
+      const rvLabel = getReviewLabel(task);
       const reviewRange = formatRangeDisplay(task, todaysReview.from, todaysReview.to);
       const copyText = buildCopyText(task, todaysReview);
       todayCheckHtml = `
         <div class="today-check-block review ${reviewCompleted ? 'completed' : ''}">
           <button class="check" data-action="toggle-review-complete" data-id="${escapeAttr(task.id)}">${reviewCompleted ? '✓' : ''}</button>
           <div class="today-check-info">
-            <div class="today-check-label">🔁 오늘은 복습</div>
-            <div class="today-check-range">복습 ${reviewRange}</div>
-            <div class="today-check-amount">${reviewCompleted ? '복습 완료!' : '그동안 나간 범위를 훑어봐요'}</div>
+            <div class="today-check-label">🔁 오늘은 ${escapeHtml(rvLabel)}</div>
+            <div class="today-check-range">${escapeHtml(rvLabel)} ${reviewRange}</div>
+            <div class="today-check-amount">${reviewCompleted ? `${escapeHtml(rvLabel)} 완료!` : '그동안 나간 범위를 정리해요'}</div>
           </div>
           <button class="today-check-copy" data-action="copy-today-card" data-copy="${escapeAttr(copyText)}">⧉</button>
         </div>
@@ -3259,7 +3277,7 @@ function renderTasks() {
             const rangeText = (s.isReview ? '🔁 ' : '') + formatRangeDisplay(task, s.from, s.to);
             const cls = (s.isToday ? 'today' : (s.isPast ? 'past' : '')) + (s.isReview ? ' review' : '');
             const copyText = buildCopyText(task, s);
-            const amtText = s.isReview ? '복습' : `${s.amount}${ti.unitShort}`;
+            const amtText = s.isReview ? escapeHtml(getReviewLabel(task)) : `${s.amount}${ti.unitShort}`;
             return `
               <div class="schedule-row ${cls}">
                 <div class="date">${dateStr}</div>
@@ -3715,6 +3733,7 @@ function addNewTask() {
     title, type, categoryId, total, startNum, start, end,
     pace, paceValue,
     reviewDays: [...reviewDaysSel],
+    reviewLabel: (document.getElementById('f-reviewLabel').value || '').trim() || undefined,
     copyFmt: type === 'other' ? copyFmt : undefined,
     progress: 0,
     archived: false,
@@ -3735,6 +3754,7 @@ function addNewTask() {
   document.getElementById('f-from').value = '';
   document.getElementById('f-to').value = '';
   reviewDaysSel = [];
+  document.getElementById('f-reviewLabel').value = '';
   document.querySelectorAll('.form-card .review-toggle').forEach(b => b.classList.remove('active'));
   document.getElementById('formCard').classList.remove('show');
   showToast('✓ 새 목표를 추가했어요');
@@ -3780,6 +3800,7 @@ function openEditModal(id) {
 
   // Review weekdays
   editReviewDays = [...(task.reviewDays || [])];
+  document.getElementById('e-reviewLabel').value = task.reviewLabel || '';
   document.querySelectorAll('#e-review-toggles .review-toggle').forEach(b => {
     b.classList.toggle('active', editReviewDays.includes(parseInt(b.dataset.day)));
   });
@@ -3918,6 +3939,7 @@ function setupEditModal() {
 
     if (task.type === 'other') task.copyFmt = editCopyFmt;
     task.reviewDays = [...editReviewDays];
+    task.reviewLabel = (document.getElementById('e-reviewLabel').value || '').trim() || undefined;
 
     const todayStr = fmtDate(today());
     // Capture today's completion BEFORE any structural wipe, so "keep" can preserve it.
