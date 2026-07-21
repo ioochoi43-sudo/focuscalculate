@@ -183,6 +183,13 @@
     background: var(--matcha);
     border-radius: 50%;
   }
+  .build-badge {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 4px 10px 0;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
 
   .main { padding: 32px 40px 60px; overflow-x: hidden; }
   .page-header {
@@ -1552,7 +1559,9 @@
     .nav-label { display: none; }
     .nav-item { white-space: nowrap; padding: 8px 12px; font-size: 13px; }
     .nav-item .count { display: none; }
-    .sidebar-footer { display: none; }
+    .sidebar-footer { display: block; margin-top: 0; padding-top: 0; border-top: none; }
+    .sidebar-footer .storage-status { display: none; }
+    .build-badge { padding: 8px 4px 0; white-space: nowrap; }
     .main { padding: 24px 20px 60px; }
     .page-title { font-size: 22px; }
     .week-grid {
@@ -1621,6 +1630,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
+      <div class="build-badge" id="buildBadge">v1.0 · 2026-07-21</div>
     </div>
   </aside>
 
@@ -1946,6 +1956,11 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ===== VERSION =====
+// Bump this whenever you upload a new build so you can confirm the deployed version.
+const APP_VERSION = 'v1.01';
+const APP_BUILD_DATE = '2026-07-21';
+
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
 const SORT_KEY = 'focus-calculate-sort';
@@ -4237,6 +4252,10 @@ function init() {
   setupQuickDeadlineChips();
   setupCompleteModal();
   rerender();
+  // Version indicator: visible in sidebar + logged to console for easy verification.
+  const badge = document.getElementById('buildBadge');
+  if (badge) badge.textContent = `${APP_VERSION} · ${APP_BUILD_DATE}`;
+  try { console.log(`Focus Calculate ${APP_VERSION} (build ${APP_BUILD_DATE})`); } catch (e) {}
 }
 init();
 </script>
