@@ -2510,17 +2510,22 @@ function buildSchedule(task) {
 
   const schedule = [];
 
-  // === Past dates: distribute task.total evenly using a running "ideal" cursor.
-  // This avoids cumulative rounding drift — each session's `to` is computed from
-  // the true fractional position, so totals always add up exactly to totalEnd.
+  // === Past dates: distribute the amount ACTUALLY covered so far (= anchor) evenly
+  // over the passed session days. This keeps the whole timeline coherent:
+  //   past ends exactly at (startNum + anchor), future starts at (startNum + anchor + 1)
+  // — no overlap, no gap, regardless of being ahead or behind the original plan.
+  // (Previously past showed the ORIGINAL ideal plan, which could overlap or overshoot
+  //  the future when actual progress diverged — inflating review ranges and confusing
+  //  the week view.) Behind/ahead status still uses the ideal plan via expectedProgress.
+  const pastEndAbs = startNum + anchor;
   let pastCursor = startNum;
   passedDates.forEach((d, idx) => {
-    if (pastCursor >= totalEnd) return;
-    // Ideal absolute position after (idx+1) past sessions, scaled to task.total
-    const ideal = startNum + Math.round(((idx + 1) / allDates.length) * task.total);
-    const to = Math.min(totalEnd, ideal);
+    if (pastCursor >= pastEndAbs) return;
+    // Ideal absolute position after (idx+1) past sessions, scaled to the covered amount
+    const ideal = startNum + Math.round(((idx + 1) / passedDates.length) * anchor);
+    const to = Math.min(pastEndAbs, ideal);
     const from = pastCursor + 1;
-    if (to < from) return; // skip if no content for this session (extreme case)
+    if (to < from) return; // day contributed nothing (e.g. behind schedule)
     schedule.push({ date: d, from, to, amount: to - from + 1, isPast: true, isToday: false });
     pastCursor = to;
   });
