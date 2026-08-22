@@ -2001,7 +2001,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v1.1';
+const APP_VERSION = 'v1.2';
 const APP_BUILD_DATE = '2026-08-10';
 
 // ===== STATE =====
@@ -3403,8 +3403,8 @@ function renderTasks() {
       actionsHtml = `
         <div class="progress-input">
           <span class="lbl">완료</span>
-          <input type="number" min="0" max="${task.total}" value="${task.progress}" data-action="update-progress" data-id="${escapeAttr(task.id)}">
-          <span class="denom">/${task.total}${ti.unitShort}</span>
+          <input type="number" min="${startNum}" max="${startNum + task.total}" value="${startNum + task.progress}" data-action="update-progress" data-id="${escapeAttr(task.id)}" data-startnum="${startNum}">
+          <span class="denom">/${startNum + task.total}${ti.unitShort}</span>
         </div>
         ${completeBtn}
         <button class="mini-btn" data-action="edit" data-id="${escapeAttr(task.id)}">수정</button>
@@ -3434,7 +3434,7 @@ function renderTasks() {
 
         <div class="progress-block">
           <div class="progress-row">
-            <div class="num">${task.progress} <span class="denom">/ ${task.total}${ti.unitShort}</span></div>
+            <div class="num">${startNum + task.progress} <span class="denom">/ ${startNum + task.total}${ti.unitShort}</span></div>
             <div class="pct">${plan.pct}%</div>
           </div>
           <div class="progress-bar">
@@ -3532,7 +3532,9 @@ function attachTaskHandlers() {
   document.querySelectorAll('[data-action="update-progress"]').forEach(el => {
     el.addEventListener('change', (e) => {
       const id = e.target.dataset.id;
-      const val = parseInt(e.target.value) || 0;
+      const startNum = parseInt(e.target.dataset.startnum) || 0;
+      const valAbs = parseInt(e.target.value) || 0;
+      const val = valAbs - startNum; // convert absolute page number back to relative progress
       const task = tasks.find(t => t.id === id);
       if (!task) return;
       const oldProgress = task.progress;
