@@ -623,6 +623,56 @@
     color: white;
     border-color: var(--matcha);
   }
+  .durations-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .durations-list::-webkit-scrollbar { width: 4px; }
+  .durations-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .duration-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .duration-row .idx {
+    font-size: 12px;
+    color: var(--text-soft);
+    font-weight: 700;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .duration-row input {
+    flex: 1;
+    background: var(--cream-light);
+    border: 1px solid transparent;
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+  }
+  .duration-row input:focus {
+    outline: none;
+    border-color: var(--matcha);
+    background: var(--surface);
+  }
+  .duration-row input.filled { color: var(--cocoa); font-weight: 600; }
+  .bulk-paste-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 4px;
+    transition: color 0.12s;
+  }
+  .bulk-paste-toggle:hover { color: var(--cocoa); }
+
   .week-goal-refresh {
     width: 32px; height: 32px;
     border-radius: 8px;
@@ -1853,9 +1903,16 @@
             <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;">하루 가능 시간</label>
             <input type="text" id="f-dailyMinutes" placeholder="예: 2시간 30분 또는 150" style="width: 100%; background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
           </div>
-          <label style="font-size: 12px; color: var(--text-soft); margin: 12px 0 6px; display: block; font-weight: 500;">강의별 시간 <span style="color: var(--text-muted); font-weight:400;">(순서대로, 쉼표 또는 줄바꿈 구분)</span></label>
-          <textarea id="f-lectureDurations" placeholder="예: 1시간10분, 30분, 45분, 1:05, 20 ..." style="width: 100%; min-height: 80px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); resize: vertical;"></textarea>
-          <div id="f-durationsPreview" style="font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6;">강의 개수를 먼저 정해주세요 (시작~끝)</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin: 12px 0 6px;">
+            <label style="font-size: 12px; color: var(--text-soft); font-weight: 500;">강의별 시간</label>
+            <button type="button" class="bulk-paste-toggle" id="f-bulkPasteToggle">📋 붙여넣기로 채우기</button>
+          </div>
+          <div id="f-bulkPasteArea" style="display:none; margin-bottom: 8px;">
+            <textarea id="f-bulkPasteText" placeholder="예: 1시간10분, 30분, 45분, 1:05, 20 ... (순서대로, 쉼표 또는 줄바꿈 구분)" style="width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
+            <button type="button" class="mini-btn primary" id="f-bulkPasteApply" style="margin-top: 6px;">목록에 채우기</button>
+          </div>
+          <div id="f-durationsList" class="durations-list"></div>
+          <div id="f-durationsPreview" style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.6;">시작~끝을 먼저 정해주세요</div>
         </div>
       </div>
       <div style="margin-top: 24px; display: flex; gap: 8px; justify-content: flex-end;">
@@ -1953,9 +2010,16 @@
           <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;">하루 가능 시간</label>
           <input type="text" id="e-dailyMinutes" placeholder="예: 2시간 30분 또는 150" style="width: 100%; background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
         </div>
-        <label style="font-size: 12px; color: var(--text-soft); margin: 12px 0 6px; display: block; font-weight: 500;">강의별 시간 <span style="color: var(--text-muted); font-weight:400;">(순서대로, 쉼표 또는 줄바꿈 구분)</span></label>
-        <textarea id="e-lectureDurations" placeholder="예: 1시간10분, 30분, 45분, 1:05, 20 ..." style="width: 100%; min-height: 80px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); resize: vertical;"></textarea>
-        <div id="e-durationsPreview" style="font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin: 12px 0 6px;">
+          <label style="font-size: 12px; color: var(--text-soft); font-weight: 500;">강의별 시간</label>
+          <button type="button" class="bulk-paste-toggle" id="e-bulkPasteToggle">📋 붙여넣기로 채우기</button>
+        </div>
+        <div id="e-bulkPasteArea" style="display:none; margin-bottom: 8px;">
+          <textarea id="e-bulkPasteText" placeholder="예: 1시간10분, 30분, 45분, 1:05, 20 ... (순서대로, 쉼표 또는 줄바꿈 구분)" style="width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
+          <button type="button" class="mini-btn primary" id="e-bulkPasteApply" style="margin-top: 6px;">목록에 채우기</button>
+        </div>
+        <div id="e-durationsList" class="durations-list"></div>
+        <div id="e-durationsPreview" style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.6;"></div>
       </div>
     </div>
     <div id="eApplyTimingGroup" style="margin-top: 16px; display: none; background: var(--cream-light); padding: 14px; border-radius: var(--radius-sm);">
@@ -2035,7 +2099,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v1.31';
+const APP_VERSION = 'v1.4';
 const APP_BUILD_DATE = '2026-09-08';
 
 // ===== STATE =====
@@ -3997,30 +4061,105 @@ function populateCategorySelect(selectId, currentId) {
   sel.innerHTML = html;
 }
 
-// Live preview for the lecture-durations textarea, shared by the new-task form ('f'
-// prefix) and the edit modal ('e' prefix). Shows how many durations are needed vs.
-// entered, plus total playback time, so mismatches are caught before saving.
-function updateDurationsPreview(prefix) {
+// Regenerate the per-lecture duration input rows to match the current 시작~끝 count.
+// Existing values are preserved by index across regeneration (e.g. when the user
+// tweaks 끝 by one, earlier entries aren't lost).
+function renderDurationsList(prefix) {
   const fromEl = document.getElementById(prefix + '-from');
   const toEl = document.getElementById(prefix + '-to');
-  const durEl = document.getElementById(prefix + '-lectureDurations');
-  const previewEl = document.getElementById(prefix + '-durationsPreview');
-  if (!fromEl || !toEl || !durEl || !previewEl) return;
+  const listEl = document.getElementById(prefix + '-durationsList');
+  if (!fromEl || !toEl || !listEl) return;
   const fromVal = parseInt(fromEl.value), toVal = parseInt(toEl.value);
-  const needed = (fromVal && toVal && toVal >= fromVal) ? (toVal - fromVal + 1) : null;
-  const durations = parseDurationsText(durEl.value);
-  const totalMin = durations.reduce((a, v) => a + v, 0);
+  const needed = (fromVal && toVal && toVal >= fromVal) ? (toVal - fromVal + 1) : 0;
 
-  if (needed === null) {
-    previewEl.textContent = '강의 개수를 먼저 정해주세요 (시작~끝)';
+  const existing = Array.from(listEl.querySelectorAll('input')).map(i => i.value);
+
+  if (needed === 0) {
+    listEl.innerHTML = '';
+    updateDurationsPreview(prefix);
+    return;
+  }
+  let html = '';
+  for (let i = 0; i < needed; i++) {
+    const lectureNum = fromVal + i;
+    const val = existing[i] || '';
+    html += `<div class="duration-row"><span class="idx">${lectureNum}강</span><input type="text" data-dur-idx="${i}" value="${escapeAttr(val)}" placeholder="예: 1:10 또는 70"></div>`;
+  }
+  listEl.innerHTML = html;
+  listEl.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => updateDurationsPreview(prefix));
+  });
+  updateDurationsPreview(prefix);
+}
+
+// Populate the duration list for an existing task being edited: build the rows first
+// (matching its from~to range), then fill each with the task's saved values.
+function populateDurationsListFromTask(prefix, task) {
+  renderDurationsList(prefix);
+  if (Array.isArray(task.lectureDurations)) {
+    const listEl = document.getElementById(prefix + '-durationsList');
+    const inputs = Array.from(listEl.querySelectorAll('input'));
+    inputs.forEach((inp, i) => {
+      if (task.lectureDurations[i] !== undefined) inp.value = formatDuration(task.lectureDurations[i]);
+    });
+  }
+  updateDurationsPreview(prefix);
+}
+
+// Read and parse every row's value into a minutes array (same order as the list).
+// Unparsed/empty rows come back as null so callers can detect incomplete input.
+function collectDurationsFromList(prefix) {
+  const listEl = document.getElementById(prefix + '-durationsList');
+  if (!listEl) return [];
+  return Array.from(listEl.querySelectorAll('input')).map(i => parseDurationToken(i.value));
+}
+
+// Live preview beneath the duration list: how many rows are filled in vs. needed,
+// plus the running total playback time, so gaps are caught before saving.
+function updateDurationsPreview(prefix) {
+  const listEl = document.getElementById(prefix + '-durationsList');
+  const previewEl = document.getElementById(prefix + '-durationsPreview');
+  if (!listEl || !previewEl) return;
+  const inputs = Array.from(listEl.querySelectorAll('input'));
+  if (inputs.length === 0) {
+    previewEl.textContent = '시작~끝을 먼저 정해주세요';
     previewEl.style.color = 'var(--text-muted)';
     return;
   }
-  const match = durations.length === needed;
-  const countLine = `필요 ${needed}개 · 입력됨 ${durations.length}개${match ? ' ✓' : ''}`;
-  const timeLine = durations.length > 0 ? ` · 총 재생시간 ${formatDuration(totalMin)}` : '';
-  previewEl.innerHTML = countLine + timeLine;
-  previewEl.style.color = match ? 'var(--matcha)' : (durations.length === 0 ? 'var(--text-muted)' : '#c44d2e');
+  const values = inputs.map(i => parseDurationToken(i.value));
+  inputs.forEach((inp, i) => inp.classList.toggle('filled', values[i] !== null));
+  const filled = values.filter(v => v !== null).length;
+  const totalMin = values.reduce((a, v) => a + (v || 0), 0);
+  const allFilled = filled === inputs.length;
+  previewEl.innerHTML = `입력됨 ${filled}/${inputs.length}개${allFilled ? ' ✓' : ''} · 총 재생시간 ${formatDuration(totalMin)}`;
+  previewEl.style.color = allFilled ? 'var(--matcha)' : (filled === 0 ? 'var(--text-muted)' : '#c44d2e');
+}
+
+// Wire up the bulk-paste helper for a given prefix: toggling the paste textarea and
+// applying its parsed values into the individual list rows (in order).
+function setupBulkPaste(prefix) {
+  const toggleBtn = document.getElementById(prefix + '-bulkPasteToggle');
+  const area = document.getElementById(prefix + '-bulkPasteArea');
+  const applyBtn = document.getElementById(prefix + '-bulkPasteApply');
+  const textEl = document.getElementById(prefix + '-bulkPasteText');
+  if (!toggleBtn || !area || !applyBtn || !textEl) return;
+  toggleBtn.addEventListener('click', () => {
+    area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  });
+  applyBtn.addEventListener('click', () => {
+    const durations = parseDurationsText(textEl.value);
+    if (durations.length === 0) { showToast('붙여넣은 내용에서 시간을 못 읽었어요'); return; }
+    const listEl = document.getElementById(prefix + '-durationsList');
+    const inputs = Array.from(listEl.querySelectorAll('input'));
+    if (inputs.length === 0) { showToast('시작~끝을 먼저 정해주세요'); return; }
+    inputs.forEach((inp, i) => {
+      if (durations[i] !== undefined) inp.value = formatDuration(durations[i]);
+    });
+    updateDurationsPreview(prefix);
+    textEl.value = '';
+    area.style.display = 'none';
+    showToast(`✓ ${Math.min(durations.length, inputs.length)}개 채웠어요`);
+  });
 }
 
 function setupForm() {
@@ -4057,8 +4196,9 @@ function setupForm() {
       formTimeBased = false;
       document.getElementById('f-timeBasedToggle').classList.remove('active');
       document.getElementById('f-timeBasedPanel').style.display = 'none';
+    } else if (formTimeBased) {
+      renderDurationsList('f');
     }
-    updateDurationsPreview('f');
   });
 
   document.querySelectorAll('.form-card .chip[data-pace]').forEach(chip => {
@@ -4084,7 +4224,7 @@ function setupForm() {
     formTimeBased = !formTimeBased;
     document.getElementById('f-timeBasedToggle').classList.toggle('active', formTimeBased);
     document.getElementById('f-timeBasedPanel').style.display = formTimeBased ? 'block' : 'none';
-    updateDurationsPreview('f');
+    if (formTimeBased) renderDurationsList('f');
   });
   document.querySelectorAll('#f-timeBasedPanel .chip[data-timemode]').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -4092,13 +4232,11 @@ function setupForm() {
       chip.classList.add('active');
       formTimeMode = chip.dataset.timemode;
       document.getElementById('f-dailyMinutesField').style.display = formTimeMode === 'capacity' ? 'block' : 'none';
-      updateDurationsPreview('f');
     });
   });
-  document.getElementById('f-lectureDurations').addEventListener('input', () => updateDurationsPreview('f'));
-  document.getElementById('f-from').addEventListener('input', () => updateDurationsPreview('f'));
-  document.getElementById('f-to').addEventListener('input', () => updateDurationsPreview('f'));
-  document.getElementById('f-dailyMinutes').addEventListener('input', () => updateDurationsPreview('f'));
+  document.getElementById('f-from').addEventListener('input', () => renderDurationsList('f'));
+  document.getElementById('f-to').addEventListener('input', () => renderDurationsList('f'));
+  setupBulkPaste('f');
 
   document.querySelectorAll('.form-card .day-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -4174,9 +4312,9 @@ function addNewTask() {
   // Time-based lecture scheduling (optional)
   let lectureDurations, dailyMinutes;
   if (type === 'lecture' && formTimeBased) {
-    lectureDurations = parseDurationsText(document.getElementById('f-lectureDurations').value);
-    if (lectureDurations.length !== total) {
-      return showToast(`강의별 시간을 ${total}개 입력해 주세요 (현재 ${lectureDurations.length}개)`);
+    lectureDurations = collectDurationsFromList('f');
+    if (lectureDurations.length !== total || lectureDurations.some(v => v === null)) {
+      return showToast(`강의 ${total}개의 시간을 모두 입력해 주세요`);
     }
     if (formTimeMode === 'capacity') {
       dailyMinutes = parseDurationToken(document.getElementById('f-dailyMinutes').value);
@@ -4220,7 +4358,7 @@ function addNewTask() {
   formTimeMode = 'capacity';
   document.getElementById('f-timeBasedToggle').classList.remove('active');
   document.getElementById('f-timeBasedPanel').style.display = 'none';
-  document.getElementById('f-lectureDurations').value = '';
+  document.getElementById('f-durationsList').innerHTML = '';
   document.getElementById('f-dailyMinutes').value = '';
   document.querySelectorAll('#f-timeBasedPanel .chip[data-timemode]').forEach((c,i) => c.classList.toggle('active', i===0));
   document.getElementById('f-dailyMinutesField').style.display = 'block';
@@ -4291,10 +4429,7 @@ function openEditModal(id) {
   });
   document.getElementById('e-dailyMinutesField').style.display = editTimeMode === 'capacity' ? 'block' : 'none';
   document.getElementById('e-dailyMinutes').value = task.dailyMinutes ? formatDuration(task.dailyMinutes) : '';
-  document.getElementById('e-lectureDurations').value = Array.isArray(task.lectureDurations)
-    ? task.lectureDurations.map(formatDuration).join(', ')
-    : '';
-  updateDurationsPreview('e');
+  populateDurationsListFromTask('e', task);
 
   // Apply-timing option: only relevant when today's session is already completed.
   // Detect whether today is a completed session day for this task.
@@ -4339,7 +4474,7 @@ function setupEditModal() {
     editTimeBased = !editTimeBased;
     document.getElementById('e-timeBasedToggle').classList.toggle('active', editTimeBased);
     document.getElementById('e-timeBasedPanel').style.display = editTimeBased ? 'block' : 'none';
-    updateDurationsPreview('e');
+    if (editTimeBased) renderDurationsList('e');
   });
   document.querySelectorAll('#e-timemode-row .chip[data-timemode]').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -4347,13 +4482,11 @@ function setupEditModal() {
       chip.classList.add('active');
       editTimeMode = chip.dataset.timemode;
       document.getElementById('e-dailyMinutesField').style.display = editTimeMode === 'capacity' ? 'block' : 'none';
-      updateDurationsPreview('e');
     });
   });
-  document.getElementById('e-lectureDurations').addEventListener('input', () => updateDurationsPreview('e'));
-  document.getElementById('e-from').addEventListener('input', () => updateDurationsPreview('e'));
-  document.getElementById('e-to').addEventListener('input', () => updateDurationsPreview('e'));
-  document.getElementById('e-dailyMinutes').addEventListener('input', () => updateDurationsPreview('e'));
+  document.getElementById('e-from').addEventListener('input', () => renderDurationsList('e'));
+  document.getElementById('e-to').addEventListener('input', () => renderDurationsList('e'));
+  setupBulkPaste('e');
   document.querySelectorAll('#e-apply-timing-row .chip[data-apply]').forEach(chip => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('#e-apply-timing-row .chip[data-apply]').forEach(c => c.classList.remove('active'));
@@ -4430,9 +4563,9 @@ function setupEditModal() {
     // Time-based lecture scheduling validation (only for lecture type)
     let newLectureDurations, newDailyMinutes;
     if (task.type === 'lecture' && editTimeBased) {
-      newLectureDurations = parseDurationsText(document.getElementById('e-lectureDurations').value);
-      if (newLectureDurations.length !== newTotal) {
-        return showToast(`강의별 시간을 ${newTotal}개 입력해 주세요 (현재 ${newLectureDurations.length}개)`);
+      newLectureDurations = collectDurationsFromList('e');
+      if (newLectureDurations.length !== newTotal || newLectureDurations.some(v => v === null)) {
+        return showToast(`강의 ${newTotal}개의 시간을 모두 입력해 주세요`);
       }
       if (editTimeMode === 'capacity') {
         newDailyMinutes = parseDurationToken(document.getElementById('e-dailyMinutes').value);
