@@ -1841,6 +1841,23 @@
           <button class="chip" data-copyfmt="day">day (day1, day2...)</button>
         </div>
       </div>
+      <div id="timeBasedGroup" style="margin-top: 16px; display: none;">
+        <button class="chip" id="f-timeBasedToggle" type="button">⏱ 시간 기준으로 계산하기 <span style="color: var(--text-muted); font-weight:400;">(선택)</span></button>
+        <div id="f-timeBasedPanel" style="display:none; margin-top: 12px; background: var(--cream-light); padding: 14px; border-radius: var(--radius-sm);">
+          <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;">계산 기준</label>
+          <div class="pace-row">
+            <button class="chip active" data-timemode="capacity">하루 가능시간 기준</button>
+            <button class="chip" data-timemode="deadline">마감일 기준</button>
+          </div>
+          <div id="f-dailyMinutesField" style="margin-top: 12px;">
+            <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;">하루 가능 시간</label>
+            <input type="text" id="f-dailyMinutes" placeholder="예: 2시간 30분 또는 150" style="width: 100%; background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
+          </div>
+          <label style="font-size: 12px; color: var(--text-soft); margin: 12px 0 6px; display: block; font-weight: 500;">강의별 시간 <span style="color: var(--text-muted); font-weight:400;">(순서대로, 쉼표 또는 줄바꿈 구분)</span></label>
+          <textarea id="f-lectureDurations" placeholder="예: 1시간10분, 30분, 45분, 1:05, 20 ..." style="width: 100%; min-height: 80px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); resize: vertical;"></textarea>
+          <div id="f-durationsPreview" style="font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6;">강의 개수를 먼저 정해주세요 (시작~끝)</div>
+        </div>
+      </div>
       <div style="margin-top: 24px; display: flex; gap: 8px; justify-content: flex-end;">
         <button class="btn" id="btn-cancel-form">취소</button>
         <button class="btn btn-primary" id="btn-add">목표 추가</button>
@@ -1924,6 +1941,23 @@
         <button class="chip" data-copyfmt="day">day (day1, day2...)</button>
       </div>
     </div>
+    <div id="eTimeBasedGroup" style="margin-top: 16px; display: none;">
+      <button class="chip" id="e-timeBasedToggle" type="button">⏱ 시간 기준으로 계산하기 <span style="color: var(--text-muted); font-weight:400;">(선택)</span></button>
+      <div id="e-timeBasedPanel" style="display:none; margin-top: 12px; background: var(--cream-light); padding: 14px; border-radius: var(--radius-sm);">
+        <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;">계산 기준</label>
+        <div class="pace-row" id="e-timemode-row">
+          <button class="chip active" data-timemode="capacity">하루 가능시간 기준</button>
+          <button class="chip" data-timemode="deadline">마감일 기준</button>
+        </div>
+        <div id="e-dailyMinutesField" style="margin-top: 12px;">
+          <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;">하루 가능 시간</label>
+          <input type="text" id="e-dailyMinutes" placeholder="예: 2시간 30분 또는 150" style="width: 100%; background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
+        </div>
+        <label style="font-size: 12px; color: var(--text-soft); margin: 12px 0 6px; display: block; font-weight: 500;">강의별 시간 <span style="color: var(--text-muted); font-weight:400;">(순서대로, 쉼표 또는 줄바꿈 구분)</span></label>
+        <textarea id="e-lectureDurations" placeholder="예: 1시간10분, 30분, 45분, 1:05, 20 ..." style="width: 100%; min-height: 80px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); resize: vertical;"></textarea>
+        <div id="e-durationsPreview" style="font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6;"></div>
+      </div>
+    </div>
     <div id="eApplyTimingGroup" style="margin-top: 16px; display: none; background: var(--cream-light); padding: 14px; border-radius: var(--radius-sm);">
       <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 4px; display: block; font-weight: 600;">오늘 할 일을 이미 완료했어요</label>
       <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;">변경한 계획을 언제부터 적용할까요?</div>
@@ -2001,8 +2035,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v1.2';
-const APP_BUILD_DATE = '2026-08-10';
+const APP_VERSION = 'v1.31';
+const APP_BUILD_DATE = '2026-09-08';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2036,12 +2070,16 @@ let pace = 'daily';
 let copyFmt = 'no';
 let customDays = [];
 let reviewDaysSel = [];
+let formTimeBased = false;
+let formTimeMode = 'capacity';
 let editingTaskId = null;
 let editPace = 'daily';
 let editCopyFmt = 'no';
 let editCustomDays = [];
 let editReviewDays = [];
 let editApplyTiming = 'keep'; // 'keep' = preserve today's completion, 'reset' = recalc from today
+let editTimeBased = false;
+let editTimeMode = 'capacity';
 let expandedSchedules = new Set();
 let draggingCategoryId = null;
 
@@ -2149,6 +2187,90 @@ function setupQuickDeadlineChips() {
       });
     });
   });
+}
+
+// ===== TIME-BASED LECTURE SCHEDULING =====
+// Parse one duration token into minutes. Supports:
+//   "1시간10분", "1시간 10분", "1시간", "70분"  (Korean natural language)
+//   "1:10", "01:10", "1:10:00" (H:MM or H:MM:SS, seconds ignored)
+//   "70" (bare number = minutes)
+function parseDurationToken(tok) {
+  if (tok == null) return null;
+  tok = String(tok).trim();
+  if (!tok) return null;
+  const hourMatch = tok.match(/(\d+)\s*시간/);
+  const minMatch = tok.match(/(\d+)\s*분/);
+  if (hourMatch || minMatch) {
+    const h = hourMatch ? parseInt(hourMatch[1]) : 0;
+    const m = minMatch ? parseInt(minMatch[1]) : 0;
+    return h * 60 + m;
+  }
+  const colonMatch = tok.match(/^(\d+):(\d{1,2})(?::\d{1,2})?$/);
+  if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2]);
+  const num = parseFloat(tok);
+  if (!isNaN(num) && num >= 0) return Math.round(num);
+  return null;
+}
+
+// Parse a bulk-pasted block of durations (comma and/or newline separated) into an
+// array of minutes. Invalid/empty tokens are dropped.
+function parseDurationsText(text) {
+  if (!text) return [];
+  return text.split(/[,\n]+/).map(parseDurationToken).filter(v => v !== null && v >= 0);
+}
+
+// Format minutes as Korean duration text, e.g. 70 → "1시간 10분", 30 → "30분".
+function formatDuration(mins) {
+  mins = Math.max(0, Math.round(mins || 0));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}분`;
+  if (m === 0) return `${h}시간`;
+  return `${h}시간 ${m}분`;
+}
+
+// True when this task should use time-based (duration-driven) scheduling instead of
+// simple even count distribution. Requires a lectureDurations array matching task.total
+// exactly — if the count doesn't match (e.g., total was edited after durations were
+// entered), we safely fall back to normal count-based scheduling.
+function isTimeBasedTask(task) {
+  return task.type === 'lecture' && !!task.timeBased &&
+    Array.isArray(task.lectureDurations) && task.lectureDurations.length === task.total;
+}
+
+// Prefix-sum array of lecture durations: prefix[i] = total minutes for the first i
+// lectures (relative position, 1-based count). prefix[0] = 0, length = total + 1.
+function getDurationPrefix(task) {
+  const durs = Array.isArray(task.lectureDurations) ? task.lectureDurations : [];
+  const prefix = [0];
+  for (let i = 0; i < task.total; i++) prefix.push(prefix[i] + (durs[i] || 0));
+  return prefix;
+}
+
+// Advance from relative position `fromPos` (0-based lectures completed) by greedily
+// packing subsequent lectures while cumulative time stays within `timeBudget` minutes.
+// Always advances by at least 1 lecture if any remain, even if that lecture alone
+// exceeds the budget — so a single long lecture can't stall the whole schedule.
+function advanceByTimeBudget(prefix, fromPos, timeBudget) {
+  const total = prefix.length - 1;
+  if (fromPos >= total) return fromPos;
+  const startTime = prefix[fromPos];
+  let pos = fromPos;
+  while (pos < total) {
+    const elapsed = prefix[pos + 1] - startTime;
+    if (pos === fromPos || elapsed <= timeBudget) pos++;
+    else break;
+  }
+  return pos;
+}
+
+// Largest relative position reachable within a cumulative time target measured from
+// the very start (position 0). Used to interpolate an "ideal past" position.
+function positionForCumulativeTime(prefix, targetTime) {
+  const total = prefix.length - 1;
+  let pos = 0;
+  while (pos < total && prefix[pos + 1] <= targetTime) pos++;
+  return pos;
 }
 
 // ===== COPY TEXT =====
@@ -2554,7 +2676,42 @@ function getContentDates(task) {
   return allDates.filter(d => !reviewSet.has(d.getDay()));
 }
 
+// Append review-day entries to a content schedule. Shared by both count-based and
+// time-based scheduling paths so review behavior stays identical either way.
+// Review entries carry amount 0 and never affect progress math.
+function appendReviewEntries(task, contentSchedule, tdy) {
+  if (!Array.isArray(task.reviewDays) || task.reviewDays.length === 0) return contentSchedule;
+  const skipSet = new Set(task.skipDates || []);
+  const isSkipped = (d) => skipSet.has(fmtDate(d));
+  const reviewSet = new Set(task.reviewDays);
+  const startD = parseDate(task.start);
+  const endD = parseDate(task.end);
+  const spanDays = daysBetween(startD, endD) + 1;
+  const schedule = contentSchedule.slice();
+  let prevReviewDate = null;
+  for (let i = 0; i < spanDays; i++) {
+    const d = addDays(startD, i);
+    if (!reviewSet.has(d.getDay())) continue;
+    if (isSkipped(d)) { prevReviewDate = d; continue; } // postponed review day
+    const windowSessions = contentSchedule.filter(s =>
+      s.date < d && (prevReviewDate === null || s.date > prevReviewDate)
+    );
+    prevReviewDate = d;
+    if (windowSessions.length === 0) continue; // nothing to review yet
+    const rFrom = Math.min(...windowSessions.map(s => s.from));
+    const rTo = Math.max(...windowSessions.map(s => s.to));
+    schedule.push({
+      date: d, from: rFrom, to: rTo, amount: 0,
+      isPast: d < tdy, isToday: fmtDate(d) === fmtDate(tdy), isReview: true,
+    });
+  }
+  schedule.sort((a, b) => a.date - b.date);
+  return schedule;
+}
+
 function buildSchedule(task) {
+  if (isTimeBasedTask(task)) return buildTimeBasedSchedule(task);
+
   const allDates = getContentDates(task);
   const tdy = today();
   const startNum = task.startNum || 0;
@@ -2642,35 +2799,7 @@ function buildSchedule(task) {
   // === Review entries: for each calendar day in range matching a review weekday,
   // show a review of the content covered since the previous review day (planned
   // ranges). Review entries carry no new amount and never affect progress math.
-  if (Array.isArray(task.reviewDays) && task.reviewDays.length > 0) {
-    const reviewSet = new Set(task.reviewDays);
-    const startD = parseDate(task.start);
-    const endD = parseDate(task.end);
-    const spanDays = daysBetween(startD, endD) + 1;
-    const contentSessions = schedule.slice(); // content only at this point
-    let prevReviewDate = null;
-    for (let i = 0; i < spanDays; i++) {
-      const d = addDays(startD, i);
-      if (!reviewSet.has(d.getDay())) continue;
-      if (isSkipped(d)) { prevReviewDate = d; continue; } // postponed review day
-      // Sessions covered between the previous review day (exclusive) and this day (exclusive)
-      const windowSessions = contentSessions.filter(s =>
-        s.date < d && (prevReviewDate === null || s.date > prevReviewDate)
-      );
-      prevReviewDate = d;
-      if (windowSessions.length === 0) continue; // nothing to review yet
-      const rFrom = Math.min(...windowSessions.map(s => s.from));
-      const rTo = Math.max(...windowSessions.map(s => s.to));
-      schedule.push({
-        date: d, from: rFrom, to: rTo,
-        amount: 0,
-        isPast: d < tdy,
-        isToday: fmtDate(d) === fmtDate(tdy),
-        isReview: true,
-      });
-    }
-    schedule.sort((a, b) => a.date - b.date);
-  }
+  const scheduleWithReviews = appendReviewEntries(task, schedule, tdy);
 
   let status = 'active';
   const daysToEnd = daysBetween(tdy, parseDate(task.end));
@@ -2680,12 +2809,179 @@ function buildSchedule(task) {
   else if (task.progress > expectedProgress + originalPerSession * 0.5) status = 'ahead';
 
   return {
-    allDates, remainingDates, schedule, perSession, expectedProgress, status,
+    allDates, remainingDates, schedule: scheduleWithReviews, perSession, expectedProgress, status,
     pct: task.total > 0 ? Math.min(100, Math.round((task.progress / task.total) * 100)) : 0,
     expectedPct: task.total > 0 ? Math.min(100, Math.round((expectedProgress / task.total) * 100)) : 0,
     daysToEnd,
     behind: Math.max(0, expectedProgress - task.progress),
   };
+}
+
+// ===== TIME-BASED SCHEDULE (lecture tasks with per-lecture durations) =====
+// Same output shape as buildSchedule() so every renderer, the week-goal snapshot,
+// postpone, review days, and the complete-modal all work unchanged. Only the amount
+// assigned to each day differs: instead of an even item-count split, we greedily pack
+// lectures into each day based on their actual durations, either against a fixed daily
+// time budget ("capacity" mode) or a dynamically recomputed daily time target that's
+// guaranteed to land exactly on the deadline ("deadline" mode — mirrors the drift-free
+// count-based algorithm, just operating on minutes instead of item counts).
+function buildTimeBasedSchedule(task) {
+  const allDates = getContentDates(task);
+  const tdy = today();
+  const startNum = task.startNum || 0;
+  const totalEnd = startNum + task.total;
+  const prefix = getDurationPrefix(task);
+  const totalTime = prefix[task.total];
+
+  const skipSet = new Set(task.skipDates || []);
+  const isSkipped = (d) => skipSet.has(fmtDate(d));
+
+  const remainingDates = allDates.filter(d => d >= tdy && !isSkipped(d));
+  const passedDates = allDates.filter(d => d < tdy);
+
+  const isCapacity = task.timeMode === 'capacity';
+  const dailyMinutes = Math.max(1, task.dailyMinutes || 1);
+
+  // "밀림/앞섬" status needs a TIME-AWARE expected position — a naive average-count
+  // estimate would mislead when lecture lengths vary a lot (e.g. long lectures early,
+  // short ones late). Simulate the IDEAL plan from day 1 through today:
+  //   capacity mode: fixed daily budget applied sequentially across all passed days.
+  //   deadline mode: proportional interpolation over the full deadline's total time.
+  let expectedProgress;
+  if (isCapacity) {
+    let simPos = 0;
+    passedDates.forEach(() => { simPos = advanceByTimeBudget(prefix, simPos, dailyMinutes); });
+    expectedProgress = Math.min(task.total, simPos);
+  } else {
+    const targetTimeAll = allDates.length > 0 ? Math.round((passedDates.length / allDates.length) * totalTime) : 0;
+    expectedProgress = Math.min(task.total, positionForCumulativeTime(prefix, targetTimeAll));
+  }
+  // Kept for return-value shape parity with buildSchedule (unused in status calc below,
+  // which now compares against the time-aware expectedProgress directly).
+  const originalPerSession = allDates.length > 0 ? task.total / allDates.length : 0;
+
+  const anchor = getTodayAnchor(task); // relative lecture count, same semantics as count-based tasks
+
+  const schedule = [];
+
+  // === Past dates: smooth interpolation ending exactly at the anchor, using TIME to
+  // decide how much of the anchor's content "should" have been reached by each past
+  // day. Mode-agnostic (both capacity and deadline modes just need a coherent history
+  // that connects cleanly to today's actual position) — mirrors the count-based
+  // proportional-to-anchor reconstruction, generalized to heterogeneous item sizes.
+  const anchorTime = prefix[anchor];
+  let pastCursorRel = 0;
+  passedDates.forEach((d, idx) => {
+    if (pastCursorRel >= anchor) return;
+    const targetTime = Math.round(((idx + 1) / passedDates.length) * anchorTime);
+    let newCursorRel = Math.min(anchor, positionForCumulativeTime(prefix, targetTime));
+    const fromRel = pastCursorRel + 1;
+    if (newCursorRel < fromRel) return; // day contributed nothing
+    schedule.push({
+      date: d, from: startNum + fromRel, to: startNum + newCursorRel,
+      amount: newCursorRel - fromRel + 1, isPast: true, isToday: false,
+    });
+    pastCursorRel = newCursorRel;
+  });
+
+  // === Future dates ===
+  let cursorRel = anchor;
+  const tdyStr = fmtDate(tdy);
+  const progressAbs = startNum + task.progress;
+
+  remainingDates.forEach((d, idx) => {
+    if (startNum + cursorRel >= totalEnd) return;
+    const isThisToday = fmtDate(d) === tdyStr;
+    let newCursorRel;
+    if (isThisToday && progressAbs > startNum + cursorRel) {
+      // Today, with real progress made past the day's start → end at actual progress
+      newCursorRel = task.progress;
+    } else if (isCapacity) {
+      // Fixed daily time budget, regardless of deadline — completion date is a result.
+      newCursorRel = advanceByTimeBudget(prefix, cursorRel, dailyMinutes);
+    } else {
+      // Deadline mode: recompute the daily time target from remaining time / remaining
+      // days at each step (drift-free — the last remaining day always consumes exactly
+      // the rest, landing precisely on totalEnd).
+      const daysLeft = remainingDates.length - idx;
+      const timeLeft = totalTime - prefix[cursorRel];
+      if (daysLeft <= 0 || timeLeft <= 0) return;
+      const dailyTarget = Math.round(timeLeft / daysLeft);
+      newCursorRel = advanceByTimeBudget(prefix, cursorRel, dailyTarget);
+    }
+    const fromAbs = startNum + cursorRel + 1;
+    const toAbs = startNum + newCursorRel;
+    if (toAbs < fromAbs) return;
+    schedule.push({
+      date: d, from: fromAbs, to: toAbs,
+      amount: toAbs - fromAbs + 1, isPast: false, isToday: isThisToday,
+    });
+    cursorRel = newCursorRel;
+  });
+
+  const scheduleWithReviews = appendReviewEntries(task, schedule, tdy);
+
+  let status = 'active';
+  const daysToEnd = daysBetween(tdy, parseDate(task.end));
+  if (task.progress >= task.total) status = 'done';
+  else if (daysToEnd < 0) status = 'overdue';
+  else if (task.progress < expectedProgress - 0.5) status = 'behind';
+  else if (task.progress > expectedProgress + originalPerSession * 0.5) status = 'ahead';
+
+  // Capacity mode: if the fixed daily budget can't fit everything by the deadline,
+  // remainingDates will run out before cursorRel reaches task.total. Estimate the
+  // actual finish date by continuing the same pace/skip pattern beyond the deadline,
+  // so the user can see when they'd really finish (and decide to raise the daily
+  // budget or push the deadline out).
+  let capacityFinishDate = null;
+  let capacityInsufficient = false;
+  if (isCapacity && cursorRel < task.total) {
+    capacityInsufficient = true;
+    capacityFinishDate = estimateCapacityFinishDate(task, prefix, cursorRel, tdy);
+  }
+
+  return {
+    allDates, remainingDates, schedule: scheduleWithReviews, perSession: 0, expectedProgress, status,
+    pct: task.total > 0 ? Math.min(100, Math.round((task.progress / task.total) * 100)) : 0,
+    expectedPct: task.total > 0 ? Math.min(100, Math.round((expectedProgress / task.total) * 100)) : 0,
+    daysToEnd,
+    behind: Math.max(0, expectedProgress - task.progress),
+    isTimeBased: true,
+    totalTime,
+    capacityFinishDate,
+    capacityInsufficient,
+  };
+}
+
+// For capacity mode, when the fixed daily budget can't complete everything within the
+// stated deadline, keep generating future session dates (same pace/custom-days/review
+// pattern) beyond `task.end` until all lectures are covered, and return that date.
+// Capped at ~3 years out as a safety bound against pathological inputs (e.g. 0-minute
+// budget) so this can never hang the UI.
+function estimateCapacityFinishDate(task, prefix, startCursorRel, tdy) {
+  const dailyMinutes = Math.max(1, task.dailyMinutes || 1);
+  const paceCfg = { type: task.pace, value: task.paceValue };
+  const reviewSet = new Set(task.reviewDays || []);
+  const skipSet = new Set(task.skipDates || []);
+  let cursorRel = startCursorRel;
+  let d = addDays(parseDate(task.end), 1);
+  const hardStop = addDays(tdy, 365 * 3);
+  let guard = 0;
+  while (cursorRel < task.total && d <= hardStop && guard < 20000) {
+    guard++;
+    const dow = d.getDay();
+    let isSessionDay = false;
+    if (paceCfg.type === 'daily') isSessionDay = true;
+    else if (paceCfg.type === 'every-other') isSessionDay = (daysBetween(parseDate(task.start), d) % 2 === 0);
+    else if (paceCfg.type === 'weekly-n') isSessionDay = true; // approximate: treat as daily beyond deadline for estimation
+    else if (paceCfg.type === 'custom-days') isSessionDay = (paceCfg.value || []).includes(dow);
+    if (isSessionDay && !reviewSet.has(dow) && !skipSet.has(fmtDate(d))) {
+      cursorRel = advanceByTimeBudget(prefix, cursorRel, dailyMinutes);
+    }
+    if (cursorRel >= task.total) return d;
+    d = addDays(d, 1);
+  }
+  return cursorRel >= task.total ? d : null; // null = pathological input, couldn't converge
 }
 
 function sortTasks(list) {
@@ -3476,6 +3772,11 @@ function renderTasks() {
             <div class="v">${plan.remainingDates.length}<span class="small">회</span></div>
           </div>
         </div>
+        ${plan.capacityInsufficient ? `
+        <div style="font-size: 12px; color: #c44d2e; background: #FDE5DC; padding: 8px 12px; border-radius: var(--radius-sm); margin-top: -4px;">
+          ⚠️ 하루 ${formatDuration(task.dailyMinutes)}로는 마감일 안에 못 끝나요.${plan.capacityFinishDate ? ` 이 속도면 ${fmtDate(plan.capacityFinishDate)}에 끝나요.` : ''}
+        </div>
+        ` : ''}
         ${scheduleHtml}
         `}
         <div class="task-actions">${actionsHtml}</div>
@@ -3696,6 +3997,32 @@ function populateCategorySelect(selectId, currentId) {
   sel.innerHTML = html;
 }
 
+// Live preview for the lecture-durations textarea, shared by the new-task form ('f'
+// prefix) and the edit modal ('e' prefix). Shows how many durations are needed vs.
+// entered, plus total playback time, so mismatches are caught before saving.
+function updateDurationsPreview(prefix) {
+  const fromEl = document.getElementById(prefix + '-from');
+  const toEl = document.getElementById(prefix + '-to');
+  const durEl = document.getElementById(prefix + '-lectureDurations');
+  const previewEl = document.getElementById(prefix + '-durationsPreview');
+  if (!fromEl || !toEl || !durEl || !previewEl) return;
+  const fromVal = parseInt(fromEl.value), toVal = parseInt(toEl.value);
+  const needed = (fromVal && toVal && toVal >= fromVal) ? (toVal - fromVal + 1) : null;
+  const durations = parseDurationsText(durEl.value);
+  const totalMin = durations.reduce((a, v) => a + v, 0);
+
+  if (needed === null) {
+    previewEl.textContent = '강의 개수를 먼저 정해주세요 (시작~끝)';
+    previewEl.style.color = 'var(--text-muted)';
+    return;
+  }
+  const match = durations.length === needed;
+  const countLine = `필요 ${needed}개 · 입력됨 ${durations.length}개${match ? ' ✓' : ''}`;
+  const timeLine = durations.length > 0 ? ` · 총 재생시간 ${formatDuration(totalMin)}` : '';
+  previewEl.innerHTML = countLine + timeLine;
+  previewEl.style.color = match ? 'var(--matcha)' : (durations.length === 0 ? 'var(--text-muted)' : '#c44d2e');
+}
+
 function setupForm() {
   const t = today();
   document.getElementById('f-start').value = fmtDate(t);
@@ -3724,6 +4051,14 @@ function setupForm() {
     }
     // Show copy format only for 'other'
     document.getElementById('copyFormatGroup').style.display = (v === 'other') ? 'block' : 'none';
+    // Show time-based option only for 'lecture'
+    document.getElementById('timeBasedGroup').style.display = (v === 'lecture') ? 'block' : 'none';
+    if (v !== 'lecture') {
+      formTimeBased = false;
+      document.getElementById('f-timeBasedToggle').classList.remove('active');
+      document.getElementById('f-timeBasedPanel').style.display = 'none';
+    }
+    updateDurationsPreview('f');
   });
 
   document.querySelectorAll('.form-card .chip[data-pace]').forEach(chip => {
@@ -3744,6 +4079,26 @@ function setupForm() {
       copyFmt = chip.dataset.copyfmt;
     });
   });
+
+  document.getElementById('f-timeBasedToggle').addEventListener('click', () => {
+    formTimeBased = !formTimeBased;
+    document.getElementById('f-timeBasedToggle').classList.toggle('active', formTimeBased);
+    document.getElementById('f-timeBasedPanel').style.display = formTimeBased ? 'block' : 'none';
+    updateDurationsPreview('f');
+  });
+  document.querySelectorAll('#f-timeBasedPanel .chip[data-timemode]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#f-timeBasedPanel .chip[data-timemode]').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      formTimeMode = chip.dataset.timemode;
+      document.getElementById('f-dailyMinutesField').style.display = formTimeMode === 'capacity' ? 'block' : 'none';
+      updateDurationsPreview('f');
+    });
+  });
+  document.getElementById('f-lectureDurations').addEventListener('input', () => updateDurationsPreview('f'));
+  document.getElementById('f-from').addEventListener('input', () => updateDurationsPreview('f'));
+  document.getElementById('f-to').addEventListener('input', () => updateDurationsPreview('f'));
+  document.getElementById('f-dailyMinutes').addEventListener('input', () => updateDurationsPreview('f'));
 
   document.querySelectorAll('.form-card .day-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -3816,6 +4171,19 @@ function addNewTask() {
     paceValue = [...customDays];
   }
 
+  // Time-based lecture scheduling (optional)
+  let lectureDurations, dailyMinutes;
+  if (type === 'lecture' && formTimeBased) {
+    lectureDurations = parseDurationsText(document.getElementById('f-lectureDurations').value);
+    if (lectureDurations.length !== total) {
+      return showToast(`강의별 시간을 ${total}개 입력해 주세요 (현재 ${lectureDurations.length}개)`);
+    }
+    if (formTimeMode === 'capacity') {
+      dailyMinutes = parseDurationToken(document.getElementById('f-dailyMinutes').value);
+      if (!dailyMinutes || dailyMinutes <= 0) return showToast('하루 가능 시간을 입력해 주세요');
+    }
+  }
+
   const task = {
     id: 'tsk_' + Date.now() + '_' + Math.floor(Math.random()*1000),
     title, type, categoryId, total, startNum, start, end,
@@ -3827,6 +4195,10 @@ function addNewTask() {
     archived: false,
     created: Date.now(),
     skipDates: [],
+    timeBased: type === 'lecture' && formTimeBased,
+    timeMode: formTimeMode,
+    lectureDurations: (type === 'lecture' && formTimeBased) ? lectureDurations : undefined,
+    dailyMinutes: (type === 'lecture' && formTimeBased && formTimeMode === 'capacity') ? dailyMinutes : undefined,
   };
 
   // Validation: review weekdays must leave at least one new-content session day
@@ -3844,6 +4216,14 @@ function addNewTask() {
   reviewDaysSel = [];
   document.getElementById('f-reviewLabel').value = '';
   document.querySelectorAll('.form-card .review-toggle').forEach(b => b.classList.remove('active'));
+  formTimeBased = false;
+  formTimeMode = 'capacity';
+  document.getElementById('f-timeBasedToggle').classList.remove('active');
+  document.getElementById('f-timeBasedPanel').style.display = 'none';
+  document.getElementById('f-lectureDurations').value = '';
+  document.getElementById('f-dailyMinutes').value = '';
+  document.querySelectorAll('#f-timeBasedPanel .chip[data-timemode]').forEach((c,i) => c.classList.toggle('active', i===0));
+  document.getElementById('f-dailyMinutesField').style.display = 'block';
   document.getElementById('formCard').classList.remove('show');
   showToast('✓ 새 목표를 추가했어요');
   rerender();
@@ -3900,6 +4280,22 @@ function openEditModal(id) {
     c.classList.toggle('active', c.dataset.copyfmt === editCopyFmt);
   });
 
+  // Time-based lecture scheduling (only for 'lecture')
+  document.getElementById('eTimeBasedGroup').style.display = (task.type === 'lecture') ? 'block' : 'none';
+  editTimeBased = !!task.timeBased;
+  editTimeMode = task.timeMode || 'capacity';
+  document.getElementById('e-timeBasedToggle').classList.toggle('active', editTimeBased);
+  document.getElementById('e-timeBasedPanel').style.display = editTimeBased ? 'block' : 'none';
+  document.querySelectorAll('#e-timemode-row .chip[data-timemode]').forEach(c => {
+    c.classList.toggle('active', c.dataset.timemode === editTimeMode);
+  });
+  document.getElementById('e-dailyMinutesField').style.display = editTimeMode === 'capacity' ? 'block' : 'none';
+  document.getElementById('e-dailyMinutes').value = task.dailyMinutes ? formatDuration(task.dailyMinutes) : '';
+  document.getElementById('e-lectureDurations').value = Array.isArray(task.lectureDurations)
+    ? task.lectureDurations.map(formatDuration).join(', ')
+    : '';
+  updateDurationsPreview('e');
+
   // Apply-timing option: only relevant when today's session is already completed.
   // Detect whether today is a completed session day for this task.
   const todayStr = fmtDate(today());
@@ -3939,6 +4335,25 @@ function setupEditModal() {
       editCopyFmt = chip.dataset.copyfmt;
     });
   });
+  document.getElementById('e-timeBasedToggle').addEventListener('click', () => {
+    editTimeBased = !editTimeBased;
+    document.getElementById('e-timeBasedToggle').classList.toggle('active', editTimeBased);
+    document.getElementById('e-timeBasedPanel').style.display = editTimeBased ? 'block' : 'none';
+    updateDurationsPreview('e');
+  });
+  document.querySelectorAll('#e-timemode-row .chip[data-timemode]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#e-timemode-row .chip[data-timemode]').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      editTimeMode = chip.dataset.timemode;
+      document.getElementById('e-dailyMinutesField').style.display = editTimeMode === 'capacity' ? 'block' : 'none';
+      updateDurationsPreview('e');
+    });
+  });
+  document.getElementById('e-lectureDurations').addEventListener('input', () => updateDurationsPreview('e'));
+  document.getElementById('e-from').addEventListener('input', () => updateDurationsPreview('e'));
+  document.getElementById('e-to').addEventListener('input', () => updateDurationsPreview('e'));
+  document.getElementById('e-dailyMinutes').addEventListener('input', () => updateDurationsPreview('e'));
   document.querySelectorAll('#e-apply-timing-row .chip[data-apply]').forEach(chip => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('#e-apply-timing-row .chip[data-apply]').forEach(c => c.classList.remove('active'));
@@ -4012,6 +4427,19 @@ function setupEditModal() {
       return showToast('복습 요일이 모든 일정을 덮어요. 요일을 조정해 주세요');
     }
 
+    // Time-based lecture scheduling validation (only for lecture type)
+    let newLectureDurations, newDailyMinutes;
+    if (task.type === 'lecture' && editTimeBased) {
+      newLectureDurations = parseDurationsText(document.getElementById('e-lectureDurations').value);
+      if (newLectureDurations.length !== newTotal) {
+        return showToast(`강의별 시간을 ${newTotal}개 입력해 주세요 (현재 ${newLectureDurations.length}개)`);
+      }
+      if (editTimeMode === 'capacity') {
+        newDailyMinutes = parseDurationToken(document.getElementById('e-dailyMinutes').value);
+        if (!newDailyMinutes || newDailyMinutes <= 0) return showToast('하루 가능 시간을 입력해 주세요');
+      }
+    }
+
     const oldStartNum = task.startNum || 0;
     const oldTotal = task.total;
 
@@ -4026,6 +4454,12 @@ function setupEditModal() {
     task.paceValue = newPaceValue;
 
     if (task.type === 'other') task.copyFmt = editCopyFmt;
+    if (task.type === 'lecture') {
+      task.timeBased = editTimeBased;
+      task.timeMode = editTimeMode;
+      task.lectureDurations = editTimeBased ? newLectureDurations : undefined;
+      task.dailyMinutes = (editTimeBased && editTimeMode === 'capacity') ? newDailyMinutes : undefined;
+    }
     task.reviewDays = [...editReviewDays];
     task.reviewLabel = (document.getElementById('e-reviewLabel').value || '').trim() || undefined;
 
