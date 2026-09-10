@@ -1723,7 +1723,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v1.0 · 2026-07-21</div>
+      <div class="build-badge" id="buildBadge">v1.41 · 최근 업데이트 2026-09-10</div>
     </div>
   </aside>
 
@@ -2099,8 +2099,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v1.4';
-const APP_BUILD_DATE = '2026-09-08';
+const APP_VERSION = 'v1.41';
+const APP_BUILD_DATE = '2026-09-10';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -3973,7 +3973,10 @@ function attachTaskHandlers() {
       const task = tasks.find(t => t.id === e.currentTarget.dataset.id);
       if (!task) return;
       task.archived = true;
-      task.completedAt = new Date().toISOString();
+      // Use local date (not UTC toISOString) so completion date matches the user's
+      // actual calendar day — toISOString() shifts to a day earlier for KST users
+      // during 00:00–08:59 local time, since Korea is UTC+9.
+      task.completedAt = fmtDate(new Date());
       persistTasks();
       showToast('✓ 보관함으로 이동했어요');
       rerender();
@@ -3995,7 +3998,8 @@ function attachTaskHandlers() {
       const task = tasks.find(t => t.id === e.currentTarget.dataset.id);
       if (!task) return;
       task.paused = true;
-      task.pausedAt = new Date().toISOString();
+      // Same local-date fix as completedAt — avoids the UTC off-by-one for KST users.
+      task.pausedAt = fmtDate(new Date());
       persistTasks();
       showToast('⏸ 일시중단했어요. 언제든 다시 시작할 수 있어요');
       rerender();
@@ -4889,7 +4893,7 @@ function init() {
   rerender();
   // Version indicator: visible in sidebar + logged to console for easy verification.
   const badge = document.getElementById('buildBadge');
-  if (badge) badge.textContent = `${APP_VERSION} · ${APP_BUILD_DATE}`;
+  if (badge) badge.textContent = `${APP_VERSION} · 최근 업데이트 ${APP_BUILD_DATE}`;
   try { console.log(`Focus Calculate ${APP_VERSION} (build ${APP_BUILD_DATE})`); } catch (e) {}
 }
 init();
