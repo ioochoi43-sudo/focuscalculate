@@ -656,6 +656,12 @@
     font-size: 13px;
     border-radius: 6px;
   }
+  .name-row .part-field {
+    max-width: 90px;
+    flex: 0 0 90px;
+    color: var(--text-soft);
+    font-size: 12px;
+  }
   .duration-row input:focus {
     outline: none;
     border-color: var(--matcha);
@@ -1723,7 +1729,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v1.5 · 최근 업데이트 2026-09-10</div>
+      <div class="build-badge" id="buildBadge">v1.6 · 최근 업데이트 2026-09-10</div>
     </div>
   </aside>
 
@@ -2131,7 +2137,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v1.5';
+const APP_VERSION = 'v1.6';
 const APP_BUILD_DATE = '2026-09-10';
 
 // ===== STATE =====
@@ -2393,16 +2399,15 @@ function formatRangeDisplay(task, from, to) {
   return fmt === 'day' ? `day${rangeText}` : `no.${rangeText}`;
 }
 
-// True when this task's items have custom names (e.g. "Part1 - Ch1") instead of plain
-// numbers. Requires an itemNames array matching task.total exactly — if the count is
-// off (e.g. total was edited after naming), we safely fall back to numeric display.
+// True when this task's items have custom names (e.g. "Ch1") instead of plain numbers.
+// Requires an itemNames array matching task.total exactly — if the count is off (e.g.
+// total was edited after naming), we safely fall back to numeric display.
 function hasValidItemNames(task) {
   return task.type === 'other' && !!task.showNames &&
     Array.isArray(task.itemNames) && task.itemNames.length === task.total;
 }
 
-// Name for one absolute position (startNum+1 .. startNum+total). Falls back to a
-// plain "N번째" if the name is missing for some reason.
+// Chapter/title name for one absolute position. Falls back to a plain "N번째" if missing.
 function itemNameAt(task, absPos) {
   const startNum = task.startNum || 0;
   const idx = absPos - startNum - 1;
@@ -2411,18 +2416,67 @@ function itemNameAt(task, absPos) {
   return n || `${absPos - startNum}번째`;
 }
 
-// Named-range display: "Part1-Ch1" (single), "Part1-Ch1, Part1-Ch2" (2 items), or
-// "Part1-Ch1 ~ Part1-Ch3" (3+) — mirrors the numeric formatRange comma/tilde rule.
-function formatNamedRange(task, from, to) {
-  const nFrom = itemNameAt(task, from);
-  if (from === to) return nFrom;
-  const nTo = itemNameAt(task, to);
-  if (to - from + 1 === 2) return `${nFrom}, ${nTo}`;
-  return `${nFrom} ~ ${nTo}`;
+// Part/group name for one absolute position (e.g. "Part1"). Empty string if this task
+// has no part grouping — callers treat that as "ungrouped", falling back to plain
+// chapter-name display exactly as before.
+function itemPartAt(task, absPos) {
+  const startNum = task.startNum || 0;
+  const idx = absPos - startNum - 1;
+  const parts = task.itemParts || [];
+  return (idx >= 0 && idx < parts.length) ? (parts[idx] || '').trim() : '';
 }
 
-// Parse a bulk-pasted block of item names (comma/newline separated) into a trimmed,
-// non-empty string array — same separator convention as duration parsing.
+// Named-range display, grouped by Part when available:
+//   no part data:        "Ch1" (single) / "Ch1, Ch2" (2) / "Ch1 ~ Ch3" (3+)
+//   same part:            "Part1 Ch1" / "Part1 Ch1, Ch2" / "Part1 Ch1~Ch3"
+//   crosses parts:         "Part1 Ch3 ~ Part2 Ch2"
+function formatNamedRange(task, from, to) {
+  const partFrom = itemPartAt(task, from);
+  const chFrom = itemNameAt(task, from);
+  if (from === to) return partFrom ? `${partFrom} ${chFrom}` : chFrom;
+
+  const partTo = itemPartAt(task, to);
+  const chTo = itemNameAt(task, to);
+  const count = to - from + 1;
+
+  if (partFrom && partFrom === partTo) {
+    // Same part: show the part name once, join just the chapter portion.
+    return count === 2 ? `${partFrom} ${chFrom}, ${chTo}` : `${partFrom} ${chFrom}~${chTo}`;
+  }
+  const label1 = partFrom ? `${partFrom} ${chFrom}` : chFrom;
+  const label2 = partTo ? `${partTo} ${chTo}` : chTo;
+  return `${label1} ~ ${label2}`;
+}
+
+// Parse a bulk-pasted outline into parallel {parts, names} arrays. Any line starting
+// with "Part"/"파트" (case-insensitive) starts a new group and becomes that group's
+// part label for every following line, until the next Part line. Lines before any
+// Part line are treated as ungrouped (empty part). This lets someone paste:
+//   Part1
+//   Ch1
+//   Ch2
+//   Part2
+//   Ch1
+// and get both the grouping and the chapter titles in one paste.
+function parsePartedNamesText(text) {
+  if (!text) return { parts: [], names: [] };
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+    .flatMap(l => l.split(',').map(s => s.trim()).filter(Boolean));
+  const parts = [], names = [];
+  let currentPart = '';
+  lines.forEach(line => {
+    if (/^(part|파트)\b/i.test(line)) {
+      currentPart = line;
+    } else {
+      parts.push(currentPart);
+      names.push(line);
+    }
+  });
+  return { parts, names };
+}
+
+// Parse a flat bulk-pasted list of titles (no part grouping) — used for lecture
+// durations' sibling inputs and as a fallback. Same separator convention throughout.
 function parseNamesText(text) {
   if (!text) return [];
   return text.split(/[,\n]+/).map(s => s.trim()).filter(Boolean);
@@ -4241,6 +4295,8 @@ function setupBulkPaste(prefix) {
 
 // Regenerate the per-item title input rows to match the current 시작~끝 count.
 // Existing values are preserved by index across regeneration, same as durations list.
+// Regenerate the per-item rows: a small "파트" (part/group) field plus the chapter
+// title field. Existing values are preserved by index across regeneration.
 function renderNamesList(prefix) {
   const fromEl = document.getElementById(prefix + '-from');
   const toEl = document.getElementById(prefix + '-to');
@@ -4249,7 +4305,8 @@ function renderNamesList(prefix) {
   const fromVal = parseInt(fromEl.value), toVal = parseInt(toEl.value);
   const needed = (fromVal && toVal && toVal >= fromVal) ? (toVal - fromVal + 1) : 0;
 
-  const existing = Array.from(listEl.querySelectorAll('input')).map(i => i.value);
+  const existingParts = Array.from(listEl.querySelectorAll('input[data-part-idx]')).map(i => i.value);
+  const existingNames = Array.from(listEl.querySelectorAll('input[data-name-idx]')).map(i => i.value);
 
   if (needed === 0) {
     listEl.innerHTML = '';
@@ -4259,8 +4316,13 @@ function renderNamesList(prefix) {
   let html = '';
   for (let i = 0; i < needed; i++) {
     const itemNum = fromVal + i;
-    const val = existing[i] || '';
-    html += `<div class="duration-row"><span class="idx">${itemNum}번</span><input type="text" data-name-idx="${i}" value="${escapeAttr(val)}" placeholder="예: Part1 - Ch${i+1}"></div>`;
+    const partVal = existingParts[i] || '';
+    const nameVal = existingNames[i] || '';
+    html += `<div class="duration-row name-row">
+      <span class="idx">${itemNum}번</span>
+      <input type="text" class="part-field" data-part-idx="${i}" value="${escapeAttr(partVal)}" placeholder="파트(이어짐)">
+      <input type="text" data-name-idx="${i}" value="${escapeAttr(nameVal)}" placeholder="예: Ch${i+1}">
+    </div>`;
   }
   listEl.innerHTML = html;
   listEl.querySelectorAll('input').forEach(inp => {
@@ -4270,47 +4332,58 @@ function renderNamesList(prefix) {
 }
 
 // Populate the names list for an existing task being edited: build the rows first
-// (matching its from~to range), then fill each with the task's saved titles.
+// (matching its from~to range), then fill each with the task's saved part + titles.
 function populateNamesListFromTask(prefix, task) {
   renderNamesList(prefix);
+  const listEl = document.getElementById(prefix + '-namesList');
+  const partInputs = Array.from(listEl.querySelectorAll('input[data-part-idx]'));
+  const nameInputs = Array.from(listEl.querySelectorAll('input[data-name-idx]'));
+  if (Array.isArray(task.itemParts)) {
+    partInputs.forEach((inp, i) => { if (task.itemParts[i] !== undefined) inp.value = task.itemParts[i]; });
+  }
   if (Array.isArray(task.itemNames)) {
-    const listEl = document.getElementById(prefix + '-namesList');
-    const inputs = Array.from(listEl.querySelectorAll('input'));
-    inputs.forEach((inp, i) => {
-      if (task.itemNames[i] !== undefined) inp.value = task.itemNames[i];
-    });
+    nameInputs.forEach((inp, i) => { if (task.itemNames[i] !== undefined) inp.value = task.itemNames[i]; });
   }
   updateNamesPreview(prefix);
 }
 
-// Read every row's trimmed title (empty string = unfilled).
+// Read every row's chapter title (trimmed; empty = unfilled) and its part, with
+// "이어짐" inheritance: a blank 파트 field inherits the nearest non-blank part above
+// it, so the user only has to type the part name once at the start of each group.
 function collectNamesFromList(prefix) {
   const listEl = document.getElementById(prefix + '-namesList');
-  if (!listEl) return [];
-  return Array.from(listEl.querySelectorAll('input')).map(i => i.value.trim());
+  if (!listEl) return { names: [], parts: [] };
+  const names = Array.from(listEl.querySelectorAll('input[data-name-idx]')).map(i => i.value.trim());
+  const rawParts = Array.from(listEl.querySelectorAll('input[data-part-idx]')).map(i => i.value.trim());
+  let lastPart = '';
+  const parts = rawParts.map(p => { if (p) lastPart = p; return lastPart; });
+  return { names, parts };
 }
 
-// Live preview beneath the names list: how many rows are filled in vs. needed.
+// Live preview beneath the names list: how many chapter titles are filled in vs.
+// needed, plus how many distinct parts/groups are currently in use.
 function updateNamesPreview(prefix) {
   const listEl = document.getElementById(prefix + '-namesList');
   const previewEl = document.getElementById(prefix + '-namesPreview');
   if (!listEl || !previewEl) return;
-  const inputs = Array.from(listEl.querySelectorAll('input'));
-  if (inputs.length === 0) {
+  const nameInputs = Array.from(listEl.querySelectorAll('input[data-name-idx]'));
+  if (nameInputs.length === 0) {
     previewEl.textContent = '시작~끝을 먼저 정해주세요';
     previewEl.style.color = 'var(--text-muted)';
     return;
   }
-  const values = inputs.map(i => i.value.trim());
-  inputs.forEach((inp, i) => inp.classList.toggle('filled', values[i] !== ''));
-  const filled = values.filter(v => v !== '').length;
-  const allFilled = filled === inputs.length;
-  previewEl.innerHTML = `입력됨 ${filled}/${inputs.length}개${allFilled ? ' ✓' : ''}`;
+  const { names, parts } = collectNamesFromList(prefix);
+  nameInputs.forEach((inp, i) => inp.classList.toggle('filled', names[i] !== ''));
+  const filled = names.filter(v => v !== '').length;
+  const allFilled = filled === nameInputs.length;
+  const partCount = new Set(parts.filter(Boolean)).size;
+  const partLine = partCount > 0 ? ` · 파트 ${partCount}개` : '';
+  previewEl.innerHTML = `입력됨 ${filled}/${nameInputs.length}개${allFilled ? ' ✓' : ''}${partLine}`;
   previewEl.style.color = allFilled ? 'var(--matcha)' : (filled === 0 ? 'var(--text-muted)' : '#c44d2e');
 }
 
-// Wire up the bulk-paste helper for the item-names list (parallel to setupBulkPaste,
-// but fills text titles via parseNamesText instead of durations).
+// Wire up the bulk-paste helper for the item-names list: parses the "Part" grouped
+// text format and fills both the 파트 and chapter columns in one go.
 function setupBulkPasteNames(prefix) {
   const toggleBtn = document.getElementById(prefix + '-namesBulkToggle');
   const area = document.getElementById(prefix + '-namesBulkArea');
@@ -4321,18 +4394,25 @@ function setupBulkPasteNames(prefix) {
     area.style.display = area.style.display === 'none' ? 'block' : 'none';
   });
   applyBtn.addEventListener('click', () => {
-    const names = parseNamesText(textEl.value);
+    const { parts, names } = parsePartedNamesText(textEl.value);
     if (names.length === 0) { showToast('붙여넣은 내용에서 제목을 못 읽었어요'); return; }
     const listEl = document.getElementById(prefix + '-namesList');
-    const inputs = Array.from(listEl.querySelectorAll('input'));
-    if (inputs.length === 0) { showToast('시작~끝을 먼저 정해주세요'); return; }
-    inputs.forEach((inp, i) => {
-      if (names[i] !== undefined) inp.value = names[i];
+    const partInputs = Array.from(listEl.querySelectorAll('input[data-part-idx]'));
+    const nameInputs = Array.from(listEl.querySelectorAll('input[data-name-idx]'));
+    if (nameInputs.length === 0) { showToast('시작~끝을 먼저 정해주세요'); return; }
+    nameInputs.forEach((inp, i) => { if (names[i] !== undefined) inp.value = names[i]; });
+    // Only write the part field where the group actually changes, so the visual
+    // "이어짐" placeholder pattern still shows through for the rest of the group.
+    let lastWritten = null;
+    partInputs.forEach((inp, i) => {
+      const p = parts[i] || '';
+      if (p !== lastWritten) { inp.value = p; lastWritten = p; }
+      else inp.value = '';
     });
     updateNamesPreview(prefix);
     textEl.value = '';
     area.style.display = 'none';
-    showToast(`✓ ${Math.min(names.length, inputs.length)}개 채웠어요`);
+    showToast(`✓ ${Math.min(names.length, nameInputs.length)}개 채웠어요`);
   });
 }
 
@@ -4499,9 +4579,11 @@ function addNewTask() {
   }
 
   // Item names / chapter titles (optional, 'other' type only)
-  let itemNames;
+  let itemNames, itemParts;
   if (type === 'other' && formShowNames) {
-    itemNames = collectNamesFromList('f');
+    const collected = collectNamesFromList('f');
+    itemNames = collected.names;
+    itemParts = collected.parts;
     if (itemNames.length !== total || itemNames.some(v => v === '')) {
       return showToast(`항목 ${total}개의 제목을 모두 입력해 주세요`);
     }
@@ -4529,6 +4611,7 @@ function addNewTask() {
     copyFmt: type === 'other' ? copyFmt : undefined,
     showNames: type === 'other' && formShowNames,
     itemNames: (type === 'other' && formShowNames) ? itemNames : undefined,
+    itemParts: (type === 'other' && formShowNames) ? itemParts : undefined,
     progress: 0,
     archived: false,
     created: Date.now(),
@@ -4778,9 +4861,11 @@ function setupEditModal() {
     }
 
     // Item names / chapter titles validation (only for 'other' type)
-    let newItemNames;
+    let newItemNames, newItemParts;
     if (task.type === 'other' && editShowNames) {
-      newItemNames = collectNamesFromList('e');
+      const collected = collectNamesFromList('e');
+      newItemNames = collected.names;
+      newItemParts = collected.parts;
       if (newItemNames.length !== newTotal || newItemNames.some(v => v === '')) {
         return showToast(`항목 ${newTotal}개의 제목을 모두 입력해 주세요`);
       }
@@ -4816,6 +4901,7 @@ function setupEditModal() {
       task.copyFmt = editCopyFmt;
       task.showNames = editShowNames;
       task.itemNames = editShowNames ? newItemNames : undefined;
+      task.itemParts = editShowNames ? newItemParts : undefined;
     }
     if (task.type === 'lecture') {
       task.timeBased = editTimeBased;
