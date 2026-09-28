@@ -1729,7 +1729,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v1.6 · 최근 업데이트 2026-09-10</div>
+      <div class="build-badge" id="buildBadge">v1.61 · 최근 업데이트 2026-09-10</div>
     </div>
   </aside>
 
@@ -2137,7 +2137,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v1.6';
+const APP_VERSION = 'v1.61';
 const APP_BUILD_DATE = '2026-09-10';
 
 // ===== STATE =====
@@ -2465,7 +2465,7 @@ function parsePartedNamesText(text) {
   const parts = [], names = [];
   let currentPart = '';
   lines.forEach(line => {
-    if (/^(part|파트)\b/i.test(line)) {
+    if (/^(part|파트)/i.test(line)) {
       currentPart = line;
     } else {
       parts.push(currentPart);
