@@ -598,6 +598,41 @@
     font-size: 11px;
     margin-left: 6px;
   }
+  .pp-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    transition: all 0.12s;
+  }
+  .pp-option:hover:not(:disabled) { border-color: var(--matcha); background: var(--matcha-light); }
+  .pp-option:disabled { opacity: 0.45; cursor: not-allowed; }
+  .pp-option .t { font-size: 14px; font-weight: 700; color: var(--cocoa); }
+  .pp-option .d { font-size: 12px; color: var(--text-soft); margin-top: 4px; line-height: 1.5; }
+  .week-goal-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .week-goal-hint.hold { color: #6b8536; font-weight: 600; }
+  .week-goal-lock {
+    margin-left: auto;
+    background: var(--cocoa);
+    color: var(--cream);
+    border: none;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .week-goals-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .week-goal-copy {
     height: 32px;
     padding: 0 12px;
@@ -1739,7 +1774,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v1.8 · 최근 업데이트 2026-10-01</div>
+      <div class="build-badge" id="buildBadge">v2.0 · 최근 업데이트 2026-10-01</div>
     </div>
   </aside>
 
@@ -2125,6 +2160,24 @@
 </div>
 
 <!-- Complete-amount Modal -->
+<div class="modal-backdrop" id="postponeModal">
+  <div class="modal" style="max-width: 440px;">
+    <div class="modal-title">오늘 분량을 어디에 담을까요?</div>
+    <p id="pp-sub" style="font-size: 13px; color: var(--text-soft); margin-bottom: 16px; line-height: 1.6;"></p>
+    <button type="button" class="pp-option" id="pp-week">
+      <div class="t">📌 이번 주 안에 채우기</div>
+      <div class="d" id="pp-week-desc"></div>
+    </button>
+    <button type="button" class="pp-option" id="pp-deadline">
+      <div class="t">📅 마감일까지 나누기</div>
+      <div class="d" id="pp-deadline-desc"></div>
+    </button>
+    <div class="modal-actions">
+      <button class="btn" id="pp-cancel">취소</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="completeModal">
   <div class="modal" style="max-width: 420px;">
     <div class="modal-title" id="cm-title">오늘 어디까지 했나요?</div>
@@ -2147,7 +2200,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v1.8';
+const APP_VERSION = 'v2.0';
 const APP_BUILD_DATE = '2026-10-01';
 
 // ===== STATE =====
@@ -2817,7 +2870,9 @@ function commitCompleteModal() {
   const todayStr = fmtDate(today());
   const anchor = Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
 
-  task.progress = Math.max(0, Math.min(task.total, newProgress));
+  // "오늘 어디까지 했나요" can't go below where today started — a smaller number just
+  // means "nothing done today", never a silent rollback of earlier days' progress.
+  task.progress = Math.max(anchor, Math.min(task.total, newProgress));
 
   if (task.progress > anchor) {
     setCompleted(task.id, todayStr, true, task.progress - anchor);
@@ -2927,6 +2982,27 @@ function appendReviewEntries(task, contentSchedule, tdy) {
   return schedule;
 }
 
+// "이번 주 안에 채우기" (chosen when postponing): while active for the CURRENT week, this
+// week's remaining session days aim to reach hold.endAbs by Sunday — the week goal the
+// user wrote down — and only what's left after that spreads over later weeks up to the
+// deadline. Ignored automatically once the week is over (weekStart no longer matches).
+function getWeekHold(task, tdy) {
+  const h = task.weekHold;
+  if (!h || typeof h.endAbs !== 'number' || h.weekStart !== fmtDate(startOfWeek(tdy))) return null;
+  return { endAbs: h.endAbs, weekEnd: addDays(parseDate(h.weekStart), 6) };
+}
+
+// Once the deadline has passed with work still left, there are no session days to put
+// it on — previously it silently vanished from 오늘/이번 주. Show everything remaining as
+// today's catch-up session instead, so unfinished work can't disappear.
+function appendCatchUpSession(task, schedule, anchor, tdy, remainingDates) {
+  if (remainingDates.length > 0 || anchor >= task.total) return;
+  if (daysBetween(tdy, parseDate(task.end)) >= 0) return; // deadline not passed yet
+  const startNum = task.startNum || 0;
+  const from = startNum + anchor + 1, to = startNum + task.total;
+  schedule.push({ date: tdy, from, to, amount: to - from + 1, isPast: false, isToday: true, isCatchUp: true });
+}
+
 function buildSchedule(task) {
   if (isTimeBasedTask(task)) return buildTimeBasedSchedule(task);
 
@@ -2941,7 +3017,9 @@ function buildSchedule(task) {
   const isSkipped = (d) => skipSet.has(fmtDate(d));
 
   const remainingDates = allDates.filter(d => d >= tdy && !isSkipped(d));
-  const passedDates = allDates.filter(d => d < tdy);
+  // Postponed past days are excluded: they never get a reconstructed "past" range and
+  // don't count toward "밀림" — postponing is an intentional re-plan, not falling behind.
+  const passedDates = allDates.filter(d => d < tdy && !isSkipped(d));
   const originalPerSession = allDates.length > 0 ? task.total / allDates.length : 0;
   const expectedProgress = Math.min(task.total, Math.round(passedDates.length * originalPerSession));
 
@@ -2988,6 +3066,10 @@ function buildSchedule(task) {
   let cursor = startNum + anchor;
   const tdyStr = fmtDate(tdy);
   const progressAbs = startNum + task.progress; // absolute progress position
+  // Week hold: segment A = remaining days through Sunday aim at holdEnd; segment B = the rest.
+  const hold = getWeekHold(task, tdy);
+  const inWeekCount = hold ? remainingDates.filter(d => d <= hold.weekEnd).length : 0;
+  const holdEnd = hold ? (inWeekCount === remainingDates.length ? totalEnd : Math.min(totalEnd, hold.endAbs)) : null;
 
   remainingDates.forEach((d, idx) => {
     if (cursor >= totalEnd) return;
@@ -2997,8 +3079,9 @@ function buildSchedule(task) {
       // Today and some progress already made past the day's start → end at real progress
       to = Math.min(totalEnd, progressAbs);
     } else {
-      const daysLeft = remainingDates.length - idx;
-      const amountLeft = totalEnd - cursor;
+      const inHold = hold && idx < inWeekCount && cursor < holdEnd;
+      const daysLeft = inHold ? inWeekCount - idx : remainingDates.length - idx;
+      const amountLeft = inHold ? holdEnd - cursor : totalEnd - cursor;
       if (daysLeft <= 0 || amountLeft <= 0) return;
       const amt = Math.round(amountLeft / daysLeft);
       to = Math.min(totalEnd, cursor + amt);
@@ -3017,6 +3100,7 @@ function buildSchedule(task) {
   // === Review entries: for each calendar day in range matching a review weekday,
   // show a review of the content covered since the previous review day (planned
   // ranges). Review entries carry no new amount and never affect progress math.
+  appendCatchUpSession(task, schedule, anchor, tdy, remainingDates);
   const scheduleWithReviews = appendReviewEntries(task, schedule, tdy);
 
   let status = 'active';
@@ -3055,7 +3139,9 @@ function buildTimeBasedSchedule(task) {
   const isSkipped = (d) => skipSet.has(fmtDate(d));
 
   const remainingDates = allDates.filter(d => d >= tdy && !isSkipped(d));
-  const passedDates = allDates.filter(d => d < tdy);
+  // Postponed past days are excluded: they never get a reconstructed "past" range and
+  // don't count toward "밀림" — postponing is an intentional re-plan, not falling behind.
+  const passedDates = allDates.filter(d => d < tdy && !isSkipped(d));
 
   const isCapacity = task.timeMode === 'capacity';
   const dailyMinutes = Math.max(1, task.dailyMinutes || 1);
@@ -3106,6 +3192,10 @@ function buildTimeBasedSchedule(task) {
   let cursorRel = anchor;
   const tdyStr = fmtDate(tdy);
   const progressAbs = startNum + task.progress;
+  const hold = isCapacity ? null : getWeekHold(task, tdy);
+  const inWeekCount = hold ? remainingDates.filter(d => d <= hold.weekEnd).length : 0;
+  const holdRel = hold ? (inWeekCount === remainingDates.length ? task.total
+    : Math.max(0, Math.min(task.total, hold.endAbs - startNum))) : null;
 
   remainingDates.forEach((d, idx) => {
     if (startNum + cursorRel >= totalEnd) return;
@@ -3121,11 +3211,14 @@ function buildTimeBasedSchedule(task) {
       // Deadline mode: recompute the daily time target from remaining time / remaining
       // days at each step (drift-free — the last remaining day always consumes exactly
       // the rest, landing precisely on totalEnd).
-      const daysLeft = remainingDates.length - idx;
-      const timeLeft = totalTime - prefix[cursorRel];
+      const inHold = hold && idx < inWeekCount && cursorRel < holdRel;
+      const daysLeft = inHold ? inWeekCount - idx : remainingDates.length - idx;
+      const targetRel = inHold ? holdRel : task.total;
+      const timeLeft = prefix[targetRel] - prefix[cursorRel];
       if (daysLeft <= 0 || timeLeft <= 0) return;
       const dailyTarget = Math.round(timeLeft / daysLeft);
-      newCursorRel = advanceByTimeBudget(prefix, cursorRel, dailyTarget);
+      newCursorRel = Math.min(targetRel, advanceByTimeBudget(prefix, cursorRel, dailyTarget));
+      if (daysLeft === 1) newCursorRel = targetRel; // last day of the segment lands exactly
     }
     const fromAbs = startNum + cursorRel + 1;
     const toAbs = startNum + newCursorRel;
@@ -3137,6 +3230,7 @@ function buildTimeBasedSchedule(task) {
     cursorRel = newCursorRel;
   });
 
+  appendCatchUpSession(task, schedule, anchor, tdy, remainingDates);
   const scheduleWithReviews = appendReviewEntries(task, schedule, tdy);
 
   let status = 'active';
@@ -3378,7 +3472,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
     return;
   }
   const dateStr = fmtDate(targetDate);
-  el.innerHTML = items.map(({ task, item }) => {
+  el.innerHTML = items.map(({ task, item, plan }) => {
     const ti = typeInfo(task.type);
     const isReview = !!item.isReview;
     const isFinal = isFinalSession(task, item);
@@ -3392,7 +3486,9 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
     const finalPill = isFinal ? `<span class="agenda-final-pill">🎉 ${getCompletionLabel(task.type)}</span>` : '';
     const detailText = isReview
       ? (completed ? `${escapeHtml(rvLabel)} 완료!` : (isToday ? escapeHtml(rvLabel) : `${escapeHtml(rvLabel)} 예정`))
-      : `${item.amount}${ti.unit} ${completed ? '완료!' : (isToday ? '진행' : '예정')}`;
+      : item.isCatchUp
+        ? `${completed ? '완료!' : `⚠️ 기한 지남 · 남은 ${item.amount}${ti.unit}`}`
+        : `${item.amount}${ti.unit} ${completed ? '완료!' : (isToday ? '진행' : '예정')}`;
     return `
       <div class="agenda-item ${completed ? 'completed' : ''} ${isReview ? 'review' : ''}" data-id="${escapeAttr(task.id)}" style="--item-color: ${escapeAttr(color)};">
         <button class="agenda-check" data-action="toggle-complete" data-id="${escapeAttr(task.id)}" data-date="${dateStr}" data-target="${item.to - (task.startNum || 0)}" data-amount="${item.amount}" data-is-today="${isToday}" data-review="${isReview}">${completed ? '✓' : ''}</button>
@@ -3406,7 +3502,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
           </div>
         </div>
         <button class="agenda-copy" data-action="copy-item" data-copy="${escapeAttr(copyText)}" title="복사: ${escapeAttr(copyText)}">⧉</button>
-        ${isToday && !completed && !isReview ? `<button class="agenda-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
+        ${isToday && !completed && !isReview && !item.isCatchUp && plan && plan.remainingDates.length > 1 ? `<button class="agenda-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
       </div>
     `;
   }).join('');
@@ -3459,7 +3555,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
   el.querySelectorAll('[data-action="postpone-today"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      postponeToday(btn.dataset.id);
+      openPostponeModal(btn.dataset.id);
     });
   });
 }
@@ -3596,17 +3692,37 @@ function ensureWeekGoalSnapshots() {
   if (changed) persistWeekGoals();
 }
 
-// Re-freeze one task's current-week goal from the live plan (manual refresh / after edits).
-function refreshWeekGoal(taskId) {
+// Re-freeze one task's goal for a week (default: the current week) from the live plan.
+function refreshWeekGoal(taskId, weekStartStr) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
-  const monday = startOfWeek(today());
-  const weekStartStr = fmtDate(monday);
-  const weekEndStr = fmtDate(addDays(monday, 6));
+  if (!weekStartStr) weekStartStr = fmtDate(startOfWeek(today()));
+  const weekEndStr = fmtDate(addDays(parseDate(weekStartStr), 6));
   const key = taskId + '|' + weekStartStr;
   const g = computeWeekGoal(task, weekStartStr, weekEndStr);
   if (g) weekGoalsMap.set(key, g);
   else weekGoalsMap.delete(key);
+  persistWeekGoals();
+}
+
+// After a plan edit, re-freeze this task's goal for the current week and for any future
+// week the user already locked (e.g. "다음 주 목표 확정" on Sunday), so goals follow the new plan.
+function refreshWeekGoalsAfterEdit(taskId) {
+  const cur = fmtDate(startOfWeek(today()));
+  const weeks = new Set([cur]);
+  weekGoalsMap.forEach((v, k) => { const [id, ws] = k.split('|'); if (id === taskId && ws > cur) weeks.add(ws); });
+  weeks.forEach(ws => refreshWeekGoal(taskId, ws));
+}
+
+// Lock (snapshot) every active task's goal for a given week — used for next week on Sunday,
+// so the numbers copied into a planner are exactly the ones that stay fixed all that week.
+function lockWeekGoals(weekStartStr) {
+  const weekEndStr = fmtDate(addDays(parseDate(weekStartStr), 6));
+  tasks.filter(isTaskActive).forEach(task => {
+    const g = computeWeekGoal(task, weekStartStr, weekEndStr);
+    const key = task.id + '|' + weekStartStr;
+    if (g) weekGoalsMap.set(key, g); else weekGoalsMap.delete(key);
+  });
   persistWeekGoals();
 }
 
@@ -3621,24 +3737,27 @@ function renderWeekGoals(weekStart, weekEnd) {
   let candidates = filterByCategory(tasks.filter(isTaskActive));
   const goals = [];
 
+  const isFutureWeek = weekStartStr > fmtDate(startOfWeek(today()));
   candidates.forEach(task => {
     let g = null;
     let frozen = false;
-    if (isCurrentWeek) {
-      const stored = weekGoalsMap.get(task.id + '|' + weekStartStr);
-      if (stored) { g = stored; frozen = true; }
-    }
-    if (!g) g = computeWeekGoal(task, weekStartStr, weekEndStr);
+    const stored = (isCurrentWeek || isFutureWeek) ? weekGoalsMap.get(task.id + '|' + weekStartStr) : null;
+    if (stored) { g = stored; frozen = true; }
+    const live = computeWeekGoal(task, weekStartStr, weekEndStr);
+    if (!g) g = live;
     if (!g) return;
-    goals.push({ task, from: g.from, to: g.to, amount: g.amount, frozen });
+    goals.push({ task, from: g.from, to: g.to, amount: g.amount, frozen, live });
   });
 
   if (goals.length === 0) { container.innerHTML = ''; return; }
 
-  const titleSuffix = isCurrentWeek
-    ? ` <span style="font-weight:500; text-transform:none; letter-spacing:0; color:var(--text-muted);">· 주 시작 기준 고정</span>`
+  const allFrozen = goals.every(x => x.frozen);
+  const weekName = isCurrentWeek ? '이번 주' : (document.getElementById('weekNavTitle').textContent || '이 주');
+  const muted = (t) => ` <span style="font-weight:500; text-transform:none; letter-spacing:0; color:var(--text-muted);">· ${t}</span>`;
+  const titleSuffix = isCurrentWeek ? muted('주 시작 기준 고정')
+    : isFutureWeek ? (allFrozen ? muted('📌 확정됨') : muted('미리보기 · 계획이 바뀌면 같이 바뀌어요') + `<button class="week-goal-lock" data-action="lock-week-goals">📌 이 목표로 확정</button>`)
     : '';
-  container.innerHTML = `<div class="week-goals-title">이번 주 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, frozen }) => {
+  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, frozen, live }) => {
     const ti = typeInfo(task.type);
     const color = getTaskColor(task);
     const rangeDisplay = formatRangeDisplay(task, from, to);
@@ -3648,12 +3767,21 @@ function renderWeekGoals(weekStart, weekEnd) {
     const refreshBtn = frozen
       ? `<button class="week-goal-refresh" data-action="refresh-week-goal" data-id="${escapeAttr(task.id)}" title="현재 계획 기준으로 다시 고정">↻</button>`
       : '';
+    // Under a frozen goal, show where the LIVE plan currently lands this week, so it's
+    // obvious when postponing (to the deadline) has pulled the week short of the goal.
+    let hint = '';
+    if (frozen && isCurrentWeek) {
+      const holding = !!getWeekHold(task, today());
+      if (holding) hint = `<div class="week-goal-hint hold">📌 이번 주 목표에 맞춰 나누는 중</div>`;
+      else if (live && live.to !== to) hint = `<div class="week-goal-hint">지금 계획대로면 ${formatRangeDisplay(task, live.from, live.to)}까지 (미루기 반영)</div>`;
+    }
     return `
       <div class="week-goal-item" style="--item-color: ${escapeAttr(color)};">
         <div class="week-goal-icon">${ti.icon}</div>
         <div class="week-goal-info">
           <div class="week-goal-title">${escapeHtml(task.title)}${finalPill}</div>
           <div class="week-goal-range">${rangeDisplay}<span class="amt">총 ${amount}${ti.unit}</span></div>
+          ${hint}
         </div>
         ${refreshBtn}
         <button class="week-goal-copy" data-action="copy-week-goal" data-copy="${escapeAttr(copyText)}" title="이번 주 전체 복사">⧉ 복사</button>
@@ -3670,10 +3798,16 @@ function renderWeekGoals(weekStart, weekEnd) {
   container.querySelectorAll('[data-action="refresh-week-goal"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      refreshWeekGoal(btn.dataset.id);
-      showToast('↻ 이번 주 목표를 다시 고정했어요');
+      refreshWeekGoal(btn.dataset.id, weekStartStr);
+      showToast('↻ 현재 계획 기준으로 다시 고정했어요');
       rerender();
     });
+  });
+  const lockBtn = container.querySelector('[data-action="lock-week-goals"]');
+  if (lockBtn) lockBtn.addEventListener('click', () => {
+    lockWeekGoals(weekStartStr);
+    showToast(`📌 ${weekName} 목표를 확정했어요`);
+    rerender();
   });
 }
 
@@ -3839,9 +3973,9 @@ function renderTasks() {
           <div class="today-check-info">
             <div class="today-check-label">오늘 할 일${isFinalToday ? ` <span class="today-final-pill">🎉 ${getCompletionLabel(task.type)}</span>` : ''}</div>
             <div class="today-check-range">${todayRangeText}</div>
-            <div class="today-check-amount">${todaysSession.amount}${ti.unit} ${todayCompleted ? '완료!' : '진행 예정'}</div>
+            <div class="today-check-amount">${todaysSession.amount}${ti.unit} ${todayCompleted ? '완료!' : (todaysSession.isCatchUp ? '· ⚠️ 기한 지남' : '진행 예정')}</div>
           </div>
-          ${!todayCompleted ? `<button class="today-check-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
+          ${!todayCompleted && !todaysSession.isCatchUp && plan.remainingDates.length > 1 ? `<button class="today-check-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
           <button class="today-check-copy" data-action="copy-today-card" data-copy="${escapeAttr(copyText)}">⧉</button>
         </div>
       `;
@@ -4008,12 +4142,76 @@ function renderTasks() {
 // Postpone today's session for a task: add today to its skipDates so the planned
 // amount redistributes across the remaining (non-skipped) days. Today's plan then
 // disappears from today/week/schedule views. Clears any today completion record.
-function postponeToday(taskId) {
+// Apply a postpone to a task object (real or a preview clone).
+//   mode 'week'     → keep this week's goal: hold the plan to the week's frozen target
+//   mode 'deadline' → spread over all remaining days to the deadline (clears any hold)
+function applyPostpone(task, mode) {
+  const tdy = today();
+  const todayStr = fmtDate(tdy);
+  if (!Array.isArray(task.skipDates)) task.skipDates = [];
+  if (mode === 'week') {
+    const ws = fmtDate(startOfWeek(tdy));
+    const snap = weekGoalsMap.get(task.id + '|' + ws);
+    const target = snap ? snap.to : (computeWeekGoal(task, ws, fmtDate(addDays(parseDate(ws), 6))) || {}).to;
+    if (typeof target === 'number') task.weekHold = { weekStart: ws, endAbs: target };
+  } else {
+    task.weekHold = undefined;
+  }
+  if (!task.skipDates.includes(todayStr)) task.skipDates.push(todayStr);
+}
+
+// What this week's plan would end at under each postpone choice (computed by actually
+// simulating it on a copy, so the numbers shown in the dialog are always truthful).
+function previewPostpone(task, mode) {
+  const clone = JSON.parse(JSON.stringify(task));
+  applyPostpone(clone, mode);
+  const tdy = today();
+  const ws = fmtDate(startOfWeek(tdy)), we = fmtDate(addDays(startOfWeek(tdy), 6));
+  const plan = buildSchedule(clone);
+  const weekDaysLeft = plan.remainingDates.filter(d => fmtDate(d) <= we).length;
+  return { goal: computeWeekGoal(clone, ws, we), weekDaysLeft, anyDaysLeft: plan.remainingDates.length };
+}
+
+let postponeTaskId = null;
+function openPostponeModal(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  // Fixed daily-budget (capacity) plans can't be squeezed into the week — postpone directly.
+  if (isTimeBasedTask(task) && task.timeMode === 'capacity') { postponeToday(taskId, 'deadline'); return; }
+  const pw = previewPostpone(task, 'week');
+  const pd = previewPostpone(task, 'deadline');
+  // Deadline inside this week (or nothing differs) → both choices are identical, don't ask.
+  const sameResult = pw.goal && pd.goal && pw.goal.to === pd.goal.to;
+  if (sameResult || pw.weekDaysLeft === 0 && pd.anyDaysLeft === 0) { postponeToday(taskId, 'deadline'); return; }
+  postponeTaskId = taskId;
+  const ws = fmtDate(startOfWeek(today()));
+  const snap = weekGoalsMap.get(task.id + '|' + ws);
+  const fmt = (g) => g ? formatRangeDisplay(task, g.from, g.to) : '—';
+  document.getElementById('pp-sub').innerHTML =
+    `<strong>${escapeHtml(task.title)}</strong>` + (snap ? `<br>이번 주 목표: ${fmt(snap)}` : '');
+  const weekBtn = document.getElementById('pp-week');
+  weekBtn.disabled = pw.weekDaysLeft === 0;
+  document.getElementById('pp-week-desc').textContent = pw.weekDaysLeft === 0
+    ? '이번 주에 남은 공부일이 없어서 고를 수 없어요'
+    : `이번 주 남은 ${pw.weekDaysLeft}일에 나눠 담아요 → 이번 주 ${fmt(pw.goal)}`;
+  document.getElementById('pp-deadline-desc').textContent =
+    `마감일(${task.end.slice(5).replace('-', '/')})까지 고르게 나눠요 → 이번 주 ${fmt(pd.goal)}`;
+  document.getElementById('postponeModal').classList.add('show');
+}
+
+function setupPostponeModal() {
+  const close = () => { document.getElementById('postponeModal').classList.remove('show'); postponeTaskId = null; };
+  document.getElementById('pp-cancel').addEventListener('click', close);
+  document.getElementById('pp-week').addEventListener('click', () => { const id = postponeTaskId; close(); if (id) postponeToday(id, 'week'); });
+  document.getElementById('pp-deadline').addEventListener('click', () => { const id = postponeTaskId; close(); if (id) postponeToday(id, 'deadline'); });
+}
+
+function postponeToday(taskId, mode = 'deadline') {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
   const todayStr = fmtDate(today());
-  if (!Array.isArray(task.skipDates)) task.skipDates = [];
-  if (!task.skipDates.includes(todayStr)) task.skipDates.push(todayStr);
+  const prevHold = task.weekHold;
+  applyPostpone(task, mode);
   // If today was marked complete, undo that (since we're postponing it)
   if (isCompleted(taskId, todayStr)) {
     const recorded = getCompletedAmount(taskId, todayStr);
@@ -4028,11 +4226,12 @@ function postponeToday(taskId) {
     showToast('⚠️ 남은 날이 없어 미룰 수 없어요. 마감일을 늘려보세요');
     // revert the skip since it can't be absorbed
     task.skipDates = task.skipDates.filter(d => d !== todayStr);
+    task.weekHold = prevHold;
     persistTasks();
     rerender();
     return;
   }
-  showToast('오늘은 건너뛰고 남은 날에 나눠 담았어요');
+  showToast(mode === 'week' ? '오늘 분량을 이번 주 남은 날에 나눠 담았어요' : '오늘 분량을 마감일까지 나눠 담았어요');
   rerender();
 }
 
@@ -4052,10 +4251,12 @@ function attachTaskHandlers() {
     el.addEventListener('change', (e) => {
       const id = e.target.dataset.id;
       const startNum = parseInt(e.target.dataset.startnum) || 0;
-      const valAbs = parseInt(e.target.value) || 0;
-      const val = valAbs - startNum; // convert absolute page number back to relative progress
+      const valAbs = parseInt(e.target.value);
       const task = tasks.find(t => t.id === id);
       if (!task) return;
+      // Blank / non-numeric input (e.g. field cleared by accident) must NOT wipe progress.
+      if (isNaN(valAbs)) { rerender(); return; }
+      const val = valAbs - startNum; // convert absolute page number back to relative progress
       const oldProgress = task.progress;
       task.progress = Math.max(0, Math.min(task.total, val));
       syncTodayCompletion(task, oldProgress);
@@ -4113,7 +4314,7 @@ function attachTaskHandlers() {
   document.querySelectorAll('[data-action="postpone-today"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      postponeToday(btn.dataset.id);
+      openPostponeModal(btn.dataset.id);
     });
   });
   document.querySelectorAll('[data-action="unpostpone-today"]').forEach(btn => {
@@ -5030,6 +5231,11 @@ function setupEditModal() {
 
     const oldStartNum = task.startNum || 0;
     const oldTotal = task.total;
+    // Absolute position where TODAY began (before any of today's work), captured before
+    // the edit mutates anything — used by "오늘 건 유지" to recompute today's amount.
+    const todayStrPre = fmtDate(today());
+    const startOfTodayAbs = oldStartNum + getTodayAnchor(task);
+    const todayWasDonePre = isCompleted(task.id, todayStrPre);
 
     task.title = newTitle;
     task.categoryId = newCategoryId;
@@ -5072,18 +5278,22 @@ function setupEditModal() {
       persistCompleted();
     }
 
-    if (editApplyTiming === 'keep' && todayWasDone) {
-      // Keep today's completion: today stays done, and the changed plan applies from the
-      // next session day onward. (anchor = progress − today's amount → today unaffected)
-      setCompleted(task.id, todayStr, true, todayDoneAmount);
+    if (editApplyTiming === 'keep' && todayWasDonePre) {
+      // Keep today's completion: today still starts where it began; today's amount is
+      // recomputed from the (possibly edited) current position so "오늘 한 양" stays true.
+      const amt = Math.min(task.progress, (newStartNum + task.progress) - startOfTodayAbs);
+      if (amt > 0) setCompleted(task.id, todayStr, true, amt);
+      else setCompleted(task.id, todayStr, false);
     } else {
       // Reset: recompute today fresh from the entered current position.
       if (isCompleted(task.id, todayStr)) setCompleted(task.id, todayStr, false);
     }
 
     persistTasks();
-    // The plan changed — re-freeze this task's current-week goal from the new plan.
-    refreshWeekGoal(task.id);
+    // The plan changed — drop any "이번 주 안에 채우기" hold (it referred to the old plan)
+    // and re-freeze this week's (and any locked future week's) goal from the new plan.
+    task.weekHold = undefined;
+    refreshWeekGoalsAfterEdit(task.id);
     document.getElementById('editModal').classList.remove('show');
     showToast('✓ 수정되었어요');
     rerender();
@@ -5339,6 +5549,21 @@ function setupDataIO() {
 }
 
 // ===== INIT =====
+// If the app stays open (e.g. iPad home-screen app resumed the next morning), "today"
+// would otherwise stay frozen on yesterday until something is tapped. Re-render whenever
+// the calendar day changes: on focus/visibility return, and once a minute as a backstop.
+let lastRenderDay = null;
+function checkDayRollover() {
+  const d = fmtDate(today());
+  if (lastRenderDay !== null && d !== lastRenderDay) {
+    lastRenderDay = d;
+    ensureWeekGoalSnapshots();
+    rerender();
+  } else {
+    lastRenderDay = d;
+  }
+}
+
 function init() {
   loadAll();
   ensureWeekGoalSnapshots();
@@ -5351,7 +5576,13 @@ function init() {
   setupDataIO();
   setupQuickDeadlineChips();
   setupCompleteModal();
+  setupPostponeModal();
   rerender();
+  checkDayRollover();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
+  window.addEventListener('focus', checkDayRollover);
+  window.addEventListener('pageshow', checkDayRollover);
+  setInterval(checkDayRollover, 60000);
   // Version indicator: visible in sidebar + logged to console for easy verification.
   const badge = document.getElementById('buildBadge');
   if (badge) badge.textContent = `${APP_VERSION} · 최근 업데이트 ${APP_BUILD_DATE}`;
