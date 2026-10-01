@@ -656,6 +656,16 @@
     font-size: 13px;
     border-radius: 6px;
   }
+  .weight-row select {
+    flex: 1;
+    background: var(--cream-light);
+    border: 1px solid transparent;
+    padding: 6px 8px;
+    font-size: 13px;
+    border-radius: 6px;
+    min-width: 0;
+  }
+  .weight-row .idx { width: auto; min-width: 40px; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .name-row .part-field {
     max-width: 90px;
     flex: 0 0 90px;
@@ -1729,7 +1739,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v1.7 · 최근 업데이트 2026-09-10</div>
+      <div class="build-badge" id="buildBadge">v1.8 · 최근 업데이트 2026-10-01</div>
     </div>
   </aside>
 
@@ -2037,19 +2047,19 @@
       </div>
     </div>
     <div id="eTimeBasedGroup" style="margin-top: 16px; display: none;">
-      <button class="chip" id="e-timeBasedToggle" type="button">⏱ 시간 기준으로 계산하기 <span style="color: var(--text-muted); font-weight:400;">(선택)</span></button>
+      <button class="chip" id="e-timeBasedToggle" type="button"><span id="e-tbToggleLabel">⏱ 시간 기준으로 계산하기</span> <span style="color: var(--text-muted); font-weight:400;">(선택)</span></button>
       <div id="e-timeBasedPanel" style="display:none; margin-top: 12px; background: var(--cream-light); padding: 14px; border-radius: var(--radius-sm);">
         <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;">계산 기준</label>
         <div class="pace-row" id="e-timemode-row">
-          <button class="chip active" data-timemode="capacity">하루 가능시간 기준</button>
+          <button class="chip active" data-timemode="capacity" id="e-tmCapLabel">하루 가능시간 기준</button>
           <button class="chip" data-timemode="deadline">마감일 기준</button>
         </div>
         <div id="e-dailyMinutesField" style="margin-top: 12px;">
-          <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;">하루 가능 시간</label>
+          <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;" id="e-dailyLabel">하루 가능 시간</label>
           <input type="text" id="e-dailyMinutes" placeholder="예: 2시간 30분 또는 150" style="width: 100%; background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin: 12px 0 6px;">
-          <label style="font-size: 12px; color: var(--text-soft); font-weight: 500;">강의별 시간</label>
+          <label style="font-size: 12px; color: var(--text-soft); font-weight: 500;" id="e-perItemLabel">강의별 시간</label>
           <button type="button" class="bulk-paste-toggle" id="e-bulkPasteToggle">📋 붙여넣기로 채우기</button>
         </div>
         <div id="e-bulkPasteArea" style="display:none; margin-bottom: 8px;">
@@ -2137,8 +2147,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v1.7';
-const APP_BUILD_DATE = '2026-09-10';
+const APP_VERSION = 'v1.8';
+const APP_BUILD_DATE = '2026-10-01';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2347,6 +2357,17 @@ function isWeightUnitType(type) { return type === 'other' || type === 'book'; }
 function formatWeightOrDuration(type, n) {
   return isWeightUnitType(type) ? String(Math.max(0, Math.round(n || 0))) : formatDuration(n);
 }
+// 난이도(difficulty) × 양(amount) → a single weight number, so 양·난이도 tasks reuse
+// the exact same drift-free distribution math as lecture durations — a chapter that's
+// both hard AND long gets proportionally more days than one that's just hard or just long.
+const DIFFICULTY_SCORE = { easy: 1, medium: 2, hard: 3 };
+const AMOUNT_SCORE = { low: 1, medium: 2, high: 3 };
+const DIFFICULTY_LABEL = { easy: '쉬움', medium: '중간', hard: '어려움' };
+const AMOUNT_LABEL = { low: '적음', medium: '중간', high: '많음' };
+function computeWeight(diff, amt) {
+  return (DIFFICULTY_SCORE[diff] || 2) * (AMOUNT_SCORE[amt] || 2);
+}
+let editingTaskType = null; // set when opening the edit modal, so weight-vs-time UI mode is known
 
 // Prefix-sum array of lecture durations: prefix[i] = total minutes for the first i
 // lectures (relative position, 1-based count). prefix[0] = 0, length = total + 1.
@@ -3971,7 +3992,7 @@ function renderTasks() {
         </div>
         ${plan.capacityInsufficient ? `
         <div style="font-size: 12px; color: #c44d2e; background: #FDE5DC; padding: 8px 12px; border-radius: var(--radius-sm); margin-top: -4px;">
-          ⚠️ 하루 ${formatDuration(task.dailyMinutes)}로는 마감일 안에 못 끝나요.${plan.capacityFinishDate ? ` 이 속도면 ${fmtDate(plan.capacityFinishDate)}에 끝나요.` : ''}
+          ⚠️ 하루 ${isWeightUnitType(task.type) ? '양 ' + task.dailyMinutes : formatDuration(task.dailyMinutes)}로는 마감일 안에 못 끝나요.${plan.capacityFinishDate ? ` 이 속도면 ${fmtDate(plan.capacityFinishDate)}에 끝나요.` : ''}
         </div>
         ` : ''}
         ${scheduleHtml}
@@ -4201,6 +4222,17 @@ function populateCategorySelect(selectId, currentId) {
 // Regenerate the per-lecture duration input rows to match the current 시작~끝 count.
 // Existing values are preserved by index across regeneration (e.g. when the user
 // tweaks 끝 by one, earlier entries aren't lost).
+function currentTypeFor(prefix) {
+  if (prefix === 'f') { const el = document.getElementById('f-type'); return el ? el.value : 'book'; }
+  return editingTaskType;
+}
+function diffOptionsHtml(sel) {
+  return ['easy','medium','hard'].map(k => `<option value="${k}" ${k===(sel||'medium')?'selected':''}>${DIFFICULTY_LABEL[k]}</option>`).join('');
+}
+function amtOptionsHtml(sel) {
+  return ['low','medium','high'].map(k => `<option value="${k}" ${k===(sel||'medium')?'selected':''}>${AMOUNT_LABEL[k]}</option>`).join('');
+}
+
 function renderDurationsList(prefix) {
   const fromEl = document.getElementById(prefix + '-from');
   const toEl = document.getElementById(prefix + '-to');
@@ -4208,8 +4240,11 @@ function renderDurationsList(prefix) {
   if (!fromEl || !toEl || !listEl) return;
   const fromVal = parseInt(fromEl.value), toVal = parseInt(toEl.value);
   const needed = (fromVal && toVal && toVal >= fromVal) ? (toVal - fromVal + 1) : 0;
+  const weightMode = isWeightUnitType(currentTypeFor(prefix));
 
-  const existing = Array.from(listEl.querySelectorAll('input')).map(i => i.value);
+  const existingDiff = Array.from(listEl.querySelectorAll('select[data-diff-idx]')).map(i => i.value);
+  const existingAmt = Array.from(listEl.querySelectorAll('select[data-amt-idx]')).map(i => i.value);
+  const existingDur = Array.from(listEl.querySelectorAll('input[data-dur-idx]')).map(i => i.value);
 
   if (needed === 0) {
     listEl.innerHTML = '';
@@ -4218,24 +4253,39 @@ function renderDurationsList(prefix) {
   }
   let html = '';
   for (let i = 0; i < needed; i++) {
-    const lectureNum = fromVal + i;
-    const val = existing[i] || '';
-    html += `<div class="duration-row"><span class="idx">${lectureNum}강</span><input type="text" data-dur-idx="${i}" value="${escapeAttr(val)}" placeholder="예: 1:10 또는 70"></div>`;
+    const itemNum = fromVal + i;
+    if (weightMode) {
+      html += `<div class="duration-row weight-row">
+        <span class="idx">${itemNum}번</span>
+        <select data-diff-idx="${i}">${diffOptionsHtml(existingDiff[i])}</select>
+        <select data-amt-idx="${i}">${amtOptionsHtml(existingAmt[i])}</select>
+      </div>`;
+    } else {
+      const val = existingDur[i] || '';
+      html += `<div class="duration-row"><span class="idx">${itemNum}강</span><input type="text" data-dur-idx="${i}" value="${escapeAttr(val)}" placeholder="예: 1:10 또는 70"></div>`;
+    }
   }
   listEl.innerHTML = html;
-  listEl.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('input', () => updateDurationsPreview(prefix));
+  const bulkBtn = document.getElementById(prefix + '-bulkPasteToggle');
+  if (bulkBtn) bulkBtn.style.display = weightMode ? 'none' : '';
+  if (weightMode) refreshWeightLabels(prefix);
+  listEl.querySelectorAll('input, select').forEach(inp => {
+    inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => updateDurationsPreview(prefix));
   });
   updateDurationsPreview(prefix);
 }
 
-// Populate the duration list for an existing task being edited: build the rows first
-// (matching its from~to range), then fill each with the task's saved values.
+// Populate the duration/weight list for an existing task being edited.
 function populateDurationsListFromTask(prefix, task) {
   renderDurationsList(prefix);
-  if (Array.isArray(task.lectureDurations)) {
-    const listEl = document.getElementById(prefix + '-durationsList');
-    const inputs = Array.from(listEl.querySelectorAll('input'));
+  const listEl = document.getElementById(prefix + '-durationsList');
+  if (isWeightUnitType(task.type)) {
+    const diffSel = listEl.querySelectorAll('select[data-diff-idx]');
+    const amtSel = listEl.querySelectorAll('select[data-amt-idx]');
+    diffSel.forEach((sel, i) => { if (Array.isArray(task.itemDifficulty) && task.itemDifficulty[i]) sel.value = task.itemDifficulty[i]; });
+    amtSel.forEach((sel, i) => { if (Array.isArray(task.itemAmount) && task.itemAmount[i]) sel.value = task.itemAmount[i]; });
+  } else if (Array.isArray(task.lectureDurations)) {
+    const inputs = Array.from(listEl.querySelectorAll('input[data-dur-idx]'));
     inputs.forEach((inp, i) => {
       if (task.lectureDurations[i] !== undefined) inp.value = formatDuration(task.lectureDurations[i]);
     });
@@ -4243,12 +4293,50 @@ function populateDurationsListFromTask(prefix, task) {
   updateDurationsPreview(prefix);
 }
 
-// Read and parse every row's value into a minutes array (same order as the list).
-// Unparsed/empty rows come back as null so callers can detect incomplete input.
+// Read every row into a numeric weight/duration array (same order as the list).
+// In weight mode this computes 난이도×양 per row; in time mode it parses the duration
+// text. Unparsed/empty time-mode rows come back as null so callers can detect gaps.
 function collectDurationsFromList(prefix) {
   const listEl = document.getElementById(prefix + '-durationsList');
   if (!listEl) return [];
-  return Array.from(listEl.querySelectorAll('input')).map(i => parseDurationToken(i.value));
+  if (isWeightUnitType(currentTypeFor(prefix))) {
+    const diffs = Array.from(listEl.querySelectorAll('select[data-diff-idx]')).map(s => s.value);
+    const amts = Array.from(listEl.querySelectorAll('select[data-amt-idx]')).map(s => s.value);
+    return diffs.map((d, i) => computeWeight(d, amts[i]));
+  }
+  return Array.from(listEl.querySelectorAll('input[data-dur-idx]')).map(i => parseDurationToken(i.value));
+}
+
+// In weight mode, label each row with its chapter (and part) name when the user has
+// entered titles, so "Part1 Ch1 · 쉬움 · 많음" can be set side by side.
+function refreshWeightLabels(prefix) {
+  const listEl = document.getElementById(prefix + '-durationsList');
+  const namesEl = document.getElementById(prefix + '-namesList');
+  const fromEl = document.getElementById(prefix + '-from');
+  if (!listEl) return;
+  const fromVal = parseInt(fromEl && fromEl.value) || 1;
+  let names = [], parts = [];
+  if (namesEl && namesEl.querySelector('input[data-name-idx]')) {
+    const c = collectNamesFromList(prefix);
+    names = c.names; parts = c.parts;
+  }
+  listEl.querySelectorAll('.weight-row').forEach((row, i) => {
+    const span = row.querySelector('.idx');
+    const nm = names[i] ? ((parts[i] ? parts[i] + ' ' : '') + names[i]) : '';
+    span.textContent = nm || `${fromVal + i}번`;
+    span.title = nm || '';
+  });
+}
+
+// Read the raw 난이도/양 selections (for persisting alongside the computed weight,
+// so re-opening the edit modal shows the actual dropdown choices, not just a number).
+function collectWeightSelections(prefix) {
+  const listEl = document.getElementById(prefix + '-durationsList');
+  if (!listEl) return { diffs: [], amts: [] };
+  return {
+    diffs: Array.from(listEl.querySelectorAll('select[data-diff-idx]')).map(s => s.value),
+    amts: Array.from(listEl.querySelectorAll('select[data-amt-idx]')).map(s => s.value),
+  };
 }
 
 // Live preview beneath the duration list: how many rows are filled in vs. needed,
@@ -4257,7 +4345,24 @@ function updateDurationsPreview(prefix) {
   const listEl = document.getElementById(prefix + '-durationsList');
   const previewEl = document.getElementById(prefix + '-durationsPreview');
   if (!listEl || !previewEl) return;
-  const inputs = Array.from(listEl.querySelectorAll('input'));
+  const type = currentTypeFor(prefix);
+  const weightMode = isWeightUnitType(type);
+
+  if (weightMode) {
+    const rows = listEl.querySelectorAll('.weight-row');
+    if (rows.length === 0) {
+      previewEl.textContent = '시작~끝을 먼저 정해주세요';
+      previewEl.style.color = 'var(--text-muted)';
+      return;
+    }
+    const values = collectDurationsFromList(prefix);
+    const total = values.reduce((a, v) => a + v, 0);
+    previewEl.innerHTML = `${rows.length}개 항목 · 총 가중치 ${total} (선택했으면 모두 채워진 거예요 ✓)`;
+    previewEl.style.color = 'var(--matcha)';
+    return;
+  }
+
+  const inputs = Array.from(listEl.querySelectorAll('input[data-dur-idx]'));
   if (inputs.length === 0) {
     previewEl.textContent = '시작~끝을 먼저 정해주세요';
     previewEl.style.color = 'var(--text-muted)';
@@ -4332,9 +4437,10 @@ function renderNamesList(prefix) {
   }
   listEl.innerHTML = html;
   listEl.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('input', () => updateNamesPreview(prefix));
+    inp.addEventListener('input', () => { updateNamesPreview(prefix); refreshWeightLabels(prefix); });
   });
   updateNamesPreview(prefix);
+  refreshWeightLabels(prefix);
 }
 
 // Populate the names list for an existing task being edited: build the rows first
@@ -4641,6 +4747,8 @@ function addNewTask() {
     timeMode: formTimeMode,
     lectureDurations: (tbTypeOk && formTimeBased) ? lectureDurations : undefined,
     dailyMinutes: (tbTypeOk && formTimeBased && formTimeMode === 'capacity') ? dailyMinutes : undefined,
+    itemDifficulty: (isWeightUnitType(type) && formTimeBased) ? collectWeightSelections('f').diffs : undefined,
+    itemAmount: (isWeightUnitType(type) && formTimeBased) ? collectWeightSelections('f').amts : undefined,
   };
 
   // Validation: review weekdays must leave at least one new-content session day
@@ -4734,6 +4842,7 @@ function openEditModal(id) {
 
   // Time-based lecture scheduling (only for 'lecture')
   document.getElementById('eTimeBasedGroup').style.display = (task.type === 'lecture' || task.type === 'other' || task.type === 'book') ? 'block' : 'none';
+  editingTaskType = task.type;
   editTimeBased = !!task.timeBased;
   editTimeMode = task.timeMode || 'capacity';
   document.getElementById('e-timeBasedToggle').classList.toggle('active', editTimeBased);
@@ -4742,7 +4851,20 @@ function openEditModal(id) {
     c.classList.toggle('active', c.dataset.timemode === editTimeMode);
   });
   document.getElementById('e-dailyMinutesField').style.display = editTimeMode === 'capacity' ? 'block' : 'none';
-  document.getElementById('e-dailyMinutes').value = task.dailyMinutes ? formatDuration(task.dailyMinutes) : '';
+  if (isWeightUnitType(task.type)) {
+    document.getElementById('e-tbToggleLabel').textContent = '⚖️ 양·난이도로 계산하기';
+    document.getElementById('e-tmCapLabel').textContent = '하루 가능한 양 기준';
+    document.getElementById('e-dailyLabel').textContent = '하루에 할 수 있는 양';
+    document.getElementById('e-perItemLabel').textContent = '항목별 양·난이도';
+    document.getElementById('e-dailyMinutes').placeholder = '예: 10 (하루에 소화 가능한 총량)';
+  } else {
+    document.getElementById('e-tbToggleLabel').textContent = '⏱ 시간 기준으로 계산하기';
+    document.getElementById('e-tmCapLabel').textContent = '하루 가능시간 기준';
+    document.getElementById('e-dailyLabel').textContent = '하루 가능 시간';
+    document.getElementById('e-perItemLabel').textContent = '강의별 시간';
+    document.getElementById('e-dailyMinutes').placeholder = '예: 2시간 30분 또는 150';
+  }
+  document.getElementById('e-dailyMinutes').value = (task.dailyMinutes && !isWeightUnitType(task.type)) ? formatDuration(task.dailyMinutes) : (task.dailyMinutes || '');
   populateDurationsListFromTask('e', task);
 
   // Apply-timing option: only relevant when today's session is already completed.
@@ -4930,6 +5052,11 @@ function setupEditModal() {
       task.timeMode = editTimeMode;
       task.lectureDurations = editTimeBased ? newLectureDurations : undefined;
       task.dailyMinutes = (editTimeBased && editTimeMode === 'capacity') ? newDailyMinutes : undefined;
+      if (isWeightUnitType(task.type)) {
+        const ws = collectWeightSelections('e');
+        task.itemDifficulty = editTimeBased ? ws.diffs : undefined;
+        task.itemAmount = editTimeBased ? ws.amts : undefined;
+      }
     }
     task.reviewDays = [...editReviewDays];
     task.reviewLabel = (document.getElementById('e-reviewLabel').value || '').trim() || undefined;
