@@ -700,7 +700,26 @@
     border-radius: 6px;
     min-width: 0;
   }
-  .weight-row .idx { width: auto; min-width: 40px; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .weight-row, .weight-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+  }
+  .weight-row .idx { width: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .weight-head {
+    position: sticky;
+    top: -10px;
+    z-index: 1;
+    margin: -10px -10px 0;
+    padding: 8px 10px 6px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .weight-head span:not(:first-child) { text-align: center; color: var(--text-soft); }
   .name-row .part-field {
     max-width: 90px;
     flex: 0 0 90px;
@@ -1774,7 +1793,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v2.0 · 최근 업데이트 2026-10-01</div>
+      <div class="build-badge" id="buildBadge">v2.1 · 최근 업데이트 2026-10-02</div>
     </div>
   </aside>
 
@@ -2200,8 +2219,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v2.0';
-const APP_BUILD_DATE = '2026-10-01';
+const APP_VERSION = 'v2.1';
+const APP_BUILD_DATE = '2026-10-02';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2739,11 +2758,19 @@ function setCompleted(taskId, dateStr, completed, amount = 0) {
 //
 // This is robust: it can't drift if the user leaves the app open overnight, stays
 // consistent across edits, and handles schedule changes that drop today as a session.
+// Is today a day whose checkbox moves progress? A planned (not postponed) content day,
+// or — once the deadline has passed — today's catch-up session (all remaining work).
+function todayCountsAsSession(task) {
+  const tdy = today();
+  const todayStr = fmtDate(tdy);
+  if (task.end && daysBetween(tdy, parseDate(task.end)) < 0) return true; // overdue → catch-up day
+  const skipSet = new Set(task.skipDates || []);
+  return getContentDates(task).some(d => fmtDate(d) === todayStr) && !skipSet.has(todayStr);
+}
+
 function getTodayAnchor(task) {
   const todayStr = fmtDate(today());
-  const allDates = getContentDates(task);
-  const skipSet = new Set(task.skipDates || []);
-  const todayIsSession = allDates.some(d => fmtDate(d) === todayStr) && !skipSet.has(todayStr);
+  const todayIsSession = todayCountsAsSession(task);
   const amt = (todayIsSession && isCompleted(task.id, todayStr)) ? getCompletedAmount(task.id, todayStr) : 0;
   const anchor = task.progress - amt;
   return Math.max(0, Math.min(task.total, anchor));
@@ -2763,10 +2790,7 @@ function syncTodayCompletion(task, oldProgress) {
   const todayStr = fmtDate(today());
 
   // Only sync if today is a planned NEW-CONTENT session day (not postponed, not a review day)
-  const allDates = getContentDates(task);
-  const skipSet = new Set(task.skipDates || []);
-  const todayIsPlanned = allDates.some(d => fmtDate(d) === todayStr) && !skipSet.has(todayStr);
-  if (!todayIsPlanned) return;
+  if (!todayCountsAsSession(task)) return;
 
   const wasChecked = isCompleted(taskId, todayStr);
   const oldAmount = wasChecked ? getCompletedAmount(taskId, todayStr) : 0;
@@ -2999,7 +3023,11 @@ function appendCatchUpSession(task, schedule, anchor, tdy, remainingDates) {
   if (remainingDates.length > 0 || anchor >= task.total) return;
   if (daysBetween(tdy, parseDate(task.end)) >= 0) return; // deadline not passed yet
   const startNum = task.startNum || 0;
-  const from = startNum + anchor + 1, to = startNum + task.total;
+  const from = startNum + anchor + 1;
+  // Like any today session: once real progress was made today, the range ends there
+  // (the rest reappears as tomorrow's catch-up); otherwise it's everything left.
+  const progAbs = startNum + task.progress;
+  const to = progAbs > startNum + anchor ? Math.min(startNum + task.total, progAbs) : startNum + task.total;
   schedule.push({ date: tdy, from, to, amount: to - from + 1, isPast: false, isToday: true, isCatchUp: true });
 }
 
@@ -3070,6 +3098,10 @@ function buildSchedule(task) {
   const hold = getWeekHold(task, tdy);
   const inWeekCount = hold ? remainingDates.filter(d => d <= hold.weekEnd).length : 0;
   const holdEnd = hold ? (inWeekCount === remainingDates.length ? totalEnd : Math.min(totalEnd, hold.endAbs)) : null;
+  // Hold applies only if this week's target is still ahead of where today starts. Once the
+  // plan reaches the target, the week's leftover days stay empty (the goal stays exactly as
+  // set); only real progress beyond the target (cursor > holdEnd) falls back to normal pacing.
+  const holdActive = hold && cursor < holdEnd;
 
   remainingDates.forEach((d, idx) => {
     if (cursor >= totalEnd) return;
@@ -3079,7 +3111,7 @@ function buildSchedule(task) {
       // Today and some progress already made past the day's start → end at real progress
       to = Math.min(totalEnd, progressAbs);
     } else {
-      const inHold = hold && idx < inWeekCount && cursor < holdEnd;
+      const inHold = holdActive && idx < inWeekCount && cursor <= holdEnd;
       const daysLeft = inHold ? inWeekCount - idx : remainingDates.length - idx;
       const amountLeft = inHold ? holdEnd - cursor : totalEnd - cursor;
       if (daysLeft <= 0 || amountLeft <= 0) return;
@@ -3196,6 +3228,7 @@ function buildTimeBasedSchedule(task) {
   const inWeekCount = hold ? remainingDates.filter(d => d <= hold.weekEnd).length : 0;
   const holdRel = hold ? (inWeekCount === remainingDates.length ? task.total
     : Math.max(0, Math.min(task.total, hold.endAbs - startNum))) : null;
+  const holdActive = hold && cursorRel < holdRel; // see buildSchedule
 
   remainingDates.forEach((d, idx) => {
     if (startNum + cursorRel >= totalEnd) return;
@@ -3211,11 +3244,12 @@ function buildTimeBasedSchedule(task) {
       // Deadline mode: recompute the daily time target from remaining time / remaining
       // days at each step (drift-free — the last remaining day always consumes exactly
       // the rest, landing precisely on totalEnd).
-      const inHold = hold && idx < inWeekCount && cursorRel < holdRel;
+      const inHold = holdActive && idx < inWeekCount && cursorRel <= holdRel;
       const daysLeft = inHold ? inWeekCount - idx : remainingDates.length - idx;
       const targetRel = inHold ? holdRel : task.total;
-      const timeLeft = prefix[targetRel] - prefix[cursorRel];
-      if (daysLeft <= 0 || timeLeft <= 0) return;
+      const timeLeft = Math.max(0, prefix[targetRel] - prefix[cursorRel]);
+      // Stop on position, not time: 0-minute items must still be scheduled.
+      if (daysLeft <= 0 || cursorRel >= targetRel) return;
       const dailyTarget = Math.round(timeLeft / daysLeft);
       newCursorRel = Math.min(targetRel, advanceByTimeBudget(prefix, cursorRel, dailyTarget));
       if (daysLeft === 1) newCursorRel = targetRel; // last day of the segment lands exactly
@@ -3277,6 +3311,7 @@ function estimateCapacityFinishDate(task, prefix, startCursorRel, tdy) {
   const skipSet = new Set(task.skipDates || []);
   let cursorRel = startCursorRel;
   let d = addDays(parseDate(task.end), 1);
+  if (d < tdy) d = addDays(tdy, 0); // overdue: the estimate starts from today, never the past
   const hardStop = addDays(tdy, 365 * 3);
   let guard = 0;
   while (cursorRel < task.total && d <= hardStop && guard < 20000) {
@@ -3941,7 +3976,7 @@ function renderTasks() {
       perSessionText = '—';
     } else {
       // Show average per-session from the future schedule (more accurate than ceil estimate)
-      const futureSessions = plan.schedule.filter(s => !s.isPast);
+      const futureSessions = plan.schedule.filter(s => !s.isPast && !s.isReview && s.amount > 0);
       if (futureSessions.length > 0) {
         const sum = futureSessions.reduce((a, s) => a + s.amount, 0);
         const avg = Math.round(sum / futureSessions.length);
@@ -4231,6 +4266,9 @@ function postponeToday(taskId, mode = 'deadline') {
     rerender();
     return;
   }
+  // Remember the hold as it was before this postpone, so 미루기 취소 fully restores it.
+  task.ppUndo = { date: todayStr, hold: prevHold || null };
+  persistTasks();
   showToast(mode === 'week' ? '오늘 분량을 이번 주 남은 날에 나눠 담았어요' : '오늘 분량을 마감일까지 나눠 담았어요');
   rerender();
 }
@@ -4241,6 +4279,8 @@ function unpostponeToday(taskId) {
   if (!task || !Array.isArray(task.skipDates)) return;
   const todayStr = fmtDate(today());
   task.skipDates = task.skipDates.filter(d => d !== todayStr);
+  if (task.ppUndo && task.ppUndo.date === todayStr) task.weekHold = task.ppUndo.hold || undefined;
+  delete task.ppUndo;
   persistTasks();
   showToast('미루기를 취소했어요');
   rerender();
@@ -4364,6 +4404,17 @@ function attachTaskHandlers() {
     el.addEventListener('click', (e) => {
       const task = tasks.find(t => t.id === e.currentTarget.dataset.id);
       if (!task) return;
+      // Paused days were intentional — treat them like postponed days (not "밀림"),
+      // so their work is redistributed to the remaining days up to the same deadline.
+      if (task.pausedAt) {
+        const tdyR = today();
+        const pausedFrom = parseDate(task.pausedAt);
+        if (!Array.isArray(task.skipDates)) task.skipDates = [];
+        getContentDates(task).forEach(d => {
+          const ds = fmtDate(d);
+          if (d >= pausedFrom && d < tdyR && !isCompleted(task.id, ds) && !task.skipDates.includes(ds)) task.skipDates.push(ds);
+        });
+      }
       task.paused = false;
       delete task.pausedAt;
       persistTasks();
@@ -4452,14 +4503,16 @@ function renderDurationsList(prefix) {
     updateDurationsPreview(prefix);
     return;
   }
-  let html = '';
+  let html = weightMode
+    ? `<div class="weight-head"><span>항목</span><span>양</span><span>난이도</span></div>`
+    : '';
   for (let i = 0; i < needed; i++) {
     const itemNum = fromVal + i;
     if (weightMode) {
       html += `<div class="duration-row weight-row">
         <span class="idx">${itemNum}번</span>
-        <select data-diff-idx="${i}">${diffOptionsHtml(existingDiff[i])}</select>
-        <select data-amt-idx="${i}">${amtOptionsHtml(existingAmt[i])}</select>
+        <select data-amt-idx="${i}" aria-label="양">${amtOptionsHtml(existingAmt[i])}</select>
+        <select data-diff-idx="${i}" aria-label="난이도">${diffOptionsHtml(existingDiff[i])}</select>
       </div>`;
     } else {
       const val = existingDur[i] || '';
@@ -4777,7 +4830,7 @@ function setupForm() {
       document.getElementById('f-tbToggleLabel').textContent = '⚖️ 양·난이도로 계산하기';
       document.getElementById('f-tmCapLabel').textContent = '하루 가능한 양 기준';
       document.getElementById('f-dailyLabel').textContent = '하루에 할 수 있는 양';
-      document.getElementById('f-perItemLabel').textContent = '항목별 양·난이도 (숫자, 클수록 오래 걸림)';
+      document.getElementById('f-perItemLabel').textContent = '항목별 양·난이도 (많고 어려울수록 오래 걸려요)';
       document.getElementById('f-dailyMinutes').placeholder = '예: 10 (하루에 소화 가능한 총량)';
     }
     if (!showTB) {
@@ -5056,7 +5109,7 @@ function openEditModal(id) {
     document.getElementById('e-tbToggleLabel').textContent = '⚖️ 양·난이도로 계산하기';
     document.getElementById('e-tmCapLabel').textContent = '하루 가능한 양 기준';
     document.getElementById('e-dailyLabel').textContent = '하루에 할 수 있는 양';
-    document.getElementById('e-perItemLabel').textContent = '항목별 양·난이도';
+    document.getElementById('e-perItemLabel').textContent = '항목별 양·난이도 (많고 어려울수록 오래 걸려요)';
     document.getElementById('e-dailyMinutes').placeholder = '예: 10 (하루에 소화 가능한 총량)';
   } else {
     document.getElementById('e-tbToggleLabel').textContent = '⏱ 시간 기준으로 계산하기';
@@ -5072,7 +5125,7 @@ function openEditModal(id) {
   // Detect whether today is a completed session day for this task.
   const todayStr = fmtDate(today());
   const tplan = buildSchedule(task);
-  const todaySession = tplan.schedule.find(s => fmtDate(s.date) === todayStr && !s.isPast);
+  const todaySession = tplan.schedule.find(s => fmtDate(s.date) === todayStr && !s.isPast && !s.isReview);
   const todayDone = !!todaySession && isCompleted(task.id, todayStr);
   const applyGroup = document.getElementById('eApplyTimingGroup');
   if (todayDone) {
@@ -5236,6 +5289,7 @@ function setupEditModal() {
     const todayStrPre = fmtDate(today());
     const startOfTodayAbs = oldStartNum + getTodayAnchor(task);
     const todayWasDonePre = isCompleted(task.id, todayStrPre);
+    const todayWasContentPre = todayCountsAsSession(task); // false on a review-only day
 
     task.title = newTitle;
     task.categoryId = newCategoryId;
@@ -5278,7 +5332,11 @@ function setupEditModal() {
       persistCompleted();
     }
 
-    if (editApplyTiming === 'keep' && todayWasDonePre) {
+    if (!todayWasContentPre) {
+      // Today was review-only (or no session): its ✓ is a review check with amount 0 —
+      // leave it alone, unless the edit turned today into a content day.
+      if (todayCountsAsSession(task) && isCompleted(task.id, todayStr)) setCompleted(task.id, todayStr, false);
+    } else if (editApplyTiming === 'keep' && todayWasDonePre) {
       // Keep today's completion: today still starts where it began; today's amount is
       // recomputed from the (possibly edited) current position so "오늘 한 양" stays true.
       const amt = Math.min(task.progress, (newStartNum + task.progress) - startOfTodayAbs);
@@ -5289,10 +5347,12 @@ function setupEditModal() {
       if (isCompleted(task.id, todayStr)) setCompleted(task.id, todayStr, false);
     }
 
-    persistTasks();
     // The plan changed — drop any "이번 주 안에 채우기" hold (it referred to the old plan)
     // and re-freeze this week's (and any locked future week's) goal from the new plan.
+    // (Cleared BEFORE saving so the hold doesn't come back after a reload.)
     task.weekHold = undefined;
+    delete task.ppUndo;
+    persistTasks();
     refreshWeekGoalsAfterEdit(task.id);
     document.getElementById('editModal').classList.remove('show');
     showToast('✓ 수정되었어요');
