@@ -724,6 +724,7 @@
     border-radius: 6px;
     min-width: 0;
   }
+  .dur-row.named .idx { width: auto; min-width: 40px; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   .weight-row, .weight-head {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr);
@@ -1828,7 +1829,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v2.7 · 최근 업데이트 2026-10-03</div>
+      <div class="build-badge" id="buildBadge">v2.9 · 최근 업데이트 2026-10-05</div>
     </div>
   </aside>
 
@@ -1990,22 +1991,24 @@
         </div>
       </div>
       <div id="copyFormatGroup" style="margin-top: 16px; display: none;">
+        <div id="f-copyFmtOnly">
         <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 8px; display: block; font-weight: 500;">복사 형식 <span style="color: var(--text-muted);">(기타 목표만)</span></label>
         <div class="pace-row" id="f-copyfmt-row">
           <button class="chip active" data-copyfmt="no">no. (no.1, no.2...)</button>
           <button class="chip" data-copyfmt="day">day (day1, day2...)</button>
         </div>
+        </div>
         <div style="margin-top: 12px;">
           <button class="chip" id="f-showNamesToggle" type="button">📑 챕터/제목으로 표시하기 <span style="color: var(--text-muted); font-weight:400;">(선택)</span></button>
         </div>
         <div id="f-showNamesPanel" style="display:none; margin-top: 12px; background: var(--cream-light); padding: 14px; border-radius: var(--radius-sm);">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5;">예: Part1 - Chapter1, Part1 - Chapter2, Part2 - Chapter1 ...</div>
+          <div id="f-namesHelp" style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5;">예: Part1 - Chapter1, Part1 - Chapter2, Part2 - Chapter1 ...</div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
             <label style="font-size: 12px; color: var(--text-soft); font-weight: 500;">항목별 제목</label>
             <button type="button" class="bulk-paste-toggle" id="f-namesBulkToggle">📋 붙여넣기로 채우기</button>
           </div>
           <div id="f-namesBulkArea" style="display:none; margin-bottom: 8px;">
-            <textarea id="f-namesBulkText" placeholder="예: Part1 - Ch1, Part1 - Ch2, Part1 - Ch3, Part2 - Ch1 ... (순서대로, 쉼표 또는 줄바꿈 구분)" style="width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
+            <textarea id="f-namesBulkText" placeholder="Part 1&#10;  Chapter 1&#10;  Chapter 2&#10;Part 2&#10;  Chapter 1" style="width: 100%; min-height: 110px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
             <button type="button" class="mini-btn primary" id="f-namesBulkApply" style="margin-top: 6px;">목록에 채우기</button>
           </div>
           <div id="f-namesList" class="durations-list"></div>
@@ -2029,7 +2032,7 @@
             <button type="button" class="bulk-paste-toggle" id="f-bulkPasteToggle">📋 붙여넣기로 채우기</button>
           </div>
           <div id="f-bulkPasteArea" style="display:none; margin-bottom: 8px;">
-            <textarea id="f-bulkPasteText" placeholder="예: 1시간10분, 30분, 45분, 1:05, 20 ... (순서대로, 쉼표 또는 줄바꿈 구분)" style="width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
+            <textarea id="f-bulkPasteText" placeholder="한 줄에 하나씩:&#10;1시간 10분&#10;30분&#10;12:34 (= 12분 34초)&#10;&#10;강의 목차를 시간째로 붙여넣어도 돼요:&#10;Chapter 1&#10;  메모를 해야하는 이유 12:34" style="width: 100%; min-height: 110px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
             <button type="button" class="mini-btn primary" id="f-bulkPasteApply" style="margin-top: 6px;">목록에 채우기</button>
           </div>
           <div id="f-durationsList" class="durations-list"></div>
@@ -2113,22 +2116,24 @@
       </div>
     </div>
     <div id="eCopyFormatGroup" style="margin-top: 16px; display: none;">
+      <div id="e-copyFmtOnly">
       <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 8px; display: block; font-weight: 500;">복사 형식</label>
       <div class="pace-row" id="e-copyfmt-row">
         <button class="chip" data-copyfmt="no">no. (no.1, no.2...)</button>
         <button class="chip" data-copyfmt="day">day (day1, day2...)</button>
       </div>
+      </div>
       <div style="margin-top: 12px;">
         <button class="chip" id="e-showNamesToggle" type="button">📑 챕터/제목으로 표시하기 <span style="color: var(--text-muted); font-weight:400;">(선택)</span></button>
       </div>
       <div id="e-showNamesPanel" style="display:none; margin-top: 12px; background: var(--cream-light); padding: 14px; border-radius: var(--radius-sm);">
-        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5;">예: Part1 - Chapter1, Part1 - Chapter2, Part2 - Chapter1 ...</div>
+        <div id="e-namesHelp" style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5;">예: Part1 - Chapter1, Part1 - Chapter2, Part2 - Chapter1 ...</div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <label style="font-size: 12px; color: var(--text-soft); font-weight: 500;">항목별 제목</label>
           <button type="button" class="bulk-paste-toggle" id="e-namesBulkToggle">📋 붙여넣기로 채우기</button>
         </div>
         <div id="e-namesBulkArea" style="display:none; margin-bottom: 8px;">
-          <textarea id="e-namesBulkText" placeholder="예: Part1 - Ch1, Part1 - Ch2, Part1 - Ch3, Part2 - Ch1 ... (순서대로, 쉼표 또는 줄바꿈 구분)" style="width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
+          <textarea id="e-namesBulkText" placeholder="Part 1&#10;  Chapter 1&#10;  Chapter 2&#10;Part 2&#10;  Chapter 1" style="width: 100%; min-height: 110px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
           <button type="button" class="mini-btn primary" id="e-namesBulkApply" style="margin-top: 6px;">목록에 채우기</button>
         </div>
         <div id="e-namesList" class="durations-list"></div>
@@ -2152,7 +2157,7 @@
           <button type="button" class="bulk-paste-toggle" id="e-bulkPasteToggle">📋 붙여넣기로 채우기</button>
         </div>
         <div id="e-bulkPasteArea" style="display:none; margin-bottom: 8px;">
-          <textarea id="e-bulkPasteText" placeholder="예: 1시간10분, 30분, 45분, 1:05, 20 ... (순서대로, 쉼표 또는 줄바꿈 구분)" style="width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
+          <textarea id="e-bulkPasteText" placeholder="한 줄에 하나씩:&#10;1시간 10분&#10;30분&#10;12:34 (= 12분 34초)&#10;&#10;강의 목차를 시간째로 붙여넣어도 돼요:&#10;Chapter 1&#10;  메모를 해야하는 이유 12:34" style="width: 100%; min-height: 110px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
           <button type="button" class="mini-btn primary" id="e-bulkPasteApply" style="margin-top: 6px;">목록에 채우기</button>
         </div>
         <div id="e-durationsList" class="durations-list"></div>
@@ -2254,8 +2259,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v2.7';
-const APP_BUILD_DATE = '2026-10-03';
+const APP_VERSION = 'v2.9';
+const APP_BUILD_DATE = '2026-10-05';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2537,7 +2542,7 @@ function formatRangeDisplay(task, from, to) {
 // Requires an itemNames array matching task.total exactly — if the count is off (e.g.
 // total was edited after naming), we safely fall back to numeric display.
 function hasValidItemNames(task) {
-  return task.type === 'other' && !!task.showNames &&
+  return (task.type === 'other' || task.type === 'lecture') && !!task.showNames &&
     Array.isArray(task.itemNames) && task.itemNames.length === task.total;
 }
 
@@ -4990,13 +4995,13 @@ function renderDurationsList(prefix) {
       </div>`;
     } else {
       const val = existingDur[i] || '';
-      html += `<div class="duration-row"><span class="idx">${itemNum}강</span><input type="text" data-dur-idx="${i}" value="${escapeAttr(val)}" placeholder="예: 1:10 또는 70"></div>`;
+      html += `<div class="duration-row dur-row"><span class="idx">${itemNum}강</span><input type="text" data-dur-idx="${i}" value="${escapeAttr(val)}" placeholder="예: 1:10 또는 70"></div>`;
     }
   }
   listEl.innerHTML = html;
   const bulkBtn = document.getElementById(prefix + '-bulkPasteToggle');
   if (bulkBtn) bulkBtn.style.display = weightMode ? 'none' : '';
-  if (weightMode) refreshWeightLabels(prefix);
+  refreshWeightLabels(prefix);
   listEl.querySelectorAll('input, select').forEach(inp => {
     inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => updateDurationsPreview(prefix));
   });
@@ -5049,11 +5054,12 @@ function refreshWeightLabels(prefix) {
     const c = collectNamesFromList(prefix);
     names = c.names; parts = c.parts;
   }
-  listEl.querySelectorAll('.weight-row').forEach((row, i) => {
+  listEl.querySelectorAll('.weight-row, .dur-row').forEach((row, i) => {
     const span = row.querySelector('.idx');
     const nm = names[i] ? ((parts[i] ? parts[i] + ' ' : '') + names[i]) : '';
-    span.textContent = nm || `${fromVal + i}번`;
+    span.textContent = nm || `${fromVal + i}${row.classList.contains('dur-row') ? '강' : '번'}`;
     span.title = nm || '';
+    row.classList.toggle('named', !!nm);
   });
 }
 
@@ -5119,10 +5125,21 @@ function setupBulkPaste(prefix) {
     area.style.display = area.style.display === 'none' ? 'block' : 'none';
   });
   applyBtn.addEventListener('click', () => {
-    const durations = parseDurationsText(textEl.value);
+    // Either a plain list of times (one per line), or the course outline itself with a
+    // time next to each lecture — headings and lines without a time are skipped.
+    const lines = textEl.value.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(Boolean);
+    const hasTitles = lines.some(l => splitTrailingDuration(l).title !== '' && parseDurationToken(l) === null);
+    let durations;
+    if (hasTitles) {
+      const o = parseOutlineText(textEl.value, true);
+      durations = o.mins.filter(v => v != null);
+    } else {
+      durations = lines.length > 1 ? lines.map(l => { const d = splitTrailingDuration(l); return d.mins != null ? d.mins : parseDurationToken(l); }).filter(v => v != null && v >= 0)
+        : parseDurationsText(textEl.value);
+    }
     if (durations.length === 0) { showToast('붙여넣은 내용에서 시간을 못 읽었어요'); return; }
     const listEl = document.getElementById(prefix + '-durationsList');
-    const inputs = Array.from(listEl.querySelectorAll('input'));
+    const inputs = Array.from(listEl.querySelectorAll('input[data-dur-idx]'));
     if (inputs.length === 0) { showToast('시작~끝을 먼저 정해주세요'); return; }
     inputs.forEach((inp, i) => {
       if (durations[i] !== undefined) inp.value = formatDuration(durations[i]);
@@ -5138,6 +5155,131 @@ function setupBulkPaste(prefix) {
 // Existing values are preserved by index across regeneration, same as durations list.
 // Regenerate the per-item rows: a small "파트" (part/group) field plus the chapter
 // title field. Existing values are preserved by index across regeneration.
+// Panel wording per type: lectures get "paste the course outline" wording.
+function setNamesPanelTexts(prefix, type) {
+  const isLec = type === 'lecture';
+  const help = document.getElementById(prefix + '-namesHelp');
+  const toggle = document.getElementById(prefix + '-namesBulkToggle');
+  const ta = document.getElementById(prefix + '-namesBulkText');
+  const chip = document.getElementById(prefix + '-showNamesToggle');
+  if (chip) chip.innerHTML = (isLec ? '📑 강의 제목·챕터 붙이기' : '📑 챕터/제목으로 표시하기') + ' <span style="color: var(--text-muted); font-weight:400;">(선택)</span>';
+  if (help) help.innerHTML = isLec
+    ? '강의 목차를 그대로 붙여넣어요. <b>아래 줄이 들여쓰기된 줄</b>(또는 Chapter·Part·Welcome·Outro 같은 줄)은 묶음 이름, 나머지는 강의가 돼요. 제목 옆에 시간(예: 12:34 = 12분 34초)이 있으면 시간도 같이 들어가요.' + (prefix === 'f' ? ' 강의 수에 맞춰 끝 번호도 자동으로 맞춰요.' : '')
+    : '한 줄에 하나씩, 묶음 아래 항목은 <b>들여쓰기</b>로 붙여넣어요. 예: Part 1 → (들여쓰기) Chapter 1, Chapter 2';
+  if (toggle) toggle.textContent = isLec ? '📋 목차 붙여넣기로 한 번에 등록' : '📋 붙여넣기로 채우기';
+  if (ta) ta.placeholder = isLec
+    ? 'Welcome\n  인사말 03:20\nChapter 1 메모의 방법\n  메모를 해야하는 이유 12:34\n  생각과 사실은 서로 다릅니다 08:05\nChapter 2 …'
+    : 'Part 1\n  Chapter 1\n  Chapter 2\nPart 2\n  Chapter 1\n  Chapter 2';
+}
+
+// Parse a pasted course outline into {parts, names}. A line is a GROUP heading when it
+// looks like one (Part/Chapter/Section/Welcome/Intro/Outro/1장…) AND the line after it
+// is "deeper" — a lecture, or a lower-level heading (Part → Chapter). So
+//   Part1 / Ch1 / Ch2 / Part2 / Ch1   → Ch lines are lectures under Part1/Part2 (as before)
+//   Welcome / 인사말 / Chapter 1 … / 메모를 해야하는 이유 → 인사말 under "Welcome", etc.
+// Indented lines are always lectures. A heading's group label is shortened to its
+// keyword + number ("Chapter 1 손으로 생각하는…" → "Chapter 1"; "Outro 완강을…" → "Outro").
+const OUTLINE_LV1 = /^(part|파트|section|섹션|module|모듈|unit|유닛|제?\s*\d+\s*부(\s|$|[.:)]))/i;
+const OUTLINE_LV2 = /^(chapter|ch\.?\s*\d|챕터|제?\s*\d+\s*(장|단원)(\s|$|[.:)])|week\s*\d|\d+\s*주차|welcome|intro(duction)?\b|outro\b|prologue|epilogue|orientation|오리엔테이션|ot(\s|$)|들어가며|마치며|부록|bonus|보너스|appendix)/i;
+function outlineLevel(line) { return OUTLINE_LV1.test(line) ? 1 : OUTLINE_LV2.test(line) ? 2 : 0; }
+function outlineShortLabel(line) {
+  const m = line.match(/^((chapter|ch\.?|part|section|module|unit|week|챕터|파트|섹션|모듈|유닛)\s*\d+|제?\s*\d+\s*(장|부|단원|주차))/i);
+  if (m) return m[1].replace(/\s+/g, ' ').trim();
+  if (outlineLevel(line) > 0) return line.split(/\s+/)[0]; // "Outro 완강을 축하합니다" → "Outro"
+  return line;                                              // plain heading: keep it whole
+}
+
+// Trailing lecture time on a pasted line, as course sites list it:
+//   "인사말 05:23" → 5분 23초,  "… 1:02:10" → 1시간 2분,  "… (12분)", "… 1시간 5분"
+// Returns { title, mins } (mins null when the line has no time).
+function splitTrailingDuration(line) {
+  // "12:34" style anywhere at the end; "12분"/"1시간 5분" only in brackets or after a
+  // separator (· | - or a tab/2+ spaces), so a title like "하루 10분" stays a title.
+  const KOR = '\\d+\\s*시간(?:\\s*\\d+\\s*분)?(?:\\s*\\d+\\s*초)?|\\d+\\s*분(?:\\s*\\d+\\s*초)?|\\d+\\s*초';
+  let m = line.match(/^(.*?)[\s·|\-–—]*[(\[]?\s*(\d{1,3}:\d{2}(?::\d{2})?)\s*[)\]]?\s*$/);
+  if (!m) m = line.match(new RegExp('^(.*?)\\s*[(\\[]\\s*(' + KOR + ')\\s*[)\\]]\\s*$'));
+  if (!m) m = line.match(new RegExp('^(.*?)(?:\\s*[·|\\-–—]\\s*|\\t|\\s{2,})(' + KOR + ')\\s*$'));
+  if (!m && /^\s*(\d+\s*시간(\s*\d+\s*분)?|\d+\s*분)\s*$/.test(line)) m = ['', '', line.trim()];
+  if (!m) return { title: line, mins: null };
+  const tok = m[2];
+  let sec = 0;
+  const c = tok.split(':').map(Number);
+  if (tok.includes(':')) sec = c.length === 3 ? c[0] * 3600 + c[1] * 60 + c[2] : c[0] * 60 + c[1];
+  else {
+    const h = tok.match(/(\d+)\s*시간/), mi = tok.match(/(\d+)\s*분/), se = tok.match(/(\d+)\s*초/);
+    sec = (h ? +h[1] * 3600 : 0) + (mi ? +mi[1] * 60 : 0) + (se ? +se[1] : 0);
+  }
+  const title = m[1].trim();
+  return { title, mins: Math.max(1, Math.round(sec / 60)) };
+}
+
+function indentWidth(l) {
+  let w = 0;
+  for (const ch of l) { if (ch === ' ') w += 1; else if (ch === '\t') w += 4; else if (ch === '　') w += 2; else break; }
+  return w;
+}
+
+// Parse a pasted outline into {parts, names, mins}. Two ways to show structure:
+//  • Indentation (preferred): a line followed by a MORE-indented line is a group heading
+//      Part 1            Welcome
+//        Chapter 1         인사말
+//        Chapter 2       Chapter 1 손으로 생각하는…
+//                          메모를 해야하는 이유
+//    Nested headings combine ("Part 1 Chapter 1"). Unindented lines right under a heading
+//    still belong to it until the next heading.
+//  • No indentation: keyword lines (Part/Chapter/Welcome/Outro/1장…) followed by a
+//    lecture or a lower-level heading are headings (Part1 / Ch1 / Ch2 / Part2 / Ch1).
+// Headings are shortened to keyword + number ("Chapter 1 손으로…" → "Chapter 1").
+// withTimes: also read a trailing time on each lecture line (see splitTrailingDuration).
+function parseOutlineText(text, withTimes) {
+  if (!text) return { parts: [], names: [], mins: [] };
+  let raw = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  // One line with commas → split it into lines (the original comma-separated format)
+  if (raw.length <= 1) raw = text.split(',').map(x => x.trim()).filter(Boolean);
+  let rows = raw.map(l => {
+    const indent = indentWidth(l);
+    let t = l.trim(), mins = null;
+    if (withTimes) { const d = splitTrailingDuration(t); if (d.title) { t = d.title; mins = d.mins; } }
+    return { indent, t, mins, lv: outlineLevel(t) };
+  });
+  // "Part1 - Ch1" style: heading and title on one line → explicit group + item
+  const dash = rows.map(r => { const m = r.t.match(/^(.+?)\s+[-–—]\s+(.+)$/); return m && outlineLevel(m[1]) > 0 ? { part: m[1].trim(), name: m[2].trim() } : null; });
+  const parts = [], names = [], mins = [];
+  const push = (p, n, mn) => { parts.push(p); names.push(n); mins.push(mn); };
+  if (dash.some(Boolean)) {
+    let cur = '';
+    rows.forEach((r, i) => {
+      const nx = rows[i + 1];
+      if (dash[i]) { cur = dash[i].part; push(cur, dash[i].name, r.mins); }
+      else if (r.lv > 0 && nx && !dash[i + 1] && nx.lv === 0) cur = outlineShortLabel(r.t);
+      else push(cur, r.t, r.mins);
+    });
+    return { parts, names, mins };
+  }
+  const hasIndent = rows.some(r => r.indent > 0);
+  const minIndent = Math.min(...rows.map(r => r.indent));
+  const stack = []; // [{depth, label}]
+  rows.forEach((r, i) => {
+    const nx = rows[i + 1];
+    let heading = false, depth = 0;
+    if (hasIndent) {
+      heading = !!nx && (nx.indent > r.indent ||
+        (r.indent === minIndent && r.lv > 0 && nx.indent === r.indent && nx.lv === 0));
+      depth = r.indent;
+    } else {
+      heading = r.lv > 0 && !!nx && (nx.lv === 0 || nx.lv > r.lv);
+      depth = r.lv;
+    }
+    if (heading) {
+      while (stack.length && stack[stack.length - 1].depth >= depth) stack.pop();
+      stack.push({ depth, label: outlineShortLabel(r.t) });
+      return;
+    }
+    push(stack.map(x => x.label).join(' '), r.t, r.mins);
+  });
+  return { parts, names, mins };
+}
+
 function renderNamesList(prefix) {
   const fromEl = document.getElementById(prefix + '-from');
   const toEl = document.getElementById(prefix + '-to');
@@ -5160,8 +5302,8 @@ function renderNamesList(prefix) {
     const partVal = existingParts[i] || '';
     const nameVal = existingNames[i] || '';
     html += `<div class="duration-row name-row">
-      <span class="idx">${itemNum}번</span>
-      <input type="text" class="part-field" data-part-idx="${i}" value="${escapeAttr(partVal)}" placeholder="파트(이어짐)">
+      <span class="idx">${itemNum}${currentTypeFor(prefix) === 'lecture' ? '강' : '번'}</span>
+      <input type="text" class="part-field" data-part-idx="${i}" value="${escapeAttr(partVal)}" placeholder="묶음(이어짐)">
       <input type="text" data-name-idx="${i}" value="${escapeAttr(nameVal)}" placeholder="예: Ch${i+1}">
     </div>`;
   }
@@ -5236,12 +5378,28 @@ function setupBulkPasteNames(prefix) {
     area.style.display = area.style.display === 'none' ? 'block' : 'none';
   });
   applyBtn.addEventListener('click', () => {
-    const { parts, names } = parsePartedNamesText(textEl.value);
+    const isLec = currentTypeFor(prefix) === 'lecture';
+    const { parts, names, mins } = parseOutlineText(textEl.value, isLec);
     if (names.length === 0) { showToast('붙여넣은 내용에서 제목을 못 읽었어요'); return; }
     const listEl = document.getElementById(prefix + '-namesList');
+    // New goal: size the range to the pasted list (start stays; empty start → 1).
+    if (prefix === 'f') {
+      const fromEl = document.getElementById('f-from'), toEl = document.getElementById('f-to');
+      const fromVal = parseInt(fromEl.value) || 1;
+      if (!(parseInt(toEl.value) - fromVal + 1 === names.length)) {
+        fromEl.value = String(fromVal);
+        toEl.value = String(fromVal + names.length - 1);
+        [fromEl, toEl].forEach(el => { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
+        renderNamesList('f');
+      }
+    }
     const partInputs = Array.from(listEl.querySelectorAll('input[data-part-idx]'));
     const nameInputs = Array.from(listEl.querySelectorAll('input[data-name-idx]'));
     if (nameInputs.length === 0) { showToast('시작~끝을 먼저 정해주세요'); return; }
+    if (prefix === 'e' && names.length !== nameInputs.length) {
+      showToast(`붙여넣은 강의는 ${names.length}개, 지금 범위는 ${nameInputs.length}개예요 · 끝 번호를 맞춘 뒤 다시 채워주세요`);
+      return;
+    }
     nameInputs.forEach((inp, i) => { if (names[i] !== undefined) inp.value = names[i]; });
     // Only write the part field where the group actually changes, so the visual
     // "이어짐" placeholder pattern still shows through for the rest of the group.
@@ -5252,9 +5410,23 @@ function setupBulkPasteNames(prefix) {
       else inp.value = '';
     });
     updateNamesPreview(prefix);
+    // Lecture times written next to the titles → switch on 시간 기준 and fill them in
+    let timeMsg = '';
+    const timeCount = isLec ? mins.filter(v => v != null).length : 0;
+    if (timeCount > 0) {
+      const on = prefix === 'f' ? formTimeBased : editTimeBased;
+      if (!on) document.getElementById(prefix + '-timeBasedToggle').click();
+      else renderDurationsList(prefix);
+      const durInputs = Array.from(document.querySelectorAll(`#${prefix}-durationsList input[data-dur-idx]`));
+      durInputs.forEach((inp, k) => { if (mins[k] != null) inp.value = formatDuration(mins[k]); });
+      updateDurationsPreview(prefix);
+      timeMsg = timeCount === names.length ? ` · 시간도 모두 넣었어요` : ` · 시간 ${timeCount}/${names.length}개 (나머지는 직접 입력)`;
+    }
+    refreshWeightLabels(prefix);
     textEl.value = '';
     area.style.display = 'none';
-    showToast(`✓ ${Math.min(names.length, nameInputs.length)}개 채웠어요`);
+    const groups = new Set(parts.filter(Boolean)).size;
+    showToast(`✓ ${Math.min(names.length, nameInputs.length)}개 채웠어요${groups ? ` · 묶음 ${groups}개` : ''}${timeMsg}`);
   });
 }
 
@@ -5263,6 +5435,7 @@ function setupForm() {
   document.getElementById('f-start').value = fmtDate(t);
   document.getElementById('f-end').value = fmtDate(addDays(t, 30));
 
+  setNamesPanelTexts('f', document.getElementById('f-type').value);
   document.getElementById('f-type').addEventListener('change', (e) => {
     const v = e.target.value;
     const unit = v === 'book' ? '(페이지)' : v === 'lecture' ? '(강의)' : '(번호)';
@@ -5285,8 +5458,11 @@ function setupForm() {
       document.getElementById('f-to').placeholder = '예: 30';
     }
     // Show copy format only for 'other'
-    document.getElementById('copyFormatGroup').style.display = (v === 'other') ? 'block' : 'none';
-    if (v !== 'other') {
+    // Copy format: 'other' only. Chapter/title names: 'other' and 'lecture'.
+    document.getElementById('copyFormatGroup').style.display = (v === 'other' || v === 'lecture') ? 'block' : 'none';
+    document.getElementById('f-copyFmtOnly').style.display = (v === 'other') ? 'block' : 'none';
+    setNamesPanelTexts('f', v);
+    if (v !== 'other' && v !== 'lecture') {
       formShowNames = false;
       document.getElementById('f-showNamesToggle').classList.remove('active');
       document.getElementById('f-showNamesPanel').style.display = 'none';
@@ -5436,7 +5612,8 @@ function addNewTask() {
 
   // Item names / chapter titles (optional, 'other' type only)
   let itemNames, itemParts;
-  if (type === 'other' && formShowNames) {
+  const namesTypeOk = (type === 'other' || type === 'lecture');
+  if (namesTypeOk && formShowNames) {
     const collected = collectNamesFromList('f');
     itemNames = collected.names;
     itemParts = collected.parts;
@@ -5466,9 +5643,9 @@ function addNewTask() {
     reviewDays: [...reviewDaysSel],
     reviewLabel: (document.getElementById('f-reviewLabel').value || '').trim() || undefined,
     copyFmt: type === 'other' ? copyFmt : undefined,
-    showNames: type === 'other' && formShowNames,
-    itemNames: (type === 'other' && formShowNames) ? itemNames : undefined,
-    itemParts: (type === 'other' && formShowNames) ? itemParts : undefined,
+    showNames: namesTypeOk && formShowNames,
+    itemNames: (namesTypeOk && formShowNames) ? itemNames : undefined,
+    itemParts: (namesTypeOk && formShowNames) ? itemParts : undefined,
     progress: 0,
     archived: false,
     created: Date.now(),
@@ -5559,7 +5736,9 @@ function openEditModal(id) {
   });
 
   // Copy format (only for 'other')
-  document.getElementById('eCopyFormatGroup').style.display = (task.type === 'other') ? 'block' : 'none';
+  document.getElementById('eCopyFormatGroup').style.display = (task.type === 'other' || task.type === 'lecture') ? 'block' : 'none';
+  document.getElementById('e-copyFmtOnly').style.display = (task.type === 'other') ? 'block' : 'none';
+  setNamesPanelTexts('e', task.type);
   editCopyFmt = task.copyFmt || 'no';
   document.querySelectorAll('#e-copyfmt-row .chip[data-copyfmt]').forEach(c => {
     c.classList.toggle('active', c.dataset.copyfmt === editCopyFmt);
@@ -5736,7 +5915,7 @@ function setupEditModal() {
 
     // Item names / chapter titles validation (only for 'other' type)
     let newItemNames, newItemParts;
-    if (task.type === 'other' && editShowNames) {
+    if ((task.type === 'other' || task.type === 'lecture') && editShowNames) {
       const collected = collectNamesFromList('e');
       newItemNames = collected.names;
       newItemParts = collected.parts;
@@ -5780,8 +5959,8 @@ function setupEditModal() {
     task.pace = editPace;
     task.paceValue = newPaceValue;
 
-    if (task.type === 'other') {
-      task.copyFmt = editCopyFmt;
+    if (task.type === 'other' || task.type === 'lecture') {
+      if (task.type === 'other') task.copyFmt = editCopyFmt;
       task.showNames = editShowNames;
       task.itemNames = editShowNames ? newItemNames : undefined;
       task.itemParts = editShowNames ? newItemParts : undefined;
