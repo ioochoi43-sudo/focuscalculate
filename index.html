@@ -395,6 +395,17 @@
   }
   .multi-day-note b { color: var(--text); font-weight: 700; }
   .multi-day-warn { color: #c44d2e; margin-top: 2px; }
+  .colon-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 8px; }
+  .colon-label { font-size: 11px; color: var(--text-muted); margin-right: 2px; }
+  .colon-row .chip { padding: 4px 10px; font-size: 12px; }
+  .colon-ex { font-weight: 400; opacity: 0.7; font-size: 11px; }
+  .misread-box { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: #FDE5DC; color: #c44d2e; font-size: 12px; line-height: 1.7; }
+  .misread-box .mini-btn { margin: 2px 4px; }
+  .misread-sub { color: var(--text-muted); font-size: 11px; }
+  .daily-need { font-size: 11px; color: var(--text-soft); margin-top: 6px; line-height: 1.6; }
+  .daily-need b { color: var(--text); }
+  .daily-need.warn { color: #c44d2e; }
+  .daily-need.ok b.ok { color: var(--matcha); }
   .part-pill {
     display: inline-block;
     font-size: 10px;
@@ -724,7 +735,9 @@
     border-radius: 6px;
     min-width: 0;
   }
-  .dur-row.named .idx { width: auto; min-width: 40px; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .duration-row input { min-width: 0; }
+  .dur-row.named { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 38%); gap: 8px; }
+  .dur-row.named .idx { width: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   .weight-row, .weight-head {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr);
@@ -1829,7 +1842,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v2.9 · 최근 업데이트 2026-10-05</div>
+      <div class="build-badge" id="buildBadge">v3.4 · 최근 업데이트 2026-10-05</div>
     </div>
   </aside>
 
@@ -2026,10 +2039,16 @@
           <div id="f-dailyMinutesField" style="margin-top: 12px;">
             <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;" id="f-dailyLabel">하루 가능 시간</label>
             <input type="text" id="f-dailyMinutes" placeholder="예: 2시간 30분 또는 150" style="width: 100%; background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
+            <div id="f-dailyNeed" class="daily-need"></div>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin: 12px 0 6px;">
             <label style="font-size: 12px; color: var(--text-soft); font-weight: 500;" id="f-perItemLabel">강의별 시간</label>
             <button type="button" class="bulk-paste-toggle" id="f-bulkPasteToggle">📋 붙여넣기로 채우기</button>
+          </div>
+          <div class="colon-row" id="f-colonRow">
+            <span class="colon-label">12:34 읽는 방식</span>
+            <button type="button" class="chip chip-sm active" data-colon="ms">분:초 <span class="colon-ex">(12분 34초)</span></button>
+            <button type="button" class="chip chip-sm" data-colon="hm">시:분 <span class="colon-ex">(12시간 34분)</span></button>
           </div>
           <div id="f-bulkPasteArea" style="display:none; margin-bottom: 8px;">
             <textarea id="f-bulkPasteText" placeholder="한 줄에 하나씩:&#10;1시간 10분&#10;30분&#10;12:34 (= 12분 34초)&#10;&#10;강의 목차를 시간째로 붙여넣어도 돼요:&#10;Chapter 1&#10;  메모를 해야하는 이유 12:34" style="width: 100%; min-height: 110px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
@@ -2151,10 +2170,16 @@
         <div id="e-dailyMinutesField" style="margin-top: 12px;">
           <label style="font-size: 12px; color: var(--text-soft); margin-bottom: 6px; display: block; font-weight: 500;" id="e-dailyLabel">하루 가능 시간</label>
           <input type="text" id="e-dailyMinutes" placeholder="예: 2시간 30분 또는 150" style="width: 100%; background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm);">
+            <div id="e-dailyNeed" class="daily-need"></div>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin: 12px 0 6px;">
           <label style="font-size: 12px; color: var(--text-soft); font-weight: 500;" id="e-perItemLabel">강의별 시간</label>
           <button type="button" class="bulk-paste-toggle" id="e-bulkPasteToggle">📋 붙여넣기로 채우기</button>
+        </div>
+        <div class="colon-row" id="e-colonRow">
+          <span class="colon-label">12:34 읽는 방식</span>
+          <button type="button" class="chip chip-sm active" data-colon="ms">분:초 <span class="colon-ex">(12분 34초)</span></button>
+          <button type="button" class="chip chip-sm" data-colon="hm">시:분 <span class="colon-ex">(12시간 34분)</span></button>
         </div>
         <div id="e-bulkPasteArea" style="display:none; margin-bottom: 8px;">
           <textarea id="e-bulkPasteText" placeholder="한 줄에 하나씩:&#10;1시간 10분&#10;30분&#10;12:34 (= 12분 34초)&#10;&#10;강의 목차를 시간째로 붙여넣어도 돼요:&#10;Chapter 1&#10;  메모를 해야하는 이유 12:34" style="width: 100%; min-height: 110px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; background: var(--surface); resize: vertical;"></textarea>
@@ -2259,7 +2284,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v2.9';
+const APP_VERSION = 'v3.4';
 const APP_BUILD_DATE = '2026-10-05';
 
 // ===== STATE =====
@@ -2438,6 +2463,31 @@ function parseDurationToken(tok) {
   return null;
 }
 
+// One lecture's length as typed in its row. Course sites list lengths as "12:34" =
+// 12분 34초, so a two-part time here is 분:초 (rounded, at least 1분); "1:02:30" is
+// 시:분:초; "1시간 10분", "70분" and a bare "70" (minutes) work as before.
+// (The 하루 가능 시간 field still reads "2:30" as 2시간 30분 — see parseDurationToken.)
+// mode: 'ms' (default) = 분:초, 'hm' = 시:분 — chosen with the "12:34 읽는 방식" buttons.
+const colonModes = { f: 'ms', e: 'ms' };
+function colonModeFor(prefix) { return colonModes[prefix] === 'hm' ? 'hm' : 'ms'; }
+function parseLectureTime(tok, mode) {
+  if (tok == null) return null;
+  const t = String(tok).trim();
+  const m = t.match(/^(\d+):(\d{1,2})$/);
+  if (m) return mode === 'hm' ? parseInt(m[1]) * 60 + parseInt(m[2]) : Math.max(1, Math.round(parseInt(m[1]) + parseInt(m[2]) / 60));
+  const h = t.match(/^(\d+):(\d{1,2}):(\d{1,2})$/);
+  if (h) return Math.max(1, Math.round(parseInt(h[1]) * 60 + parseInt(h[2]) + parseInt(h[3]) / 60));
+  // "1시간 5분", "12분 34초", "45초" → total seconds ÷ 60 (same as pasting)
+  if (/^(\d+\s*시간)?\s*(\d+\s*분)?\s*(\d+\s*초)?$/.test(t) && /[시분초]/.test(t)) {
+    const hh = t.match(/(\d+)\s*시간/), mm = t.match(/(\d+)\s*분/), ss = t.match(/(\d+)\s*초/);
+    const sec = (hh ? +hh[1] * 3600 : 0) + (mm ? +mm[1] * 60 : 0) + (ss ? +ss[1] : 0);
+    return Math.max(1, Math.round(sec / 60));
+  }
+  return parseDurationToken(t);
+}
+// A length saved from "12:34" read the old way (12시간 34분) → what was meant (13분).
+function fixMisreadLength(v) { return Math.max(1, Math.round(Math.floor(v / 60) + (v % 60) / 60)); }
+
 // Parse a bulk-pasted block of durations (comma and/or newline separated) into an
 // array of minutes. Invalid/empty tokens are dropped.
 function parseDurationsText(text) {
@@ -2529,7 +2579,10 @@ function formatRange(from, to) {
 // Display range matching the copy format style:
 // book → "p.1~3" / lecture → "1~3강" / other → "no.1~3" or "day1~3"
 // (or, when the task has custom item names, "Part1-Ch1 ~ Part1-Ch3")
-function formatRangeDisplay(task, from, to) {
+// HTML-safe range for innerHTML (item/part names are user text). formatRangePlain is the
+// same text unescaped — for textContent, copy text and places that escape themselves.
+function formatRangeDisplay(task, from, to) { return escapeHtml(formatRangePlain(task, from, to)); }
+function formatRangePlain(task, from, to) {
   if (hasValidItemNames(task)) return formatNamedRange(task, from, to);
   const rangeText = formatRange(from, to);
   if (task.type === 'book') return `p.${rangeText}`;
@@ -2861,8 +2914,10 @@ function syncTodayCompletion(task, oldProgress) {
 let completeModalTask = null;
 let completeModalPlannedTo = 0; // absolute planned end for today
 
+let completeModalDay = null; // the day the modal was opened for
 function openCompleteModal(task, plannedToAbs, anchorAbs) {
   completeModalTask = task;
+  completeModalDay = fmtDate(today());
   completeModalPlannedTo = plannedToAbs;
   const ti = typeInfo(task.type);
   const startNum = task.startNum || 0;
@@ -2931,6 +2986,14 @@ function setupCompleteModal() {
 function commitCompleteModal() {
   const task = completeModalTask;
   if (!task) return;
+  // Opened before midnight, saved after: don't credit the new day with yesterday's work
+  if (completeModalDay && completeModalDay !== fmtDate(today())) {
+    document.getElementById('completeModal').classList.remove('show');
+    completeModalTask = null;
+    showToast('날짜가 바뀌었어요 · 오늘 기준으로 다시 체크해 주세요');
+    rerender();
+    return;
+  }
   const startNum = task.startNum || 0;
   const totalEndAbs = startNum + task.total;
   let val = parseInt(document.getElementById('cm-input').value);
@@ -3086,14 +3149,57 @@ function appendCatchUpSession(task, schedule, anchor, tdy, remainingDates) {
 // non-postponed day takes (what's left) / (days left incl. that day) — as the plan looked
 // on that day (a day postponed LATER still counted then; one postponed earlier didn't).
 // exact=true returns the unrounded value (used for time-based plans).
-function replayExpected(allDates, isSkipped, tdy, total, exact) {
+// holds: Map(date → relative target) of "이번 주 안에 채우기" postpones — from that day to
+// the week's end the replay aims at the target, exactly as the plan did then.
+// Which week-mode hold applies on day d (call with increasing d): the latest one set
+// before d, as long as d is still in that week.
+function holdTracker(holds) {
+  const arr = holds ? [...holds.entries()].map(([ds, t]) => {
+    const d = parseDate(ds);
+    return { d, weekEnd: addDays(startOfWeek(d), 6), target: t };
+  }).sort((a, b) => a.d - b.d) : [];
+  let k = 0, cur = null;
+  return (d) => {
+    while (k < arr.length && arr[k].d < d) { cur = arr[k].target == null ? null : arr[k]; k++; }
+    return cur && d <= cur.weekEnd ? cur : null;
+  };
+}
+
+function replayExpected(allDates, isSkipped, tdy, total, exact, holds) {
   let pos = 0;
-  for (let i = 0; i < allDates.length && allDates[i] < tdy; i++) {
-    if (isSkipped(allDates[i])) continue;
-    const share = (total - pos) / (allDates.length - i);
+  const N = allDates.length;
+  const holdAt = holdTracker(holds);
+  for (let i = 0; i < N && allDates[i] < tdy; i++) {
+    const d = allDates[i];
+    if (isSkipped(d)) continue;
+    const hold = holdAt(d);
+    let share;
+    if (hold) {
+      let left = 0;
+      for (let j = i; j < N && allDates[j] <= hold.weekEnd; j++) left++;
+      const tgt = left === N - i ? total : Math.min(total, hold.target);
+      share = pos < tgt ? (tgt - pos) / left : 0;
+    } else share = (total - pos) / (N - i);
     pos += exact ? share : Math.round(share);
   }
   return Math.min(total, exact ? pos : Math.round(pos));
+}
+
+// Week-mode postpones as replay holds (date → relative target). Older data without
+// weekSkips: skipped days inside the current hold week count as week-mode.
+function getReplayHolds(task) {
+  const sn = task.startNum || 0;
+  const skips = new Set(task.skipDates || []);
+  const map = new Map();
+  Object.keys(task.weekSkips || {}).forEach(ds => { if (skips.has(ds)) map.set(ds, task.weekSkips[ds] - sn); });
+  const h = task.weekHold;
+  if (h && typeof h.endAbs === 'number' && h.weekStart && !Object.keys(task.weekSkips || {}).length) {
+    const we = fmtDate(addDays(parseDate(h.weekStart), 6));
+    skips.forEach(ds => { if (ds >= h.weekStart && ds <= we && !map.has(ds)) map.set(ds, h.endAbs - sn); });
+  }
+  // Every other postponed day was "마감일까지 나누기": it ends any hold from earlier that week
+  skips.forEach(ds => { if (!map.has(ds)) map.set(ds, null); });
+  return map;
 }
 
 function buildSchedule(task) {
@@ -3117,8 +3223,9 @@ function buildSchedule(task) {
   // Where the plan expects you to be today: replay the plan day by day as you lived it —
   // a postponed/paused day's share moves to the days after it, exactly like the real plan.
   // (Dividing by ALL days instead made every postpone permanently lower the target.)
-  const expectedProgress = replayExpected(allDates, isSkipped, tdy, task.total);
-  const expectedProgressEnd = replayExpected(allDates, isSkipped, addDays(tdy, 1), task.total); // incl. today's share
+  const replayHolds = getReplayHolds(task);
+  const expectedProgress = replayExpected(allDates, isSkipped, tdy, task.total, false, replayHolds);
+  const expectedProgressEnd = replayExpected(allDates, isSkipped, addDays(tdy, 1), task.total, false, replayHolds); // incl. today's share
 
   // Today's starting anchor = progress at the START of today, derived from completion
   // records (current progress minus today's recorded amount). No stored field, no
@@ -3269,6 +3376,64 @@ function parsePartData(str) {
   const [item, n, of] = str.split('|').map(Number);
   return (item > 0 && n > 0 && of > 1) ? { item, n, of } : null;
 }
+// Busiest future day of a built plan, in minutes/양 (part days count w/of of the chapter).
+function planMaxDayLoad(task, plan) {
+  const prefix = getDurationPrefix(task), sn = task.startNum || 0;
+  const w = (abs) => prefix[abs - sn] - prefix[abs - sn - 1];
+  const byDay = new Map();
+  plan.schedule.forEach(x => {
+    if (x.isPast || x.isReview) return;
+    let load;
+    if (x.isPart) load = w(x.from) / x.partOf;
+    else {
+      load = prefix[x.to - sn] - prefix[x.from - sn - 1];
+      if (x.partOf > 1) load -= w(x.from) * (x.partOf - 1) / x.partOf; // chapter's last share only
+    }
+    const k = fmtDate(x.date);
+    byDay.set(k, (byDay.get(k) || 0) + load);
+  });
+  let mx = 0; byDay.forEach(v => { mx = Math.max(mx, v); });
+  return mx;
+}
+
+// Card line: how much per day finishes by the deadline (time-based tasks).
+function dailyNeedHtml(task, plan) {
+  if (!plan || !plan.isTimeBased || plan.status === 'done' || task.archived) return '';
+  const misread = task.type === 'lecture' && task.colonMode !== 'hm' && Array.isArray(task.lectureDurations)
+    ? task.lectureDurations.filter(v => v >= 180).length : 0;
+  const misreadHtml = misread
+    ? `<div style="font-size: 12px; color: #c44d2e; background: #FDE5DC; padding: 8px 12px; border-radius: var(--radius-sm); margin-top: -4px; line-height: 1.6;">⚠️ 3시간이 넘는 강의가 ${misread}개 있어요. "12:34"(12분 34초)가 12시간 34분으로 잘못 들어갔을 수 있어요 — [수정]의 강의별 시간에서 <b>분:초로 고치기</b>를 눌러주세요</div>`
+    : '';
+  return misreadHtml + dailyNeedCore(task, plan);
+}
+function dailyNeedCore(task, plan) {
+  const n = plan.dailyNeed;
+  const fmt = (v) => fmtDailyAmount(task.type, v);
+  const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+  const days = plan.remainingDates.length;
+  const warnStyle = 'font-size: 12px; color: #c44d2e; background: #FDE5DC; padding: 8px 12px; border-radius: var(--radius-sm); margin-top: -4px; line-height: 1.6;';
+  const infoStyle = 'font-size: 12px; color: var(--text-soft); background: var(--cream-light); padding: 8px 12px; border-radius: var(--radius-sm); margin-top: -4px; line-height: 1.6;';
+  const isCap = task.timeMode === 'capacity';
+  if (isCap) {
+    const now = fmt(task.dailyMinutes);
+    if (plan.capacityInsufficient) {
+      return `<div style="${warnStyle}">⚠️ 하루 ${josa(now, 'ro')}는 마감일 안에 못 끝나요.${plan.capacityFinishDate ? ` 이 속도면 ${fmtDate(plan.capacityFinishDate)}에 끝나요.` : ''}`
+        + (n && !n.impossible ? `<br>⏱ 마감일까지 끝내려면 <b>하루 최소 ${fmt(n.need)}</b> (남은 ${days}일)` : n && n.impossible ? '<br>정한 일수 때문에 남은 날로는 마감일까지 못 끝내요' : '')
+        + `</div>`;
+    }
+    if (n && !n.impossible) {
+      const over = task.dailyMinutes < n.need && !isWeightUnitType(task.type)
+        ? `<br>가장 긴 강의(${fmt(n.maxItem)})가 있는 날은 하루 ${now}를 넘겨요` : '';
+      return `<div style="${infoStyle}">⏱ 마감일까지 <b>하루 최소 ${josa(fmt(n.need), 'myeon')}</b> 돼요 (남은 ${days}일) · 지금 하루 ${plan.capacityLastDate ? `${josa(now, 'myeon')} ${md(plan.capacityLastDate)}에 끝나요` : now}${over}</div>`;
+    }
+    return '';
+  }
+  if (n && !n.impossible && days > 0) {
+    return `<div style="${infoStyle}">⏱ 남은 ${days}일 · 하루 평균 <b>${fmt(n.avg)}</b> · 가장 많은 날 ${fmt(planMaxDayLoad(task, plan))}</div>`;
+  }
+  return '';
+}
+
 // "Heads-up" line on the card: upcoming chapters that take more than one day.
 function multiDayNoteHtml(task, plan) {
   if (!isSplitTask(task) || !plan || !plan.schedule) return '';
@@ -3289,7 +3454,7 @@ function multiDayNoteHtml(task, plan) {
   const warn = short > 0 ? `<div class="multi-day-warn">⚠️ 남은 날이 부족해서 ${short}개 챕터는 정한 일수보다 짧게 잡혔어요</div>` : '';
   if (days.size === 0) return warn ? `<div class="multi-day-note">${warn}</div>` : '';
   const list = [...days.entries()].slice(0, 4)
-    .map(([n, k]) => `<b>${escapeHtml(formatRangeDisplay(task, n, n).replace(/<[^>]*>/g, ''))}</b> ${k}일`).join(' · ');
+    .map(([n, k]) => `<b>${escapeHtml(formatRangePlain(task, n, n))}</b> ${k}일`).join(' · ');
   return `<div class="multi-day-note">⏳ 여러 날 걸리는 챕터 · ${list}${days.size > 4 ? ` 외 ${days.size - 4}개` : ''}${warn}</div>`;
 }
 // Days the user fixed for chapter at relative index `rel` (0 = 자동).
@@ -3311,6 +3476,7 @@ function partPillHtml(item) {
 // paired up so heavy chapters still get their days — instead of the last ones being
 // crammed into one day. Returns one entry per day (null = free day at the end).
 const _chapterPlanCache = new Map();
+const _expCache = new Map(); // task id → {key, e0, e1} (status replay)
 // hold (optional) = {n, days}: the first n chapters must be finished within the first
 // `days` days (this week's goal), and no later chapter may finish inside those days —
 // leftover week days are either free or part days of the next chapter.
@@ -3417,7 +3583,9 @@ function planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit
     }
   });
   while (out.length < D) out.push(null);
-  if (_chapterPlanCache.size > 300) _chapterPlanCache.clear();
+  if (_chapterPlanCache.size > 800) { // drop the oldest entries, keep the recent ones
+    let k = 0; for (const key0 of _chapterPlanCache.keys()) { _chapterPlanCache.delete(key0); if (++k >= 200) break; }
+  }
   _chapterPlanCache.set(key, out);
   return out;
 }
@@ -3451,6 +3619,7 @@ function buildTimeBasedSchedule(task) {
   // 앞섬 — so finishing today's plan doesn't read as "앞서가는 중").
   const todayIsPlanDay = allDates.some(d => fmtDate(d) === fmtDate(tdy)) && !isSkipped(tdy);
   const splitSim = isSplitTask(task);
+  const replayHolds = isCapacity ? new Map() : getReplayHolds(task);
   const expAt = (inclToday) => {
     if (isCapacity) {
       // Same day-by-day rule as the plan (incl. multi-day chapters)
@@ -3464,10 +3633,24 @@ function buildTimeBasedSchedule(task) {
       // Replay the deadline plan itself (whole lectures, daily target recomputed each day)
       // over the passed days — exactly where you'd be if you had followed it.
       const bound = inclToday ? addDays(tdy, 1) : tdy;
+      const N = allDates.length;
       let pos = 0;
-      for (let i = 0; i < allDates.length && allDates[i] < bound; i++) {
-        if (isSkipped(allDates[i]) || pos >= task.total) continue;
-        const left = allDates.length - i;
+      const holdAt = holdTracker(replayHolds);
+      for (let i = 0; i < N && allDates[i] < bound; i++) {
+        const d = allDates[i];
+        if (isSkipped(d)) continue;
+        const hold = holdAt(d);
+        if (pos >= task.total) continue;
+        if (hold) {
+          let left = 0;
+          for (let j = i; j < N && allDates[j] <= hold.weekEnd; j++) left++;
+          const tgt = left === N - i ? task.total : Math.max(0, Math.min(task.total, hold.target));
+          if (pos >= tgt) continue; // week goal reached: rest of the week stays free
+          if (left <= 1) { pos = tgt; continue; }
+          pos = Math.min(tgt, advanceByTimeBudget(prefix, pos, Math.round((prefix[tgt] - prefix[pos]) / left)));
+          continue;
+        }
+        const left = N - i;
         if (left <= 1) { pos = task.total; continue; }
         pos = advanceByTimeBudget(prefix, pos, Math.round((totalTime - prefix[pos]) / left));
       }
@@ -3479,13 +3662,24 @@ function buildTimeBasedSchedule(task) {
     const bound = inclToday ? addDays(tdy, 1) : tdy;
     const N = allDates.length, unit = totalTime / Math.max(1, N);
     const kCap = Math.max(14, Math.ceil(3 * N / Math.max(1, task.total)));
-    let pos = 0, pDone = 0, pOf = 0, base = 0;
-    let lay = N > 0 ? planChapterDays(task, prefix, 0, task.total, N, 0, 0, unit, kCap, null) : [];
+    let pos = 0, pDone = 0, pOf = 0, base = 0, lay = [], replan = true, lastHold = null;
+    const holdAt = holdTracker(replayHolds);
     for (let i = 0; i < N && allDates[i] < bound && pos < task.total; i++) {
-      if (isSkipped(allDates[i])) {
-        base = i + 1;
-        lay = N - base > 0 ? planChapterDays(task, prefix, pos, task.total, N - base, pDone, pDone > 0 ? Math.min(0.99, pDone / pOf) : 0, unit, kCap, null) : [];
-        continue;
+      if (isSkipped(allDates[i])) { replan = true; continue; }
+      const hold = holdAt(allDates[i]);
+      if (replan || hold !== lastHold) {
+        // (Re)lay out the rest from here — after a postponed day, or when a week-mode
+        // hold starts/ends — with that week's goal as a constraint while it applies.
+        base = i;
+        let holdArg = null;
+        if (hold) {
+          let days = 0;
+          for (let j = i; j < N && allDates[j] <= hold.weekEnd; j++) days++;
+          const tgt = days === N - i ? task.total : Math.max(0, Math.min(task.total, hold.target));
+          if (days > 0 && tgt >= pos) holdArg = { n: tgt - pos, days };
+        }
+        lay = planChapterDays(task, prefix, pos, task.total, N - i, pDone, pDone > 0 ? Math.min(0.99, pDone / pOf) : 0, unit, kCap, holdArg);
+        replan = false; lastHold = hold;
       }
       const e = lay[i - base];
       if (!e) continue;
@@ -3496,7 +3690,16 @@ function buildTimeBasedSchedule(task) {
     const f = pos + (pDone > 0 && pOf > 0 && pos < task.total ? Math.min(0.99, pDone / pOf) : 0);
     return { p: pos, f, t: prefix[pos] };
   };
-  const e0 = expAt(false), e1 = expAt(true);
+  // The replay can be costly (multi-day-chapter plans re-plan at every postponed day):
+  // cache it per task for today and the exact inputs it depends on.
+  const expKey = JSON.stringify([fmtDate(tdy), task.type, task.total, task.start, task.end, task.pace, task.paceValue,
+    task.reviewDays, task.skipDates, task.lectureDurations, task.itemDays, task.timeMode, task.dailyMinutes, task.weekSkips, task.weekHold]);
+  let expPair = _expCache.get(task.id);
+  if (!expPair || expPair.key !== expKey) {
+    expPair = { key: expKey, e0: expAt(false), e1: expAt(true) };
+    _expCache.set(task.id, expPair);
+  }
+  const e0 = expPair.e0, e1 = expPair.e1;
   expectedProgress = e0.p; expectedFrac = e0.f;
   const expectedFracEnd = e1.f;
   // Kept for return-value shape parity with buildSchedule (unused in status calc below,
@@ -3695,6 +3898,28 @@ function buildTimeBasedSchedule(task) {
     capacityFinishDate = estimateCapacityFinishDate(task, prefix, cursorRel, tdy, carry);
   }
 
+  // "하루에 얼마나 해야 마감일까지 끝나나": from where today started, over the study days
+  // left (incl. today). Shown on the card in both modes.
+  let dailyNeed = null;
+  if (remainingDates.length > 0 && anchor < task.total) {
+    let carry0 = null;
+    if (splitOn) {
+      const ps = getPartState(task, startNum + anchor + 1, tdyStr);
+      if (ps.done > 0 && ps.of > ps.done) carry0 = { left: ps.of - ps.done, set: ps.of };
+    }
+    dailyNeed = minDailyNeeded(task, prefix, anchor, remainingDates.length, splitOn, carry0);
+    if (dailyNeed && !dailyNeed.impossible) {
+      dailyNeed.avg = (prefix[task.total] - prefix[anchor]) / remainingDates.length;
+      // Capacity mode: when (and whether) the current daily setting finishes
+      if (isCapacity) dailyNeed.okNow = dailyMinutes >= dailyNeed.need || !capacityInsufficient;
+    }
+  }
+  let capacityLastDate = null;
+  if (isCapacity && !capacityInsufficient) {
+    const fut = schedule.filter(x => !x.isPast && !x.isReview);
+    if (fut.length) capacityLastDate = fut[fut.length - 1].date;
+  }
+
   return {
     allDates, remainingDates, schedule: scheduleWithReviews, perSession: 0, expectedProgress, status,
     pct: task.total > 0 ? Math.min(100, Math.round((task.progress / task.total) * 100)) : 0,
@@ -3705,6 +3930,8 @@ function buildTimeBasedSchedule(task) {
     totalTime,
     capacityFinishDate,
     capacityInsufficient,
+    capacityLastDate,
+    dailyNeed,
   };
 }
 
@@ -3713,6 +3940,67 @@ function buildTimeBasedSchedule(task) {
 // pattern) beyond `task.end` until all lectures are covered, and return that date.
 // Capped at ~3 years out as a safety bound against pathological inputs (e.g. 0-minute
 // budget) so this can never hang the UI.
+// Smallest daily amount (minutes, or 양 for 양·난이도) that still finishes items
+// fromRel+1..end within D study days, following the plan's own day rule:
+//  • whole items (lectures): no day may exceed it, so it's at least the longest lecture
+//    left — classic "split into ≤ D consecutive days, minimize the busiest day".
+//  • 양·난이도 (multi-day chapters allowed): simulated with capacityStep.
+// Returns {need, maxItem} or {impossible:true} (e.g. chapters fixed to more days than left).
+function minDailyNeeded(task, prefix, fromRel, D, split, carry) {
+  const total = prefix.length - 1;
+  if (!(D > 0) || fromRel >= total) return null;
+  const sum = prefix[total] - prefix[fromRel];
+  let maxItem = 0;
+  for (let i = fromRel; i < total; i++) maxItem = Math.max(maxItem, prefix[i + 1] - prefix[i]);
+  const daysWith = (B) => {
+    if (!split) {
+      if (maxItem > B) return Infinity;
+      let days = 0, pos = fromRel;
+      while (pos < total && days <= D) { pos = advanceByTimeBudget(prefix, pos, B); days++; }
+      return pos >= total ? days : Infinity;
+    }
+    const st = { pos: fromRel, left: carry ? carry.left : 0, set: carry ? carry.set : 0 };
+    let k = 0;
+    for (; k < D && st.pos < total; k++) capacityStep(st, task, prefix, B, true);
+    return st.pos >= total ? k : Infinity;
+  };
+  let lo = split ? 1 : Math.max(1, Math.ceil(maxItem), Math.ceil(sum / D));
+  let hi = Math.max(lo, Math.ceil(sum), Math.ceil(maxItem));
+  if (daysWith(hi) > D) return { impossible: true, maxItem };
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (daysWith(mid) <= D) hi = mid; else lo = mid + 1;
+  }
+  return { need: lo, maxItem, sum, D };
+}
+// Study days a given daily amount would take (same rule), capped at `cap`.
+function daysForDaily(task, prefix, fromRel, B, split, carry, cap) {
+  const total = prefix.length - 1;
+  if (fromRel >= total) return 0;
+  if (!split) {
+    let days = 0, pos = fromRel;
+    while (pos < total && days < cap) { pos = advanceByTimeBudget(prefix, pos, B); days++; }
+    return pos >= total ? days : Infinity;
+  }
+  const st = { pos: fromRel, left: carry ? carry.left : 0, set: carry ? carry.set : 0 };
+  let k = 0;
+  for (; k < cap && st.pos < total; k++) capacityStep(st, task, prefix, B, true);
+  return st.pos >= total ? k : Infinity;
+}
+// Korean particle after a word: hasFinal → "으로"/"이면", else "로"/"면" (ㄹ-final → "로").
+function josa(word, kind) {
+  const ch = String(word).trim().slice(-1);
+  let fin = false, rieul = false;
+  const code = ch.charCodeAt(0);
+  if (code >= 0xAC00 && code <= 0xD7A3) { const f = (code - 0xAC00) % 28; fin = f !== 0; rieul = f === 8; }
+  else if (/\d/.test(ch)) { fin = '0136780'.includes(ch) || ch === '1'; rieul = '178'.includes(ch); }
+  if (kind === 'ro') return word + (fin && !rieul ? '으로' : '로');
+  return word + (fin ? '이면' : '면');
+}
+function fmtDailyAmount(type, v) {
+  return isWeightUnitType(type) ? `양 ${Math.round(v)}` : formatDuration(v);
+}
+
 // One study day in capacity mode (fixed daily budget) — shared by the 밀림 calculation and
 // the finish-date estimate. st = {pos, left, set}: left/set = days remaining / planned for
 // a multi-day chapter in progress.
@@ -3739,6 +4027,8 @@ function estimateCapacityFinishDate(task, prefix, startCursorRel, tdy, carry) {
   let d = addDays(parseDate(task.end), 1);
   if (d < tdy) d = addDays(tdy, 0); // overdue: the estimate starts from today, never the past
   const hardStop = addDays(tdy, 365 * 3);
+  const weeklyDays = paceCfg.type === 'weekly-n'
+    ? new Set(getActiveDates(task.start, fmtDate(hardStop), paceCfg).map(fmtDate)) : null;
   let guard = 0;
   while (st.pos < task.total && d <= hardStop && guard < 20000) {
     guard++;
@@ -3746,7 +4036,7 @@ function estimateCapacityFinishDate(task, prefix, startCursorRel, tdy, carry) {
     let isSessionDay = false;
     if (paceCfg.type === 'daily') isSessionDay = true;
     else if (paceCfg.type === 'every-other') isSessionDay = (daysBetween(parseDate(task.start), d) % 2 === 0);
-    else if (paceCfg.type === 'weekly-n') isSessionDay = true; // approximate: treat as daily beyond deadline for estimation
+    else if (paceCfg.type === 'weekly-n') isSessionDay = weeklyDays.has(fmtDate(d)); // same N-per-week pattern continued
     else if (paceCfg.type === 'custom-days') isSessionDay = (paceCfg.value || []).includes(dow);
     if (isSessionDay && !reviewSet.has(dow) && !skipSet.has(fmtDate(d))) capacityStep(st, task, prefix, dailyMinutes, split);
     if (st.pos >= task.total) return d;
@@ -4242,7 +4532,7 @@ function renderWeekGoals(weekStart, weekEnd) {
     const hasRange = to >= from;
     // A chapter started this week but finished next week: "+ Ch5 1~3/6일차"
     const partText = part
-      ? `${formatRangeDisplay(task, part.item, part.item).replace(/<[^>]*>/g, '')} ${part.firstN === part.n ? part.n : part.firstN + '~' + part.n}/${part.of}일차`
+      ? `${formatRangePlain(task, part.item, part.item)} ${part.firstN === part.n ? part.n : part.firstN + '~' + part.n}/${part.of}일차`
       : '';
     const rangeDisplay = (hasRange ? formatRangeDisplay(task, from, to) : '') + (part ? `${hasRange ? ' + ' : ''}<span class="part-pill">⏳ ${escapeHtml(partText)}</span>` : '');
     const copyText = hasRange
@@ -4625,11 +4915,7 @@ function renderTasks() {
             <div class="v">${plan.remainingDates.length}<span class="small">회</span></div>
           </div>
         </div>
-        ${plan.capacityInsufficient ? `
-        <div style="font-size: 12px; color: #c44d2e; background: #FDE5DC; padding: 8px 12px; border-radius: var(--radius-sm); margin-top: -4px;">
-          ⚠️ 하루 ${isWeightUnitType(task.type) ? '양 ' + task.dailyMinutes : formatDuration(task.dailyMinutes)}로는 마감일 안에 못 끝나요.${plan.capacityFinishDate ? ` 이 속도면 ${fmtDate(plan.capacityFinishDate)}에 끝나요.` : ''}
-        </div>
-        ` : ''}
+        ${dailyNeedHtml(task, plan)}
         ${multiDayNoteHtml(task, plan)}
         ${scheduleHtml}
         `}
@@ -4655,9 +4941,14 @@ function applyPostpone(task, mode) {
     const ws = fmtDate(startOfWeek(tdy));
     const snap = weekGoalsMap.get(task.id + '|' + ws);
     const target = snap ? snap.to : (computeWeekGoal(task, ws, fmtDate(addDays(parseDate(ws), 6))) || {}).to;
-    if (typeof target === 'number') task.weekHold = { weekStart: ws, endAbs: target };
+    if (typeof target === 'number') {
+      task.weekHold = { weekStart: ws, endAbs: target };
+      // remembered per postponed day, so 밀림/앞섬 can replay that week the way it was planned
+      task.weekSkips = Object.assign({}, task.weekSkips, { [todayStr]: target });
+    }
   } else {
     task.weekHold = undefined;
+    if (task.weekSkips && task.weekSkips[todayStr] !== undefined) { task.weekSkips = Object.assign({}, task.weekSkips); delete task.weekSkips[todayStr]; }
   }
   if (!task.skipDates.includes(todayStr)) task.skipDates.push(todayStr);
 }
@@ -4688,9 +4979,9 @@ function openPostponeModal(taskId) {
   postponeTaskId = taskId;
   const ws = fmtDate(startOfWeek(today()));
   const snap = weekGoalsMap.get(task.id + '|' + ws);
-  const fmt = (g) => g && g.to >= g.from ? formatRangeDisplay(task, g.from, g.to) : '—';
+  const fmt = (g) => g && g.to >= g.from ? formatRangePlain(task, g.from, g.to) : '—';
   document.getElementById('pp-sub').innerHTML =
-    `<strong>${escapeHtml(task.title)}</strong>` + (snap ? `<br>이번 주 목표: ${fmt(snap)}` : '');
+    `<strong>${escapeHtml(task.title)}</strong>` + (snap ? `<br>이번 주 목표: ${escapeHtml(fmt(snap))}` : '');
   const weekBtn = document.getElementById('pp-week');
   weekBtn.disabled = pw.weekDaysLeft === 0;
   document.getElementById('pp-week-desc').textContent = pw.weekDaysLeft === 0
@@ -4729,6 +5020,7 @@ function postponeToday(taskId, mode = 'deadline') {
     // revert the skip since it can't be absorbed
     task.skipDates = task.skipDates.filter(d => d !== todayStr);
     task.weekHold = prevHold;
+    if (task.weekSkips) delete task.weekSkips[todayStr];
     persistTasks();
     rerender();
     return;
@@ -4746,6 +5038,7 @@ function unpostponeToday(taskId) {
   if (!task || !Array.isArray(task.skipDates)) return;
   const todayStr = fmtDate(today());
   task.skipDates = task.skipDates.filter(d => d !== todayStr);
+  if (task.weekSkips) delete task.weekSkips[todayStr];
   if (task.ppUndo && task.ppUndo.date === todayStr) task.weekHold = task.ppUndo.hold || undefined;
   delete task.ppUndo;
   persistTasks();
@@ -4962,6 +5255,17 @@ function amtOptionsHtml(sel) {
   return ['low','medium','high'].map(k => `<option value="${k}" ${k===(sel||'medium')?'selected':''}>${AMOUNT_LABEL[k]}</option>`).join('');
 }
 
+const rowCaches = { f: null, e: null };
+function rowCacheFor(prefix) {
+  if (!rowCaches[prefix]) rowCaches[prefix] = { dur: {}, diff: {}, amt: {}, days: {}, part: {}, name: {} };
+  return rowCaches[prefix];
+}
+// Forget remembered rows (a new goal form, or another goal opened for editing).
+function clearRowCache(prefix) {
+  rowCaches[prefix] = null;
+  ['-durationsList', '-namesList'].forEach(id => { const el = document.getElementById(prefix + id); if (el) { delete el.dataset.from; el.innerHTML = ''; } });
+}
+
 function renderDurationsList(prefix) {
   const fromEl = document.getElementById(prefix + '-from');
   const toEl = document.getElementById(prefix + '-to');
@@ -4971,16 +5275,24 @@ function renderDurationsList(prefix) {
   const needed = (fromVal && toVal && toVal >= fromVal) ? (toVal - fromVal + 1) : 0;
   const weightMode = isWeightUnitType(currentTypeFor(prefix));
 
-  const existingDiff = Array.from(listEl.querySelectorAll('select[data-diff-idx]')).map(i => i.value);
-  const existingAmt = Array.from(listEl.querySelectorAll('select[data-amt-idx]')).map(i => i.value);
-  const existingDays = Array.from(listEl.querySelectorAll('select[data-days-idx]')).map(i => i.value);
-  const existingDur = Array.from(listEl.querySelectorAll('input[data-dur-idx]')).map(i => i.value);
+  // Remember what's in the rows by ITEM NUMBER (not row position), so editing 시작/끝 —
+  // even through in-between values while typing ("2" on the way to "26") — never loses them.
+  const cache = rowCacheFor(prefix);
+  const prevFrom = parseInt(listEl.dataset.from);
+  if (!isNaN(prevFrom)) {
+    listEl.querySelectorAll('select[data-diff-idx]').forEach(x => { cache.diff[prevFrom + +x.dataset.diffIdx] = x.value; });
+    listEl.querySelectorAll('select[data-amt-idx]').forEach(x => { cache.amt[prevFrom + +x.dataset.amtIdx] = x.value; });
+    listEl.querySelectorAll('select[data-days-idx]').forEach(x => { cache.days[prevFrom + +x.dataset.daysIdx] = x.value; });
+    listEl.querySelectorAll('input[data-dur-idx]').forEach(x => { cache.dur[prevFrom + +x.dataset.durIdx] = { v: x.value, raw: x.dataset.raw }; });
+  }
 
   if (needed === 0) {
     listEl.innerHTML = '';
+    delete listEl.dataset.from;
     updateDurationsPreview(prefix);
     return;
   }
+  listEl.dataset.from = String(fromVal);
   let html = weightMode
     ? `<div class="weight-head"><span>항목</span><span>양</span><span>난이도</span><span>일수</span></div>`
     : '';
@@ -4989,21 +5301,36 @@ function renderDurationsList(prefix) {
     if (weightMode) {
       html += `<div class="duration-row weight-row">
         <span class="idx">${itemNum}번</span>
-        <select data-amt-idx="${i}" aria-label="양">${amtOptionsHtml(existingAmt[i])}</select>
-        <select data-diff-idx="${i}" aria-label="난이도">${diffOptionsHtml(existingDiff[i])}</select>
-        <select data-days-idx="${i}" aria-label="일수">${daysOptionsHtml(existingDays[i])}</select>
+        <select data-amt-idx="${i}" aria-label="양">${amtOptionsHtml(cache.amt[itemNum])}</select>
+        <select data-diff-idx="${i}" aria-label="난이도">${diffOptionsHtml(cache.diff[itemNum])}</select>
+        <select data-days-idx="${i}" aria-label="일수">${daysOptionsHtml(cache.days[itemNum])}</select>
       </div>`;
     } else {
-      const val = existingDur[i] || '';
-      html += `<div class="duration-row dur-row"><span class="idx">${itemNum}강</span><input type="text" data-dur-idx="${i}" value="${escapeAttr(val)}" placeholder="예: 1:10 또는 70"></div>`;
+      const c = cache.dur[itemNum] || {};
+      const val = c.v || '';
+      html += `<div class="duration-row dur-row"><span class="idx">${itemNum}강</span><input type="text" data-dur-idx="${i}" value="${escapeAttr(val)}"${c.raw ? ` data-raw="${escapeAttr(c.raw)}"` : ''} placeholder="${colonModeFor(prefix) === 'hm' ? '예: 1:10 (시:분) 또는 70분' : '예: 12:34 (분:초) 또는 70분'}"></div>`;
     }
   }
   listEl.innerHTML = html;
   const bulkBtn = document.getElementById(prefix + '-bulkPasteToggle');
   if (bulkBtn) bulkBtn.style.display = weightMode ? 'none' : '';
+  const colonRow = document.getElementById(prefix + '-colonRow');
+  if (colonRow) colonRow.style.display = weightMode ? 'none' : 'flex';
   refreshWeightLabels(prefix);
   listEl.querySelectorAll('input, select').forEach(inp => {
     inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => updateDurationsPreview(prefix));
+  });
+  // Lecture rows: after typing, show how it was read ("12:34" → "13분")
+  listEl.querySelectorAll('input[data-dur-idx]').forEach(inp => {
+    inp.addEventListener('input', () => { delete inp.dataset.raw; });
+    inp.addEventListener('change', () => {
+      const v = parseLectureTime(inp.value, colonModeFor(prefix));
+      if (v != null && /:/.test(inp.value)) {
+        inp.dataset.raw = inp.value.trim(); // keep "1:10" so switching 12:34 읽는 방식 can re-read it
+        inp.value = formatDuration(v);
+        updateDurationsPreview(prefix);
+      }
+    });
   });
   updateDurationsPreview(prefix);
 }
@@ -5038,7 +5365,7 @@ function collectDurationsFromList(prefix) {
     const amts = Array.from(listEl.querySelectorAll('select[data-amt-idx]')).map(s => s.value);
     return diffs.map((d, i) => computeWeight(d, amts[i]));
   }
-  return Array.from(listEl.querySelectorAll('input[data-dur-idx]')).map(i => parseDurationToken(i.value));
+  return Array.from(listEl.querySelectorAll('input[data-dur-idx]')).map(i => parseLectureTime(i.value, colonModeFor(prefix)));
 }
 
 // In weight mode, label each row with its chapter (and part) name when the user has
@@ -5050,7 +5377,8 @@ function refreshWeightLabels(prefix) {
   if (!listEl) return;
   const fromVal = parseInt(fromEl && fromEl.value) || 1;
   let names = [], parts = [];
-  if (namesEl && namesEl.querySelector('input[data-name-idx]')) {
+  const namesOn = (prefix === 'f' ? formShowNames : editShowNames) && ['other', 'lecture'].includes(currentTypeFor(prefix));
+  if (namesOn && namesEl && namesEl.querySelector('input[data-name-idx]')) {
     const c = collectNamesFromList(prefix);
     names = c.names; parts = c.parts;
   }
@@ -5075,12 +5403,88 @@ function collectWeightSelections(prefix) {
   };
 }
 
+// Live hint under "하루 가능 시간": the least per day that finishes by the deadline,
+// from the dates/pace/review days and per-item times currently in the form.
+function updateDailyNeed(prefix) {
+  const el = document.getElementById(prefix + '-dailyNeed');
+  if (!el) return;
+  const on = prefix === 'f' ? formTimeBased : editTimeBased;
+  const mode = prefix === 'f' ? formTimeMode : editTimeMode;
+  const type = currentTypeFor(prefix);
+  el.className = 'daily-need';
+  if (!on) { el.innerHTML = ''; return; }
+  const durs = collectDurationsFromList(prefix);
+  if (durs.length === 0) { el.innerHTML = ''; return; }
+  if (durs.some(v => v === null)) { el.innerHTML = isWeightUnitType(type) ? '' : '강의별 시간을 다 넣으면 마감일까지 하루에 얼마나 필요한지 알려드려요'; return; }
+  const P = prefix === 'f'
+    ? { pace, val: pace === 'weekly-n' ? Math.min(7, Math.max(1, parseInt(document.getElementById('weekly-n-val').value) || 3)) : pace === 'custom-days' ? [...customDays] : null, rv: reviewDaysSel }
+    : { pace: editPace, val: editPace === 'weekly-n' ? Math.min(7, Math.max(1, parseInt(document.getElementById('e-weekly-n-val').value) || 3)) : editPace === 'custom-days' ? [...editCustomDays] : null, rv: editReviewDays };
+  const start = document.getElementById(prefix + '-start').value, end = document.getElementById(prefix + '-end').value;
+  if (!start || !end || end < start) { el.innerHTML = ''; return; }
+  const probe = { start, end, pace: P.pace, paceValue: P.val, reviewDays: [...(P.rv || [])] };
+  const tdy = today();
+  let dates = getContentDates(probe).filter(d => d >= tdy);
+  let fromRel = 0;
+  const editTask = prefix === 'e' ? tasks.find(t => t.id === editingTaskId) : null;
+  if (editTask) {
+    // where today starts, from the form's 현재 진행 위치 / 시작 (they may be edited)
+    const curPos = parseInt(document.getElementById('e-currentPos').value);
+    const newFrom = parseInt(document.getElementById('e-from').value);
+    const tdyS = fmtDate(tdy);
+    const todayAmt = todayCountsAsSession(editTask) && isCompleted(editTask.id, tdyS) ? getCompletedAmount(editTask.id, tdyS) : 0;
+    fromRel = (!isNaN(curPos) && !isNaN(newFrom))
+      ? Math.max(0, Math.min(durs.length, curPos - (newFrom - 1) - todayAmt))
+      : Math.min(durs.length, getTodayAnchor(editTask));
+    const skip = new Set(editTask.skipDates || []);
+    dates = dates.filter(d => !skip.has(fmtDate(d)));
+  }
+  const D = dates.length;
+  if (D === 0) { el.innerHTML = '마감일까지 남은 공부일이 없어요'; el.className = 'daily-need warn'; return; }
+  const prefixArr = [0];
+  durs.forEach((v, i) => prefixArr.push(prefixArr[i] + v));
+  const split = isWeightUnitType(type);
+  const stub = { id: 'probe', type, itemDays: split ? (collectWeightSelections(prefix).days || []) : undefined };
+  let carry = null;
+  if (editTask && split) {
+    const ps = getPartState(editTask, (editTask.startNum || 0) + fromRel + 1, fmtDate(tdy));
+    if (ps.done > 0 && ps.of > ps.done) carry = { left: ps.of - ps.done, set: ps.of };
+  }
+  const n = minDailyNeeded(stub, prefixArr, fromRel, D, split, carry);
+  if (!n) { el.innerHTML = ''; return; }
+  const fmt = (v) => fmtDailyAmount(type, v);
+  if (n.impossible) { el.innerHTML = `공부일 ${D}일로는 정한 일수를 다 지킬 수 없어요`; el.className = 'daily-need warn'; return; }
+  if (mode === 'capacity') {
+    const typed = parseDurationToken(document.getElementById(prefix + '-dailyMinutes').value);
+    let tail = '';
+    if (typed && typed > 0) {
+      const used = daysForDaily(stub, prefixArr, fromRel, typed, split, carry, D + 400);
+      if (used <= D) {
+        const over = !split && typed < n.maxItem ? ` · 가장 긴 강의(${fmt(n.maxItem)})인 날은 넘겨요` : '';
+        tail = ` · 입력한 ${josa(fmt(typed), 'myeon')} <b class="ok">충분해요 ✓</b> (${used}일째 끝)${over}`; el.className = 'daily-need ok';
+      }
+      else { tail = ` · 입력한 ${josa(fmt(typed), 'ro')}는 <b>부족해요</b>${isFinite(used) ? ` (${used}일 필요)` : ''}`; el.className = 'daily-need warn'; }
+    }
+    el.innerHTML = `📅 공부일 ${D}일 → 마감일까지 <b>하루 최소 ${fmt(n.need)}</b>${tail}`;
+  } else {
+    // Busiest day of the plan these settings would make (built on a throwaway copy)
+    let busiest = n.need;
+    try {
+      const probe = { id: '__probe', title: '', type, total: durs.length, startNum: 0, start, end, pace: P.pace, paceValue: P.val,
+        reviewDays: [...(P.rv || [])], skipDates: editTask ? [...(editTask.skipDates || [])] : [], progress: fromRel,
+        timeBased: true, timeMode: 'deadline', lectureDurations: durs.slice(), itemDays: stub.itemDays };
+      busiest = planMaxDayLoad(probe, buildSchedule(probe));
+    } catch (e) {}
+    el.innerHTML = `📅 공부일 ${D}일 · 하루 평균 <b>${fmt((prefixArr[durs.length] - prefixArr[fromRel]) / D)}</b> · 가장 많은 날 ${fmt(busiest)}`;
+  }
+}
+
 // Live preview beneath the duration list: how many rows are filled in vs. needed,
 // plus the running total playback time, so gaps are caught before saving.
 function updateDurationsPreview(prefix) {
   const listEl = document.getElementById(prefix + '-durationsList');
   const previewEl = document.getElementById(prefix + '-durationsPreview');
   if (!listEl || !previewEl) return;
+  setTimeout(() => updateDailyNeed(prefix), 0);
   const type = currentTypeFor(prefix);
   const weightMode = isWeightUnitType(type);
 
@@ -5104,13 +5508,25 @@ function updateDurationsPreview(prefix) {
     previewEl.style.color = 'var(--text-muted)';
     return;
   }
-  const values = inputs.map(i => parseDurationToken(i.value));
+  const values = inputs.map(i => parseLectureTime(i.value, colonModeFor(prefix)));
   inputs.forEach((inp, i) => inp.classList.toggle('filled', values[i] !== null));
   const filled = values.filter(v => v !== null).length;
   const totalMin = values.reduce((a, v) => a + (v || 0), 0);
   const allFilled = filled === inputs.length;
-  previewEl.innerHTML = `입력됨 ${filled}/${inputs.length}개${allFilled ? ' ✓' : ''} · 총 재생시간 ${formatDuration(totalMin)}`;
+  // Lengths of 3시간+ are almost surely "12:34" read as 12시간 34분 by an older version
+  const suspicious = (prefix === 'e' && colonModeFor(prefix) === 'ms') ? values.filter(v => v != null && v >= 180).length : 0;
+  previewEl.innerHTML = `입력됨 ${filled}/${inputs.length}개${allFilled ? ' ✓' : ''} · 총 재생시간 ${formatDuration(totalMin)}`
+    + (suspicious ? `<div class="misread-box">⚠️ 3시간이 넘는 강의가 ${suspicious}개 있어요. "12:34"(12분 34초)가 12시간 34분으로 잘못 들어간 것 같으면 →
+        <button type="button" class="mini-btn primary" data-action="fix-misread" data-prefix="${prefix}">분:초로 고치기</button>
+        <span class="misread-sub">(1시간 이상인 칸을 바꿔요 · 바꾼 뒤 확인해 주세요)</span></div>` : '');
   previewEl.style.color = allFilled ? 'var(--matcha)' : (filled === 0 ? 'var(--text-muted)' : '#c44d2e');
+  const fixBtn = previewEl.querySelector('[data-action="fix-misread"]');
+  if (fixBtn) fixBtn.addEventListener('click', () => {
+    let n = 0;
+    inputs.forEach((inp, i) => { const v = values[i]; if (v != null && v >= 60) { inp.value = formatDuration(fixMisreadLength(v)); n++; } });
+    updateDurationsPreview(prefix);
+    showToast(`✓ ${n}개를 분:초로 고쳤어요 · 저장하면 반영돼요`);
+  });
 }
 
 // Wire up the bulk-paste helper for a given prefix: toggling the paste textarea and
@@ -5125,29 +5541,38 @@ function setupBulkPaste(prefix) {
     area.style.display = area.style.display === 'none' ? 'block' : 'none';
   });
   applyBtn.addEventListener('click', () => {
-    // Either a plain list of times (one per line), or the course outline itself with a
-    // time next to each lecture — headings and lines without a time are skipped.
-    const lines = textEl.value.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(Boolean);
-    const hasTitles = lines.some(l => splitTrailingDuration(l).title !== '' && parseDurationToken(l) === null);
-    let durations;
-    if (hasTitles) {
-      const o = parseOutlineText(textEl.value, true);
-      durations = o.mins.filter(v => v != null);
+    // Either a plain list of times (one per line or comma-separated), or the course
+    // outline itself with a time next to each lecture (headings skipped; a lecture without
+    // a time leaves its row empty). Pasted "12:34" always means 12분 34초.
+    const raw = textEl.value.replace(/\r/g, '');
+    let lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 1 && lines[0].includes(',')) lines = lines[0].split(',').map(x => x.trim()).filter(Boolean);
+    const cm = colonModeFor(prefix);
+    const isTimeOnly = (l) => /^\d+(\.\d+)?$/.test(l) || splitTrailingDuration(l, cm).title === '';
+    const timeOf = (l) => /^\d+(\.\d+)?$/.test(l) ? Math.round(+l) : splitTrailingDuration(l, cm).mins;
+    let durations, raws;
+    if (lines.every(isTimeOnly)) {
+      durations = lines.map(timeOf);
+      raws = lines.map(l => (/:/.test(l) ? (splitTrailingDuration(l, cm).tok || l) : null));
     } else {
-      durations = lines.length > 1 ? lines.map(l => { const d = splitTrailingDuration(l); return d.mins != null ? d.mins : parseDurationToken(l); }).filter(v => v != null && v >= 0)
-        : parseDurationsText(textEl.value);
+      const o = parseOutlineText(raw, true, cm);
+      durations = o.mins; raws = o.raws;
     }
-    if (durations.length === 0) { showToast('붙여넣은 내용에서 시간을 못 읽었어요'); return; }
+    if (!durations.some(v => v != null)) { showToast('붙여넣은 내용에서 시간을 못 읽었어요'); return; }
     const listEl = document.getElementById(prefix + '-durationsList');
     const inputs = Array.from(listEl.querySelectorAll('input[data-dur-idx]'));
     if (inputs.length === 0) { showToast('시작~끝을 먼저 정해주세요'); return; }
     inputs.forEach((inp, i) => {
-      if (durations[i] !== undefined) inp.value = formatDuration(durations[i]);
+      if (i < durations.length) {
+        inp.value = durations[i] != null ? formatDuration(durations[i]) : '';
+        if (raws[i] && /:/.test(raws[i])) inp.dataset.raw = raws[i]; else delete inp.dataset.raw;
+      }
     });
     updateDurationsPreview(prefix);
     textEl.value = '';
     area.style.display = 'none';
-    showToast(`✓ ${Math.min(durations.length, inputs.length)}개 채웠어요`);
+    const filledN = durations.slice(0, inputs.length).filter(v => v != null).length;
+    showToast(`✓ ${filledN}개 채웠어요${durations.length !== inputs.length ? ` (붙여넣은 ${durations.length}개 · 칸 ${inputs.length}개)` : ''}`);
   });
 }
 
@@ -5192,25 +5617,25 @@ function outlineShortLabel(line) {
 // Trailing lecture time on a pasted line, as course sites list it:
 //   "인사말 05:23" → 5분 23초,  "… 1:02:10" → 1시간 2분,  "… (12분)", "… 1시간 5분"
 // Returns { title, mins } (mins null when the line has no time).
-function splitTrailingDuration(line) {
+function splitTrailingDuration(line, mode) {
   // "12:34" style anywhere at the end; "12분"/"1시간 5분" only in brackets or after a
   // separator (· | - or a tab/2+ spaces), so a title like "하루 10분" stays a title.
   const KOR = '\\d+\\s*시간(?:\\s*\\d+\\s*분)?(?:\\s*\\d+\\s*초)?|\\d+\\s*분(?:\\s*\\d+\\s*초)?|\\d+\\s*초';
   let m = line.match(/^(.*?)[\s·|\-–—]*[(\[]?\s*(\d{1,3}:\d{2}(?::\d{2})?)\s*[)\]]?\s*$/);
   if (!m) m = line.match(new RegExp('^(.*?)\\s*[(\\[]\\s*(' + KOR + ')\\s*[)\\]]\\s*$'));
   if (!m) m = line.match(new RegExp('^(.*?)(?:\\s*[·|\\-–—]\\s*|\\t|\\s{2,})(' + KOR + ')\\s*$'));
-  if (!m && /^\s*(\d+\s*시간(\s*\d+\s*분)?|\d+\s*분)\s*$/.test(line)) m = ['', '', line.trim()];
+  if (!m && /^\s*(\d+\s*시간(\s*\d+\s*분)?(\s*\d+\s*초)?|\d+\s*분(\s*\d+\s*초)?|\d+\s*초)\s*$/.test(line)) m = ['', '', line.trim()];
   if (!m) return { title: line, mins: null };
   const tok = m[2];
   let sec = 0;
   const c = tok.split(':').map(Number);
-  if (tok.includes(':')) sec = c.length === 3 ? c[0] * 3600 + c[1] * 60 + c[2] : c[0] * 60 + c[1];
+  if (tok.includes(':')) sec = c.length === 3 ? c[0] * 3600 + c[1] * 60 + c[2] : (mode === 'hm' ? c[0] * 3600 + c[1] * 60 : c[0] * 60 + c[1]);
   else {
     const h = tok.match(/(\d+)\s*시간/), mi = tok.match(/(\d+)\s*분/), se = tok.match(/(\d+)\s*초/);
     sec = (h ? +h[1] * 3600 : 0) + (mi ? +mi[1] * 60 : 0) + (se ? +se[1] : 0);
   }
   const title = m[1].trim();
-  return { title, mins: Math.max(1, Math.round(sec / 60)) };
+  return { title, mins: Math.max(1, Math.round(sec / 60)), tok };
 }
 
 function indentWidth(l) {
@@ -5231,30 +5656,46 @@ function indentWidth(l) {
 //    lecture or a lower-level heading are headings (Part1 / Ch1 / Ch2 / Part2 / Ch1).
 // Headings are shortened to keyword + number ("Chapter 1 손으로…" → "Chapter 1").
 // withTimes: also read a trailing time on each lecture line (see splitTrailingDuration).
-function parseOutlineText(text, withTimes) {
+function parseOutlineText(text, withTimes, mode) {
   if (!text) return { parts: [], names: [], mins: [] };
   let raw = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
   // One line with commas → split it into lines (the original comma-separated format)
   if (raw.length <= 1) raw = text.split(',').map(x => x.trim()).filter(Boolean);
-  let rows = raw.map(l => {
-    const indent = indentWidth(l);
-    let t = l.trim(), mins = null;
-    if (withTimes) { const d = splitTrailingDuration(t); if (d.title) { t = d.title; mins = d.mins; } }
-    return { indent, t, mins, lv: outlineLevel(t) };
-  });
-  // "Part1 - Ch1" style: heading and title on one line → explicit group + item
+  let rows = raw.map(l => ({ indent: indentWidth(l), t: l.trim(), mins: null, tok: null, timeOnly: false }));
+  if (withTimes) {
+    rows.forEach(r => {
+      if (/^\d+(\.\d+)?$/.test(r.t)) { r.timeOnly = true; r.mins = Math.round(+r.t); return; } // bare number = minutes
+      const d = splitTrailingDuration(r.t, mode);
+      if (d.title === '') { r.timeOnly = true; r.mins = d.mins; r.tok = d.tok; }
+      else if (d.mins != null) { r.t = d.title; r.mins = d.mins; r.tok = d.tok; }
+    });
+    // A line that is only a time belongs to the lecture above it (e.g. Udemy: "1. Welcome" ⏎ "02:30")
+    const merged = [];
+    rows.forEach(r => {
+      if (r.timeOnly) { const prev = merged[merged.length - 1]; if (prev && prev.mins == null) { prev.mins = r.mins; prev.tok = r.tok; } return; }
+      merged.push(r);
+    });
+    rows = merged;
+  }
+  // A line with its own time is a lecture: it never counts as a keyword heading
+  rows.forEach(r => { r.lv = r.mins != null ? 0 : outlineLevel(r.t); });
+  const parts = [], names = [], mins = [], raws = [];
+  let curTok = null;
+  const push = (p, n, mn) => { parts.push(p); names.push(n); mins.push(mn); raws.push(curTok); };
+  if (rows.length === 0) return { parts, names, mins, raws };
+  const hasIndentAny = rows.some(r => r.indent > 0);
+  // "Part1 - Ch1" style (heading and title on one line) — only for flat lists made mostly of such lines
   const dash = rows.map(r => { const m = r.t.match(/^(.+?)\s+[-–—]\s+(.+)$/); return m && outlineLevel(m[1]) > 0 ? { part: m[1].trim(), name: m[2].trim() } : null; });
-  const parts = [], names = [], mins = [];
-  const push = (p, n, mn) => { parts.push(p); names.push(n); mins.push(mn); };
-  if (dash.some(Boolean)) {
+  if (!hasIndentAny && dash.filter(Boolean).length * 2 >= rows.length) {
     let cur = '';
     rows.forEach((r, i) => {
       const nx = rows[i + 1];
+      curTok = r.tok;
       if (dash[i]) { cur = dash[i].part; push(cur, dash[i].name, r.mins); }
-      else if (r.lv > 0 && nx && !dash[i + 1] && nx.lv === 0) cur = outlineShortLabel(r.t);
+      else if (r.lv > 0 && r.mins == null && nx && !dash[i + 1] && nx.lv === 0) cur = outlineShortLabel(r.t);
       else push(cur, r.t, r.mins);
     });
-    return { parts, names, mins };
+    return { parts, names, mins, raws };
   }
   const hasIndent = rows.some(r => r.indent > 0);
   const minIndent = Math.min(...rows.map(r => r.indent));
@@ -5267,7 +5708,12 @@ function parseOutlineText(text, withTimes) {
         (r.indent === minIndent && r.lv > 0 && nx.indent === r.indent && nx.lv === 0));
       depth = r.indent;
     } else {
-      heading = r.lv > 0 && !!nx && (nx.lv === 0 || nx.lv > r.lv);
+      // keyword mode: a line with its own time is a lecture, never a heading
+      // keyword mode: a line with its own time is a lecture — unless it's a NUMBERED section
+      // heading ("섹션 1 (16분)", "Chapter 2 · 3강 · 17분") followed by an ordinary lecture line
+      const numberedHead = r.mins != null && outlineLevel(r.t) > 0 && /\d/.test(outlineShortLabel(r.t)) && !!nx && nx.lv === 0 && outlineLevel(nx.t) === 0;
+      heading = (r.lv > 0 && r.mins == null && !!nx && (nx.lv === 0 || nx.lv > r.lv)) || numberedHead;
+      if (numberedHead) r.lv = outlineLevel(r.t);
       depth = r.lv;
     }
     if (heading) {
@@ -5275,9 +5721,10 @@ function parseOutlineText(text, withTimes) {
       stack.push({ depth, label: outlineShortLabel(r.t) });
       return;
     }
+    curTok = r.tok;
     push(stack.map(x => x.label).join(' '), r.t, r.mins);
   });
-  return { parts, names, mins };
+  return { parts, names, mins, raws };
 }
 
 function renderNamesList(prefix) {
@@ -5288,19 +5735,26 @@ function renderNamesList(prefix) {
   const fromVal = parseInt(fromEl.value), toVal = parseInt(toEl.value);
   const needed = (fromVal && toVal && toVal >= fromVal) ? (toVal - fromVal + 1) : 0;
 
-  const existingParts = Array.from(listEl.querySelectorAll('input[data-part-idx]')).map(i => i.value);
-  const existingNames = Array.from(listEl.querySelectorAll('input[data-name-idx]')).map(i => i.value);
+  // Rows remembered by item number (see renderDurationsList)
+  const cache = rowCacheFor(prefix);
+  const prevFrom = parseInt(listEl.dataset.from);
+  if (!isNaN(prevFrom)) {
+    listEl.querySelectorAll('input[data-part-idx]').forEach(x => { cache.part[prevFrom + +x.dataset.partIdx] = x.value; });
+    listEl.querySelectorAll('input[data-name-idx]').forEach(x => { cache.name[prevFrom + +x.dataset.nameIdx] = x.value; });
+  }
 
   if (needed === 0) {
     listEl.innerHTML = '';
+    delete listEl.dataset.from;
     updateNamesPreview(prefix);
     return;
   }
+  listEl.dataset.from = String(fromVal);
   let html = '';
   for (let i = 0; i < needed; i++) {
     const itemNum = fromVal + i;
-    const partVal = existingParts[i] || '';
-    const nameVal = existingNames[i] || '';
+    const partVal = cache.part[itemNum] || '';
+    const nameVal = cache.name[itemNum] || '';
     html += `<div class="duration-row name-row">
       <span class="idx">${itemNum}${currentTypeFor(prefix) === 'lecture' ? '강' : '번'}</span>
       <input type="text" class="part-field" data-part-idx="${i}" value="${escapeAttr(partVal)}" placeholder="묶음(이어짐)">
@@ -5379,7 +5833,7 @@ function setupBulkPasteNames(prefix) {
   });
   applyBtn.addEventListener('click', () => {
     const isLec = currentTypeFor(prefix) === 'lecture';
-    const { parts, names, mins } = parseOutlineText(textEl.value, isLec);
+    const { parts, names, mins, raws } = parseOutlineText(textEl.value, isLec, colonModeFor(prefix));
     if (names.length === 0) { showToast('붙여넣은 내용에서 제목을 못 읽었어요'); return; }
     const listEl = document.getElementById(prefix + '-namesList');
     // New goal: size the range to the pasted list (start stays; empty start → 1).
@@ -5418,7 +5872,10 @@ function setupBulkPasteNames(prefix) {
       if (!on) document.getElementById(prefix + '-timeBasedToggle').click();
       else renderDurationsList(prefix);
       const durInputs = Array.from(document.querySelectorAll(`#${prefix}-durationsList input[data-dur-idx]`));
-      durInputs.forEach((inp, k) => { if (mins[k] != null) inp.value = formatDuration(mins[k]); });
+      durInputs.forEach((inp, k) => {
+        inp.value = mins[k] != null ? formatDuration(mins[k]) : '';
+        if (raws[k] && /:/.test(raws[k])) inp.dataset.raw = raws[k]; else delete inp.dataset.raw;
+      });
       updateDurationsPreview(prefix);
       timeMsg = timeCount === names.length ? ` · 시간도 모두 넣었어요` : ` · 시간 ${timeCount}/${names.length}개 (나머지는 직접 입력)`;
     }
@@ -5518,6 +5975,7 @@ function setupForm() {
     document.getElementById('f-showNamesToggle').classList.toggle('active', formShowNames);
     document.getElementById('f-showNamesPanel').style.display = formShowNames ? 'block' : 'none';
     if (formShowNames) renderNamesList('f');
+    refreshWeightLabels('f');
   });
   setupBulkPasteNames('f');
 
@@ -5653,6 +6111,7 @@ function addNewTask() {
     timeBased: tbTypeOk && formTimeBased,
     timeMode: formTimeMode,
     lectureDurations: (tbTypeOk && formTimeBased) ? lectureDurations : undefined,
+    colonMode: (type === 'lecture' && formTimeBased && colonModeFor('f') === 'hm') ? 'hm' : undefined,
     dailyMinutes: (tbTypeOk && formTimeBased && formTimeMode === 'capacity') ? dailyMinutes : undefined,
     itemDifficulty: (isWeightUnitType(type) && formTimeBased) ? collectWeightSelections('f').diffs : undefined,
     itemAmount: (isWeightUnitType(type) && formTimeBased) ? collectWeightSelections('f').amts : undefined,
@@ -5677,7 +6136,7 @@ function addNewTask() {
   formShowNames = false;
   document.getElementById('f-showNamesToggle').classList.remove('active');
   document.getElementById('f-showNamesPanel').style.display = 'none';
-  document.getElementById('f-namesList').innerHTML = '';
+  clearRowCache('f');
   formTimeBased = false;
   formTimeMode = 'capacity';
   document.getElementById('f-timeBasedToggle').classList.remove('active');
@@ -5696,6 +6155,7 @@ function openEditModal(id) {
   const task = tasks.find(t => t.id === id);
   if (!task) return;
   editingTaskId = id;
+  clearRowCache('e');
   const startNum = task.startNum || 0;
   document.getElementById('e-title').value = task.title;
   // Convert internal startNum/total back to "from ~ to"
@@ -5776,6 +6236,7 @@ function openEditModal(id) {
   }
   document.getElementById('e-dailyMinutes').value = (task.dailyMinutes && !isWeightUnitType(task.type)) ? formatDuration(task.dailyMinutes) : (task.dailyMinutes || '');
   populateDurationsListFromTask('e', task);
+  setColonMode('e', task.colonMode || 'ms');
 
   // Apply-timing option: only relevant when today's session is already completed.
   // Detect whether today is a completed session day for this task.
@@ -5821,6 +6282,7 @@ function setupEditModal() {
     document.getElementById('e-showNamesToggle').classList.toggle('active', editShowNames);
     document.getElementById('e-showNamesPanel').style.display = editShowNames ? 'block' : 'none';
     if (editShowNames) renderNamesList('e');
+    refreshWeightLabels('e');
   });
   setupBulkPasteNames('e');
   document.getElementById('e-timeBasedToggle').addEventListener('click', () => {
@@ -5969,6 +6431,7 @@ function setupEditModal() {
       task.timeBased = editTimeBased;
       task.timeMode = editTimeMode;
       task.lectureDurations = editTimeBased ? newLectureDurations : undefined;
+      task.colonMode = (task.type === 'lecture' && editTimeBased && colonModeFor('e') === 'hm') ? 'hm' : undefined;
       task.dailyMinutes = (editTimeBased && editTimeMode === 'capacity') ? newDailyMinutes : undefined;
       if (isWeightUnitType(task.type)) {
         const ws = collectWeightSelections('e');
@@ -6022,6 +6485,7 @@ function setupEditModal() {
     if (structuralChange) {
       task.weekHold = undefined;
       delete task.ppUndo;
+      delete task.weekSkips; // targets were in the old numbering
     }
     persistTasks();
     let toastMsg = '✓ 수정되었어요';
@@ -6304,8 +6768,37 @@ function checkDayRollover() {
   }
 }
 
+function setColonMode(prefix, mode) {
+  colonModes[prefix] = mode === 'hm' ? 'hm' : 'ms';
+  document.querySelectorAll(`#${prefix}-colonRow .chip[data-colon]`).forEach(c => c.classList.toggle('active', c.dataset.colon === colonModes[prefix]));
+  const ta = document.getElementById(prefix + '-bulkPasteText');
+  if (ta) ta.placeholder = ta.placeholder.replace(/12:34 \(= [^)]*\)/, `12:34 (= ${colonModes[prefix] === 'hm' ? '12시간 34분' : '12분 34초'})`);
+  const listEl = document.getElementById(prefix + '-durationsList');
+  if (listEl) listEl.querySelectorAll('input[data-dur-idx]').forEach(inp => {
+    inp.placeholder = colonModes[prefix] === 'hm' ? '예: 1:10 (시:분) 또는 70분' : '예: 12:34 (분:초) 또는 70분';
+    // values typed/pasted as "1:10" are re-read in the newly chosen way
+    if (inp.dataset.raw) { const v = parseLectureTime(inp.dataset.raw, colonModes[prefix]); if (v != null) inp.value = formatDuration(v); }
+  });
+  updateDurationsPreview(prefix);
+}
+function setupColonButtons() {
+  ['f', 'e'].forEach(pre => {
+    document.querySelectorAll(`#${pre}-colonRow .chip[data-colon]`).forEach(chip => {
+      chip.addEventListener('click', () => setColonMode(pre, chip.dataset.colon));
+    });
+  });
+}
+
 function init() {
   loadAll();
+  setupColonButtons();
+  // Keep the "하루 최소 …" hint live while dates, pace, review days or times change.
+  ['f', 'e'].forEach(pre => {
+    const box = document.getElementById(pre === 'f' ? 'formCard' : 'editModal');
+    if (!box) return;
+    const run = () => setTimeout(() => updateDailyNeed(pre), 0);
+    ['input', 'change', 'click'].forEach(ev => box.addEventListener(ev, run));
+  });
   ensureWeekGoalSnapshots();
   setupForm();
   setupEditModal();
