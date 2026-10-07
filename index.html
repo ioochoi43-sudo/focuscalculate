@@ -399,6 +399,34 @@
   .colon-label { font-size: 11px; color: var(--text-muted); margin-right: 2px; }
   .colon-row .chip { padding: 4px 10px; font-size: 12px; }
   .colon-ex { font-weight: 400; opacity: 0.7; font-size: 11px; }
+  .pp-verdict { border-radius: 14px; padding: 12px 14px; font-size: 13px; line-height: 1.6; }
+  .pp-verdict .v-title { font-weight: 800; font-size: 15px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .pp-ic { display: inline-flex; width: 26px; height: 26px; flex-shrink: 0; vertical-align: middle; }
+  .pp-ic svg { width: 100%; height: 100%; display: block; }
+  .pp-ic.sm { width: 18px; height: 18px; margin-right: 6px; }
+  .pp-option .t { display: flex; align-items: center; gap: 8px; }
+  .pp-keep { display: inline-flex; align-items: center; }
+  .pp-verdict ul { margin: 4px 0 0; padding-left: 18px; }
+  .pp-verdict li { margin: 2px 0; }
+  .pp-verdict.ok { background: #EAF5EC; color: #3f6b48; }
+  .pp-verdict.warn { background: #FFF6DF; color: #81621b; }
+  .pp-verdict.bad { background: #FCEAE6; color: #a4473a; }
+  .pp-option .impact { margin-top: 4px; font-weight: 600; }
+  .cm-pick { margin-top: 4px; }
+  .cm-pick-head { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .cm-pick-list { max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  .cm-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; background: none; border: 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); cursor: pointer; }
+  .cm-item:last-child { border-bottom: 0; }
+  .cm-item .box { width: 22px; height: 22px; border-radius: 7px; border: 2px solid #D8CFC4; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: #fff; }
+  .cm-item.on .box { background: #BFE3C6; border-color: #BFE3C6; }
+  .cm-item.on .box::after { content: ''; width: 9px; height: 5px; border-left: 2.4px solid #3f7a4b; border-bottom: 2.4px solid #3f7a4b; transform: rotate(-45deg) translate(1px, -1px); }
+  .cm-item .nm { flex: 1; min-width: 0; line-height: 1.4; }
+  .cm-item .grp { display: block; font-size: 11px; color: var(--text-muted); }
+  .cm-item .tm { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+  .cm-item.extra .nm { color: var(--text-soft); }
+  .cm-item.plan-end { border-bottom: 2px dashed #E7D9C8; }
+  .cm-pick-sum { font-size: 12px; color: var(--text-soft); margin-top: 8px; }
+  .cm-link { background: none; border: 0; color: var(--text-muted); font-size: 11px; text-decoration: underline; cursor: pointer; padding: 0 0 0 8px; white-space: nowrap; }
   .misread-box { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: #FDE5DC; color: #c44d2e; font-size: 12px; line-height: 1.7; }
   .misread-box .mini-btn { margin: 2px 4px; }
   .misread-sub { color: var(--text-muted); font-size: 11px; }
@@ -1842,7 +1870,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v3.4 · 최근 업데이트 2026-10-05</div>
+      <div class="build-badge" id="buildBadge">v3.7 · 최근 업데이트 2026-10-07</div>
     </div>
   </aside>
 
@@ -2246,18 +2274,20 @@
 <!-- Complete-amount Modal -->
 <div class="modal-backdrop" id="postponeModal">
   <div class="modal" style="max-width: 440px;">
-    <div class="modal-title">오늘 분량을 어디에 담을까요?</div>
-    <p id="pp-sub" style="font-size: 13px; color: var(--text-soft); margin-bottom: 16px; line-height: 1.6;"></p>
+    <div class="modal-title">오늘 미룰까요?</div>
+    <p id="pp-sub" style="font-size: 13px; color: var(--text-soft); margin-bottom: 12px; line-height: 1.6;"></p>
+    <div id="pp-verdict" class="pp-verdict"></div>
+    <div id="pp-choose-label" style="font-size: 12px; color: var(--text-muted); margin: 14px 0 8px;">그래도 미룬다면, 오늘 분량을 어디에 담을까요?</div>
     <button type="button" class="pp-option" id="pp-week">
-      <div class="t">📌 이번 주 안에 채우기</div>
+      <div class="t"><span class="pp-ic" data-ic="week"></span><span class="pp-tt">이번 주 안에 채우기</span></div>
       <div class="d" id="pp-week-desc"></div>
     </button>
     <button type="button" class="pp-option" id="pp-deadline">
-      <div class="t">📅 마감일까지 나누기</div>
+      <div class="t"><span class="pp-ic" data-ic="deadline"></span><span class="pp-tt">마감일까지 나누기</span></div>
       <div class="d" id="pp-deadline-desc"></div>
     </button>
     <div class="modal-actions">
-      <button class="btn" id="pp-cancel">취소</button>
+      <button class="btn btn-primary pp-keep" id="pp-cancel"><span class="pp-ic sm" data-ic="keep"></span>오늘 할게요</button>
     </div>
   </div>
 </div>
@@ -2266,12 +2296,13 @@
   <div class="modal" style="max-width: 420px;">
     <div class="modal-title" id="cm-title">오늘 어디까지 했나요?</div>
     <p style="font-size: 13px; color: var(--text-soft); margin-bottom: 16px; line-height: 1.6;" id="cm-sub">—</p>
-    <div class="field">
+    <div class="field" id="cm-field">
       <label id="cm-label">실제로 진행한 위치</label>
       <input type="number" id="cm-input" min="0" style="font-size: 18px; font-weight: 700; text-align: center;">
       <div class="helper" id="cm-helper">—</div>
     </div>
     <div class="cm-quick" id="cm-quick" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;"></div>
+    <div id="cm-pick" class="cm-pick" style="display:none;"></div>
     <div class="modal-actions">
       <button class="btn" id="cm-cancel">취소</button>
       <button class="btn btn-primary" id="cm-save">완료 기록</button>
@@ -2284,8 +2315,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v3.4';
-const APP_BUILD_DATE = '2026-10-05';
+const APP_VERSION = 'v3.7';
+const APP_BUILD_DATE = '2026-10-07';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2962,13 +2993,71 @@ function openCompleteModal(task, plannedToAbs, anchorAbs) {
   quick.querySelectorAll('[data-cm-val]').forEach(btn => {
     btn.addEventListener('click', () => {
       input.value = btn.dataset.cmVal;
+      if (input.oninput) input.oninput();
       quick.querySelectorAll('.quick-chip').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
     });
   });
 
+  // Lectures / named items: tap the items instead of typing a number
+  const pickEl = document.getElementById('cm-pick');
+  const fieldEl = document.getElementById('cm-field');
+  const usePicker = task.type === 'lecture' || hasValidItemNames(task);
+  if (usePicker) {
+    const lastShown = Math.min(totalEndAbs, Math.max(plannedToAbs + 5, fromAbs + 7));
+    const timed = isTimeBasedTask(task);
+    const durs = timed ? task.lectureDurations : null;
+    let rows = '';
+    for (let n = fromAbs; n <= lastShown; n++) {
+      const named = hasValidItemNames(task);
+      const part = named ? itemPartAt(task, n) : '';
+      const nm = named ? itemNameAt(task, n) : formatRangePlain(task, n, n); // same numbering as the rest of the app
+      const tm = timed && durs[n - startNum - 1] != null ? fmtDailyAmount(task.type, durs[n - startNum - 1]) : '';
+      rows += `<button type="button" class="cm-item ${n > plannedToAbs ? 'extra' : ''} ${n === plannedToAbs && n < lastShown ? 'plan-end' : ''}" data-n="${n}">
+        <span class="box"></span>
+        <span class="nm">${part ? `<span class="grp">${escapeHtml(part)}</span>` : ''}${escapeHtml(nm)}</span>
+        ${tm ? `<span class="tm">${escapeHtml(tm)}</span>` : ''}</button>`;
+    }
+    pickEl.innerHTML = `<div class="cm-pick-head"><span>들은 ${task.type === 'lecture' ? '강의' : '항목'}를 눌러 체크 · 점선까지가 오늘 계획</span>
+        <button type="button" class="cm-link" id="cm-pick-num">번호로 입력</button></div>
+      <div class="cm-pick-list">${rows}</div><div class="cm-pick-sum" id="cm-pick-sum"></div>`;
+    pickEl.style.display = '';
+    fieldEl.style.display = 'none';
+    quick.style.display = 'none';
+    const sync = () => {
+      const v = parseInt(input.value);
+      let cnt = 0, mins = 0;
+      pickEl.querySelectorAll('.cm-item').forEach(b => {
+        const n = parseInt(b.dataset.n), on = !isNaN(v) && n <= v;
+        b.classList.toggle('on', on);
+        if (on) { cnt++; if (timed && durs[n - startNum - 1] != null) mins += durs[n - startNum - 1]; }
+      });
+      document.getElementById('cm-pick-sum').textContent = cnt === 0
+        ? '아직 아무것도 체크하지 않았어요 (저장하면 오늘은 안 한 걸로 돼요)'
+        : `오늘 ${cnt}개${timed ? ` · ${fmtDailyAmount(task.type, mins)}` : ''} 체크${!isNaN(v) && v === plannedToAbs ? ' · 계획대로예요' : !isNaN(v) && v > plannedToAbs ? ' · 계획보다 더 했어요' : ''}`;
+    };
+    pickEl.querySelectorAll('.cm-item').forEach(b => b.addEventListener('click', () => {
+      const n = parseInt(b.dataset.n), v = parseInt(input.value);
+      // tapping the last checked item un-checks it; otherwise everything up to it is checked
+      input.value = String(v === n ? n - 1 : n);
+      sync();
+    }));
+    document.getElementById('cm-pick-num').addEventListener('click', () => {
+      fieldEl.style.display = ''; quick.style.display = 'flex';
+      setTimeout(() => { input.focus(); input.select(); }, 30);
+    });
+    input.oninput = sync;
+    sync();
+  } else {
+    pickEl.style.display = 'none';
+    pickEl.innerHTML = '';
+    fieldEl.style.display = '';
+    quick.style.display = 'flex';
+    input.oninput = null;
+  }
+
   document.getElementById('completeModal').classList.add('show');
-  setTimeout(() => { input.focus(); input.select(); }, 50);
+  if (!usePicker) setTimeout(() => { input.focus(); input.select(); }, 50);
 }
 
 function setupCompleteModal() {
@@ -3692,12 +3781,13 @@ function buildTimeBasedSchedule(task) {
   };
   // The replay can be costly (multi-day-chapter plans re-plan at every postponed day):
   // cache it per task for today and the exact inputs it depends on.
-  const expKey = JSON.stringify([fmtDate(tdy), task.type, task.total, task.start, task.end, task.pace, task.paceValue,
+  const expKey = JSON.stringify([fmtDate(tdy), task.type, task.total, task.startNum || 0, task.start, task.end, task.pace, task.paceValue,
     task.reviewDays, task.skipDates, task.lectureDurations, task.itemDays, task.timeMode, task.dailyMinutes, task.weekSkips, task.weekHold]);
-  let expPair = _expCache.get(task.id);
+  const expSlot = task.id + (task._preview ? '#preview' : '');
+  let expPair = _expCache.get(expSlot);
   if (!expPair || expPair.key !== expKey) {
     expPair = { key: expKey, e0: expAt(false), e1: expAt(true) };
-    _expCache.set(task.id, expPair);
+    _expCache.set(expSlot, expPair);
   }
   const e0 = expPair.e0, e1 = expPair.e1;
   expectedProgress = e0.p; expectedFrac = e0.f;
@@ -4957,38 +5047,176 @@ function applyPostpone(task, mode) {
 // simulating it on a copy, so the numbers shown in the dialog are always truthful).
 function previewPostpone(task, mode) {
   const clone = JSON.parse(JSON.stringify(task));
+  clone._preview = true; // own cache slot, so previews don't evict the real task's cache
   applyPostpone(clone, mode);
   const tdy = today();
   const ws = fmtDate(startOfWeek(tdy)), we = fmtDate(addDays(startOfWeek(tdy), 6));
   const plan = buildSchedule(clone);
   const weekDaysLeft = plan.remainingDates.filter(d => fmtDate(d) <= we).length;
-  return { goal: computeWeekGoal(clone, ws, we), weekDaysLeft, anyDaysLeft: plan.remainingDates.length };
+  return { goal: computeWeekGoal(clone, ws, we), weekDaysLeft, anyDaysLeft: plan.remainingDates.length, plan, clone };
+}
+
+// Small pastel flat icons (inline SVG, no emoji)
+function flatIcon(name) {
+  const c = (bg, fg, inner) => `<svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="${bg}"/>${inner.replace(/FG/g, fg)}</svg>`;
+  switch (name) {
+    case 'ok': return c('#BFE3C6', '#4E8D5A', '<path d="M8.5 14.5l3.6 3.6 7.4-8" fill="none" stroke="FG" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>');
+    case 'warn': return c('#FCE3A2', '#B4861C', '<rect x="12.6" y="7.5" width="2.8" height="8.6" rx="1.4" fill="FG"/><circle cx="14" cy="19.6" r="1.7" fill="FG"/>');
+    case 'bad': return c('#F6C3BA', '#B9554A', '<path d="M9.8 9.8l8.4 8.4M18.2 9.8l-8.4 8.4" stroke="FG" stroke-width="2.6" stroke-linecap="round"/>');
+    case 'week': return c('#DCD5F6', '#6E61B8', '<rect x="7.5" y="8.5" width="13" height="12" rx="2.5" fill="none" stroke="FG" stroke-width="1.8"/><path d="M7.5 12.5h13" stroke="FG" stroke-width="1.8"/><rect x="10" y="14.6" width="8" height="3" rx="1.2" fill="FG"/>');
+    case 'deadline': return c('#CFE5F6', '#4B84B3', '<rect x="7.5" y="8.5" width="13" height="12" rx="2.5" fill="none" stroke="FG" stroke-width="1.8"/><path d="M7.5 12.5h13" stroke="FG" stroke-width="1.8"/><path d="M11 16.5h5.2m-2-2l2 2-2 2" fill="none" stroke="FG" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');
+    case 'later': return c('#E7E2DA', '#8A7C6B', '<path d="M8.5 14h9.5m-3.4-3.6L18.2 14l-3.6 3.6" fill="none" stroke="FG" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>');
+    case 'keep': return c('#FFFFFF', '#C98B5E', '<path d="M14 7.2l1.9 4.3 4.6.4-3.5 3 1.1 4.6L14 17l-4.1 2.5 1.1-4.6-3.5-3 4.6-.4z" fill="FG"/>');
+    default: return '';
+  }
+}
+
+// Per-day study load of a plan's future sessions: units for count goals, minutes/양 for
+// time-based ones (a multi-day chapter's part days count w/of each).
+function dayLoadsOf(task, plan) {
+  const byDay = new Map();
+  const timed = isTimeBasedTask(task);
+  const prefix = timed ? getDurationPrefix(task) : null, sn = task.startNum || 0;
+  const w = (abs) => prefix[abs - sn] - prefix[abs - sn - 1];
+  plan.schedule.forEach(x => {
+    if (x.isPast || x.isReview) return;
+    let load;
+    if (!timed) load = x.amount;
+    else if (x.isPart) load = w(x.from) / x.partOf;
+    else {
+      load = prefix[x.to - sn] - prefix[x.from - sn - 1];
+      if (x.partOf > 1) load -= w(x.from) * (x.partOf - 1) / x.partOf;
+    }
+    const k = fmtDate(x.date);
+    byDay.set(k, (byDay.get(k) || 0) + load);
+  });
+  return byDay;
+}
+function fmtLoad(task, v) {
+  if (isTimeBasedTask(task)) return fmtDailyAmount(task.type, v);
+  return `${Math.round(v)}${typeInfo(task.type).unit}`;
+}
+function fmtLoadDelta(task, d) {
+  return isTimeBasedTask(task) && isWeightUnitType(task.type) ? `양 +${Math.round(d)}` : `+${fmtLoad(task, d)}`;
+}
+function dayLabel(dateStr) {
+  const d = parseDate(dateStr), tmr = fmtDate(addDays(today(), 1));
+  const wd = ['일','월','화','수','목','금','토'][d.getDay()];
+  return dateStr === tmr ? `내일(${wd})` : `${d.getMonth() + 1}/${d.getDate()}(${wd})`;
+}
+// What postponing does to the NEXT study day: {date, before, after} (load on that day
+// in the current plan vs. after postponing).
+function nextDayImpact(task, planBefore, planAfter) {
+  const todayStr = fmtDate(today());
+  const after = dayLoadsOf(task, planAfter), before = dayLoadsOf(task, planBefore);
+  const upcoming = [...after.keys()].filter(k => k > todayStr && after.get(k) > 0).sort();
+  const next = upcoming[0];
+  if (!next) return null;
+  // Also the next few study days together — lectures/chapters are lumpy, so one day alone
+  // can even look lighter after postponing (a long lecture moves a day later).
+  const win = upcoming.slice(0, 3);
+  const winAfter = win.reduce((a, k) => a + after.get(k), 0) / win.length;
+  const winBefore = win.reduce((a, k) => a + (before.get(k) || 0), 0) / win.length;
+  return { date: next, before: before.get(next) || 0, after: after.get(next), today: before.get(todayStr) || 0,
+    winDays: win.length, winBefore, winAfter };
+}
+// Should I postpone today? → {level 0 ok | 1 warn | 2 bad, title, reasons[]}
+function postponeVerdict(task, planBefore, best, extra) {
+  const reasons = [];
+  let score = 0;
+  if (best) {
+    const same = Math.abs(best.after - best.before) < 0.5;
+    const diff = best.after - best.before;
+    const grew = best.before > 0 && diff >= 0.5;
+    reasons.push(`${dayLabel(best.date)} 할 양: ${grew ? fmtLoad(task, best.before) + ' → ' : ''}<b>${fmtLoad(task, best.after)}</b>${best.before > 0 && same ? ' (그대로)' : grew ? ` (${fmtLoadDelta(task, diff)})` : ''}`);
+    const winDiff = best.winAfter - best.winBefore;
+    if (best.winDays >= 2 && winDiff >= 0.5) reasons.push(`앞으로 ${best.winDays}일 동안 하루 평균 ${fmtLoadDelta(task, winDiff)}씩 더`);
+    const base = best.winBefore > 0 ? best.winBefore : best.today;
+    const ratio = base > 0 ? best.winAfter / base : 1;
+    score = ratio <= 1.2 ? 0 : ratio <= 1.5 ? 1 : 2;
+  }
+  if (extra.finishShift) { reasons.push(extra.finishShift); if (extra.finishTight) score = Math.max(score, 1); }
+  if (extra.slackText) reasons.push(extra.slackText);
+  if (extra.overDeadline) { reasons.push('이대로면 마감일을 넘겨요'); score = 2; }
+  if (extra.weekCount >= 2) { reasons.push(`이번 주에 벌써 ${extra.weekCount}번 미뤘어요`); score++; }
+  else if (extra.weekCount === 1) reasons.push('이번 주에 한 번 미뤘어요');
+  if (extra.behindDay) { reasons.push('지금도 계획보다 하루치 넘게 밀려 있어요'); score++; }
+  if (extra.daysLeftAfter > 0 && extra.daysLeftAfter <= 3) { reasons.push(`마감일까지 공부일이 ${extra.daysLeftAfter}일뿐이에요`); score++; }
+  score = Math.min(2, score);
+  const title = ['미뤄도 괜찮아요',
+    extra.capacity ? '미룰 순 있지만 끝나는 날이 마감일에 가까워져요' : '미룰 순 있지만 다음 공부일이 힘들어져요',
+    '오늘은 미루지 않는 게 좋아요'][score];
+  return { level: score, title, reasons };
 }
 
 let postponeTaskId = null;
 function openPostponeModal(taskId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
-  // Fixed daily-budget (capacity) plans can't be squeezed into the week — postpone directly.
-  if (isTimeBasedTask(task) && task.timeMode === 'capacity') { postponeToday(taskId, 'deadline'); return; }
-  const pw = previewPostpone(task, 'week');
-  const pd = previewPostpone(task, 'deadline');
-  // Deadline inside this week (or nothing differs) → both choices are identical, don't ask.
-  const sameResult = pw.goal && pd.goal && pw.goal.to === pd.goal.to;
-  if (sameResult || pw.weekDaysLeft === 0 && pd.anyDaysLeft === 0) { postponeToday(taskId, 'deadline'); return; }
   postponeTaskId = taskId;
-  const ws = fmtDate(startOfWeek(today()));
+  const tdy = today(), todayStr = fmtDate(tdy);
+  const planBefore = buildSchedule(task);
+  const isCap = isTimeBasedTask(task) && task.timeMode === 'capacity';
+  const pd = previewPostpone(task, 'deadline');
+  // Capacity plans can't be squeezed into the week → only "마감일까지".
+  const pw = isCap ? null : previewPostpone(task, 'week');
+  const sameResult = !pw || (pw.goal && pd.goal && pw.goal.to === pd.goal.to) || pw.weekDaysLeft === 0;
+  const impD = nextDayImpact(task, planBefore, pd.plan);
+  const impW = pw && !sameResult ? nextDayImpact(task, planBefore, pw.plan) : null;
+  const best = impW && impD ? (impW.after <= impD.after ? impW : impD) : (impD || impW);
+
+  // Extra signals: postpones this week, days left, capacity finish date
+  const ws = fmtDate(startOfWeek(tdy)), we = fmtDate(addDays(startOfWeek(tdy), 6));
+  const weekCount = (task.skipDates || []).filter(d => d >= ws && d <= we && d !== todayStr).length;
+  const todayLoad0 = dayLoadsOf(task, planBefore).get(todayStr) || 0;
+  // "Behind" only counts when it's at least about a day's share (not 1 page of rounding)
+  const behindDay = planBefore.status === 'behind' && (isTimeBasedTask(task) || planBefore.behind >= Math.max(1, todayLoad0));
+  const extra = { weekCount, daysLeftAfter: pd.plan.remainingDates.length, behindDay };
+  if (isCap) {
+    const fin = (p) => p.capacityInsufficient ? p.capacityFinishDate : p.capacityLastDate;
+    const f0 = fin(planBefore), f1 = fin(pd.plan);
+    const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+    extra.capacity = true;
+    if (f0 && f1 && fmtDate(f1) !== fmtDate(f0)) extra.finishShift = `끝나는 날 ${md(f0)} → <b>${md(f1)}</b>`;
+    if (pd.plan.capacityInsufficient && !planBefore.capacityInsufficient) extra.overDeadline = true;
+    // In capacity mode the daily amount never grows — what matters is how much slack is left
+    if (f1 && !pd.plan.capacityInsufficient) {
+      const slack = pd.plan.remainingDates.filter(d => d > f1).length;
+      extra.finishTight = slack <= 3;
+      extra.slackText = slack > 0 ? `그래도 마감일까지 공부일 ${slack}일 여유가 있어요` : '마감일에 딱 맞춰 끝나요';
+    }
+  }
+  const v = postponeVerdict(task, planBefore, isCap ? null : best, extra);
+
   const snap = weekGoalsMap.get(task.id + '|' + ws);
   const fmt = (g) => g && g.to >= g.from ? formatRangePlain(task, g.from, g.to) : '—';
+  const todaySess = planBefore.schedule.find(x => fmtDate(x.date) === todayStr && !x.isPast && !x.isReview);
+  const todayLoad = dayLoadsOf(task, planBefore).get(todayStr) || 0;
   document.getElementById('pp-sub').innerHTML =
-    `<strong>${escapeHtml(task.title)}</strong>` + (snap ? `<br>이번 주 목표: ${escapeHtml(fmt(snap))}` : '');
+    `<strong>${escapeHtml(task.title)}</strong>`
+    + (todaySess ? `<br>오늘 할 일: ${formatRangeDisplay(task, todaySess.from, todaySess.to)}${todayLoad > 0 ? ` (${escapeHtml(fmtLoad(task, todayLoad))})` : ''}` : '')
+    + (snap && !isCap ? `<br>이번 주 목표: ${escapeHtml(fmt(snap))}` : '');
+  const vEl = document.getElementById('pp-verdict');
+  vEl.className = 'pp-verdict ' + ['ok', 'warn', 'bad'][v.level];
+  vEl.innerHTML = `<div class="v-title"><span class="pp-ic">${flatIcon(['ok', 'warn', 'bad'][v.level])}</span>${v.title}</div>`
+    + (v.reasons.length ? `<div>미루면…</div><ul>${v.reasons.map(r => `<li>${r}</li>`).join('')}</ul>` : '');
+
+  const impactLine = (imp) => imp ? `<div class="impact">→ ${dayLabel(imp.date)} ${escapeHtml(fmtLoad(task, imp.after))}${imp.before > 0 && imp.after - imp.before >= 0.5 ? ` (${escapeHtml(fmtLoadDelta(task, imp.after - imp.before))})` : ''}</div>` : '';
   const weekBtn = document.getElementById('pp-week');
-  weekBtn.disabled = pw.weekDaysLeft === 0;
-  document.getElementById('pp-week-desc').textContent = pw.weekDaysLeft === 0
-    ? '이번 주에 남은 공부일이 없어서 고를 수 없어요'
-    : `이번 주 남은 ${pw.weekDaysLeft}일에 나눠 담아요 → 이번 주 ${fmt(pw.goal)}`;
-  document.getElementById('pp-deadline-desc').textContent =
-    `마감일(${task.end.slice(5).replace('-', '/')})까지 고르게 나눠요 → 이번 주 ${fmt(pd.goal)}`;
+  const dlBtn = document.getElementById('pp-deadline');
+  weekBtn.style.display = sameResult ? 'none' : '';
+  weekBtn.disabled = false;
+  if (!sameResult) {
+    document.getElementById('pp-week-desc').innerHTML =
+      escapeHtml(`이번 주 남은 ${pw.weekDaysLeft}일에 나눠 담아요 → 이번 주 ${fmt(pw.goal)}`) + impactLine(impW);
+  }
+  dlBtn.querySelector('.pp-tt').textContent = sameResult ? '그래도 미루기' : '마감일까지 나누기';
+  dlBtn.querySelector('.pp-ic').innerHTML = flatIcon(sameResult ? 'later' : 'deadline');
+  weekBtn.querySelector('.pp-ic').innerHTML = flatIcon('week');
+  document.querySelector('#pp-cancel .pp-ic').innerHTML = flatIcon('keep');
+  document.getElementById('pp-deadline-desc').innerHTML =
+    escapeHtml(isCap ? '하루 양은 그대로, 남은 날에 이어서 해요' : `마감일(${task.end.slice(5).replace('-', '/')})까지 고르게 나눠요${pd.goal ? ` → 이번 주 ${fmt(pd.goal)}` : ''}`) + (isCap ? '' : impactLine(impD));
+  document.getElementById('pp-choose-label').textContent = sameResult ? '그래도 미룬다면' : '그래도 미룬다면, 오늘 분량을 어디에 담을까요?';
   document.getElementById('postponeModal').classList.add('show');
 }
 
