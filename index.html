@@ -430,6 +430,58 @@
   .misread-box { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: #FDE5DC; color: #c44d2e; font-size: 12px; line-height: 1.7; }
   .misread-box .mini-btn { margin: 2px 4px; }
   .misread-sub { color: var(--text-muted); font-size: 11px; }
+  .set-sec { padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .set-sec:last-of-type { border-bottom: 0; }
+  .set-h { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+  .set-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
+  .set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 6px; }
+  .set-cell { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-soft); text-align: center; }
+  .set-cell input, .set-cell select { width: 100%; min-width: 0; text-align: center; background: var(--cream-light); border: 1px solid transparent; padding: 7px 4px; font-size: 13px; border-radius: 8px; }
+  .set-cell.weekend { color: #b4675a; }
+  .set-off-add { display: flex; gap: 8px; margin-bottom: 8px; }
+  .set-off-add input { flex: 1; min-width: 0; background: var(--cream-light); border: 1px solid transparent; padding: 7px 10px; border-radius: 8px; }
+  .set-off-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .off-chip { display: inline-flex; align-items: center; gap: 6px; background: #EEE8F8; color: #5b4d9a; padding: 4px 6px 4px 10px; border-radius: 999px; font-size: 12px; }
+  .off-chip button { border: 0; background: #DCD5F6; color: #5b4d9a; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; font-size: 11px; line-height: 1; }
+  .soft-box { border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; font-size: 13px; line-height: 1.6; display: flex; gap: 10px; align-items: flex-start; }
+  .soft-box .ic { width: 26px; height: 26px; flex-shrink: 0; }
+  .soft-box .ic svg { width: 100%; height: 100%; display: block; }
+  .soft-box .bd { flex: 1; min-width: 0; }
+  .soft-box .ttl { font-weight: 800; margin-bottom: 2px; }
+  .soft-box.lilac { background: #F1EEFB; color: #4f4389; }
+  .soft-box.peach { background: #FCEFE7; color: #8a4e2c; }
+  .soft-box.mint { background: #EAF5EC; color: #3f6b48; }
+  .soft-box.sky { background: #EAF3FB; color: #34628a; }
+  .soft-box .mini-btn { margin-top: 6px; }
+  .risk-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px dashed rgba(0,0,0,0.08); }
+  .risk-row:first-of-type { border-top: 0; }
+  .risk-name { font-weight: 700; margin-right: 4px; }
+  .risk-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.75); }
+  .day-total { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: var(--cream-light); font-size: 12px; color: var(--text-soft); }
+  .day-total .row1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .day-total b { color: var(--text); font-size: 14px; }
+  .day-total .meter { height: 6px; border-radius: 999px; background: #EDE6DC; margin-top: 7px; overflow: hidden; }
+  .day-total .meter span { display: block; height: 100%; border-radius: 999px; background: #BFE3C6; }
+  .day-total.over .meter span { background: #F6C3BA; }
+  .day-total.over .warn { color: #b9554a; font-weight: 700; }
+  .day-total .note { margin-top: 4px; font-size: 11px; color: var(--text-muted); }
+  .week-time { display: block; font-size: 10px; margin-top: 2px; color: var(--text-muted); }
+  .week-time.over { color: #b9554a; font-weight: 700; }
+  .review-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+  .review-table td { padding: 4px 4px; border-top: 1px dashed rgba(0,0,0,0.08); vertical-align: middle; }
+  .review-table td.num { text-align: right; white-space: nowrap; }
+  .review-bar { height: 5px; border-radius: 999px; background: rgba(255,255,255,0.8); overflow: hidden; min-width: 50px; }
+  .review-bar span { display: block; height: 100%; background: #9DCBA6; }
+  .pace-line { font-size: 12px; color: var(--text-soft); background: #F3F7FB; padding: 8px 12px; border-radius: var(--radius-sm); margin-top: -4px; line-height: 1.6; }
+  .pace-line.late { background: #FCEAE6; color: #a4473a; }
+  .cm-time-row { margin-top: 12px; }
+  .cm-time-row label { font-size: 12px; color: var(--text-soft); font-weight: 600; display: block; margin-bottom: 4px; }
+  .cm-time-row label span { font-weight: 400; color: var(--text-muted); }
+  .cm-time-row input { width: 100%; background: var(--cream-light); border: 1px solid transparent; padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm); }
+  .buffer-row input { flex: 1; min-width: 0; background: var(--cream-light); border: 1px solid transparent; padding: 6px 10px; font-size: 13px; border-radius: var(--radius-sm); }
+  .buffer-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .buffer-row label { font-size: 12px; color: var(--text-soft); font-weight: 500; white-space: nowrap; margin: 0; }
+  .buffer-row select { flex: 1; min-width: 0; background: var(--cream-light); border: 1px solid transparent; padding: 6px 10px; font-size: 13px; border-radius: var(--radius-sm); }
   .daily-need { font-size: 11px; color: var(--text-soft); margin-top: 6px; line-height: 1.6; }
   .daily-need b { color: var(--text); }
   .daily-need.warn { color: #c44d2e; }
@@ -1859,6 +1911,9 @@
     </div>
     <div class="nav-group">
       <div class="nav-label">데이터</div>
+      <button class="nav-item" id="btn-settings">
+        <span class="ico">⚙</span> 설정
+      </button>
       <button class="nav-item" id="btn-export">
         <span class="ico">↓</span> 내보내기
       </button>
@@ -1870,7 +1925,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v3.7 · 최근 업데이트 2026-10-07</div>
+      <div class="build-badge" id="buildBadge">v4.0.1 · 최근 업데이트 2026-10-08</div>
     </div>
   </aside>
 
@@ -1902,10 +1957,13 @@
         </div>
       </div>
       <div class="week-goals" id="weekGoals"></div>
+      <div id="weekReview"></div>
       <div class="week-grid" id="weekGrid"></div>
     </div>
 
     <div id="agendaView" style="display:none;">
+      <div id="backupBanner"></div>
+      <div id="riskBox"></div>
       <div class="agenda-section">
         <div class="agenda-header">
           <div class="agenda-title">
@@ -1914,6 +1972,7 @@
           </div>
           <div class="agenda-date" id="todayDateLabel">—</div>
         </div>
+        <div id="todayTotal"></div>
         <div class="agenda-list" id="todayList"></div>
       </div>
       <div class="agenda-section">
@@ -1924,6 +1983,7 @@
           </div>
           <div class="agenda-date" id="tomorrowDateLabel">—</div>
         </div>
+        <div id="tomorrowTotal"></div>
         <div class="agenda-list" id="tomorrowList"></div>
       </div>
     </div>
@@ -1986,6 +2046,21 @@
             <button class="quick-chip" data-add-months="3">+3개월</button>
             <button class="quick-chip" data-add-months="6">+6개월</button>
             <button class="quick-chip" data-add-months="12">+1년</button>
+          </div>
+          <div class="buffer-row">
+            <label for="f-buffer">마감 여유일</label>
+            <select id="f-buffer">
+              <option value="0">없음 (마감일까지)</option>
+              <option value="1">1일 전에 끝내기</option>
+              <option value="2">2일 전에 끝내기</option>
+              <option value="3">3일 전에 끝내기</option>
+              <option value="5">5일 전에 끝내기</option>
+              <option value="7">1주 전에 끝내기</option>
+            </select>
+          </div>
+          <div class="buffer-row">
+            <label for="f-mpu" id="f-mpu-label">1개당 걸리는 시간</label>
+            <input type="text" id="f-mpu" placeholder="선택 · 예: 3분">
           </div>
         </div>
       </div>
@@ -2118,6 +2193,21 @@
           <button class="quick-chip" data-add-months="6">+6개월</button>
           <button class="quick-chip" data-add-months="12">+1년</button>
         </div>
+          <div class="buffer-row">
+            <label for="e-buffer">마감 여유일</label>
+            <select id="e-buffer">
+              <option value="0">없음 (마감일까지)</option>
+              <option value="1">1일 전에 끝내기</option>
+              <option value="2">2일 전에 끝내기</option>
+              <option value="3">3일 전에 끝내기</option>
+              <option value="5">5일 전에 끝내기</option>
+              <option value="7">1주 전에 끝내기</option>
+            </select>
+          </div>
+          <div class="buffer-row">
+            <label for="e-mpu" id="e-mpu-label">1개당 걸리는 시간</label>
+            <input type="text" id="e-mpu" placeholder="선택 · 예: 3분">
+          </div>
       </div>
     </div>
     <div style="margin-top: 16px;">
@@ -2255,6 +2345,37 @@
 </div>
 
 <!-- Import Modal -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal" style="max-width: 540px;">
+    <div class="modal-title">설정</div>
+    <div class="set-sec">
+      <div class="set-h">요일별 공부 가능 시간</div>
+      <div class="set-sub">모든 목표를 합친 하루 공부량이 이 시간을 넘으면 알려줘요 (예: 2시간, 90분, 1.5 · 비워두면 안 봐요)</div>
+      <div class="set-grid" id="set-avail"></div>
+    </div>
+    <div class="set-sec">
+      <div class="set-h">요일별 분량 비율</div>
+      <div class="set-sub">예: 주말 2배 → 주말에 평일의 2배를 배정해요. 마감일은 그대로 지켜요 (하루 가능시간 방식 목표는 제외)</div>
+      <div class="set-grid" id="set-weights"></div>
+    </div>
+    <div class="set-sec">
+      <div class="set-h">쉬는 날</div>
+      <div class="set-sub">시험·여행처럼 공부를 못 하는 날 — 모든 목표의 계획에서 빠지고, 그 분량은 다른 날에 나눠져요</div>
+      <div class="set-off-add"><input type="date" id="set-off-date"><button type="button" class="btn" id="set-off-add">추가</button></div>
+      <div id="set-off-list" class="set-off-list"></div>
+    </div>
+    <div class="set-sec">
+      <div class="set-h">백업</div>
+      <div class="set-sub" id="set-backup-info"></div>
+      <button type="button" class="btn" id="set-backup-now">지금 백업 파일 저장</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="set-cancel">닫기</button>
+      <button class="btn btn-primary" id="set-save">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="importModal">
   <div class="modal">
     <div class="modal-title">데이터 가져오기</div>
@@ -2303,6 +2424,10 @@
     </div>
     <div class="cm-quick" id="cm-quick" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;"></div>
     <div id="cm-pick" class="cm-pick" style="display:none;"></div>
+    <div class="cm-time-row" id="cm-time-row">
+      <label for="cm-time">걸린 시간 <span>(선택 · 적어두면 하루 총 공부량을 계산해요)</span></label>
+      <input type="text" id="cm-time" placeholder="예: 40분, 1시간 10분">
+    </div>
     <div class="modal-actions">
       <button class="btn" id="cm-cancel">취소</button>
       <button class="btn btn-primary" id="cm-save">완료 기록</button>
@@ -2315,8 +2440,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v3.7';
-const APP_BUILD_DATE = '2026-10-07';
+const APP_VERSION = 'v4.0.1';
+const APP_BUILD_DATE = '2026-10-08';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2324,6 +2449,78 @@ const SORT_KEY = 'focus-calculate-sort';
 const COMPLETED_KEY = 'focus-calculate-completed-v2';
 const CATEGORIES_KEY = 'focus-calculate-categories-v1';
 const WEEKGOALS_KEY = 'focus-calculate-weekgoals-v1';
+const SETTINGS_KEY = 'focus-calculate-settings-v1';
+// App-wide settings:
+//   avail[0..6]   minutes I can study on Sun..Sat (null = not set) — for "하루 총 공부량"
+//   weights[0..6] how big a share each weekday gets (1 = normal, 2 = double) — for plans
+//   offDates      days off for ALL goals (exams, trips) — taken out of every plan
+//   lastBackup    when the data was last exported
+//   wHist         [{from, w}] weekday ratios over time (so the past isn't re-judged)
+//   offLog        {date: [{a, ad, r, rd}]} when each 쉬는 날 was added (a) / removed (r);
+//                 ad/rd = goals already checked off that day (the change counts for them
+//                 from the next day — today's work was done under the old plan)
+//   (wHist entries carry dn = the same list)
+let settings = { avail: null, weights: [1, 1, 1, 1, 1, 1, 1], offDates: [], lastBackup: null, wHist: [], offLog: {} };
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) settings = Object.assign(settings, JSON.parse(raw));
+  } catch (e) {}
+  if (!Array.isArray(settings.weights) || settings.weights.length !== 7) settings.weights = [1, 1, 1, 1, 1, 1, 1];
+  settings.weights = settings.weights.map(v => (v > 0 ? Math.min(5, +v) : 1));
+  if (!Array.isArray(settings.offDates)) settings.offDates = [];
+  settings.offDates = settings.offDates.filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d));
+  if (!Array.isArray(settings.avail) || settings.avail.length !== 7) settings.avail = null;
+  else settings.avail = settings.avail.map(v => (v > 0 ? Math.round(+v) : 0));
+  if (!Array.isArray(settings.wHist)) settings.wHist = [];
+  settings.wHist = settings.wHist.filter(e => e && typeof e.from === 'string' && Array.isArray(e.w) && e.w.length === 7)
+    .map(e => ({ from: e.from, w: e.w.map(v => (v > 0 ? Math.min(5, +v) : 1)), dn: Array.isArray(e.dn) ? e.dn.slice() : [] }));
+  normalizeOffLog();
+  _offSet = new Set(settings.offDates);
+}
+// offLog consistent with offDates: every off date has one open entry, nothing else is open.
+// (Data from before offLog — or offAdded from an early v4.0 — is converted.)
+function normalizeOffLog() {
+  let log = settings.offLog;
+  if (!log || typeof log !== 'object' || Array.isArray(log)) log = {};
+  const out = {};
+  Object.keys(log).forEach(d => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !Array.isArray(log[d])) return;
+    const arr = log[d].filter(e => e && typeof e.a === 'string').map(e => ({ a: e.a, ad: Array.isArray(e.ad) ? e.ad.slice() : [],
+      r: typeof e.r === 'string' ? e.r : null, rd: Array.isArray(e.rd) ? e.rd.slice() : [] }));
+    if (arr.length) out[d] = arr;
+  });
+  const legacy = settings.offAdded && typeof settings.offAdded === 'object' ? settings.offAdded : {};
+  const offSet = new Set(settings.offDates);
+  Object.keys(out).forEach(d => { // open entries only for current off dates
+    if (!offSet.has(d)) out[d] = out[d].filter(e => e.r !== null);
+    else { const open = out[d].filter(e => e.r === null); if (open.length > 1) out[d] = out[d].filter(e => e.r !== null).concat(open[0]); }
+    if (!out[d].length) delete out[d];
+  });
+  settings.offDates.forEach(d => {
+    if (!out[d] || !out[d].some(e => e.r === null)) (out[d] = out[d] || []).push({ a: typeof legacy[d] === 'string' ? legacy[d] : '', ad: [], r: null, rd: [] });
+  });
+  settings.offLog = out;
+  delete settings.offAdded;
+}
+function persistSettings() {
+  _offSet = new Set(settings.offDates);
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+}
+let _offSet = new Set();
+function isOffDate(d) { return _offSet.has(typeof d === 'string' ? d : fmtDate(d)); }
+// Share weight of a study day (weekday ratio). 1 when no ratios are set.
+function dayWeight(d) { const w = settings.weights[d.getDay()]; return w > 0 ? w : 1; }
+function weightsUniform() { return settings.weights.every(w => w === settings.weights[0]); }
+// Effective share weight (exactly 1 everywhere when no weekday ratios are set, so the
+// plans are bit-for-bit the same as without the feature).
+function effW(d) { return weightsUniform() ? 1 : dayWeight(d); }
+// wsum[i] = Σ effW(dates[j]) for j ≥ i
+function weightSuffix(dates) {
+  const n = dates.length, ws = new Array(n + 1).fill(0);
+  for (let i = n - 1; i >= 0; i--) ws[i] = ws[i + 1] + effW(dates[i]);
+  return ws;
+}
 
 const DEFAULT_TYPE_COLORS = {
   book: '#563526',
@@ -2480,12 +2677,12 @@ function parseDurationToken(tok) {
   if (tok == null) return null;
   tok = String(tok).trim();
   if (!tok) return null;
-  const hourMatch = tok.match(/(\d+)\s*시간/);
+  const hourMatch = tok.match(/(\d+(?:\.\d+)?)\s*시간/);
   const minMatch = tok.match(/(\d+)\s*분/);
   if (hourMatch || minMatch) {
-    const h = hourMatch ? parseInt(hourMatch[1]) : 0;
+    const h = hourMatch ? parseFloat(hourMatch[1]) : 0;
     const m = minMatch ? parseInt(minMatch[1]) : 0;
-    return h * 60 + m;
+    return Math.round(h * 60) + m;
   }
   const colonMatch = tok.match(/^(\d+):(\d{1,2})(?::\d{1,2})?$/);
   if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2]);
@@ -2775,6 +2972,7 @@ async function copyToClipboard(text, btnEl) {
 
 // ===== STORAGE =====
 function loadAll() {
+  loadSettings();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     tasks = raw ? JSON.parse(raw) : [];
@@ -2866,7 +3064,11 @@ const getCompletedAmount = (taskId, dateStr) => {
 function setCompleted(taskId, dateStr, completed, amount = 0, extra) {
   const k = completionKey(taskId, dateStr);
   if (completed) completedMap.set(k, extra ? { amount, ...extra } : { amount });
-  else completedMap.delete(k);
+  else {
+    completedMap.delete(k);
+    const t = tasks.find(x => x.id === taskId); // unchecked → that day's "걸린 시간" goes too
+    if (t && Array.isArray(t.timeLog) && t.timeLog.some(x => x.d === dateStr)) { t.timeLog = t.timeLog.filter(x => x.d !== dateStr); persistTasks(); }
+  }
   persistCompleted();
 }
 
@@ -3056,6 +3258,9 @@ function openCompleteModal(task, plannedToAbs, anchorAbs) {
     input.oninput = null;
   }
 
+  { const prevT = (task.timeLog || []).find(x => x.d === fmtDate(today()));
+    document.getElementById('cm-time').value = prevT ? formatDuration(prevT.m) : ''; }
+  document.getElementById('cm-time-row').style.display = hasOwnMinutes(task) ? 'none' : '';
   document.getElementById('completeModal').classList.add('show');
   if (!usePicker) setTimeout(() => { input.focus(); input.select(); }, 50);
 }
@@ -3100,6 +3305,24 @@ function commitCompleteModal() {
 
   if (task.progress > anchor) {
     setCompleted(task.id, todayStr, true, task.progress - anchor);
+    // "걸린 시간" → learn how long one unit takes (for 하루 총 공부량)
+    const spent = parseDurationToken(document.getElementById('cm-time').value);
+    if (spent > 0 && !hasOwnMinutes(task)) {
+      const pre = isTimeBasedTask(task) ? getDurationPrefix(task) : null;
+      let u = pre ? pre[task.progress] - pre[anchor] : task.progress - anchor;
+      if (pre) { const ps = getPartState(task, startNum + anchor + 1, todayStr); u -= (pre[anchor + 1] - pre[anchor]) * ps.frac; }
+      if (u > 0) task.timeLog = [...(task.timeLog || []).filter(x => x.d !== todayStr), { d: todayStr, u, m: spent }].slice(-20);
+    } else if (!hasOwnMinutes(task) && Array.isArray(task.timeLog)) {
+      // number changed without a new time: keep today's time, update the amount
+      const prevT = task.timeLog.find(x => x.d === todayStr);
+      if (prevT) {
+        const pre = isTimeBasedTask(task) ? getDurationPrefix(task) : null;
+        let u = pre ? pre[task.progress] - pre[anchor] : task.progress - anchor;
+        if (pre) { const ps = getPartState(task, startNum + anchor + 1, todayStr); u -= (pre[anchor + 1] - pre[anchor]) * ps.frac; }
+        task.timeLog = task.timeLog.filter(x => x.d !== todayStr);
+        if (u > 0) task.timeLog.push({ d: todayStr, u, m: prevT.m });
+      }
+    }
   } else {
     // They did nothing (or less than start) → just mark with 0, treat as not done
     setCompleted(task.id, todayStr, false);
@@ -3165,12 +3388,20 @@ function getActiveDates(startStr, endStr, paceCfg) {
 // Content dates = active session dates for NEW material, i.e. pace dates minus review
 // weekdays. Review weekdays never receive new content; the amount auto-redistributes
 // across the remaining content days (same mechanism as postponing).
+// Last day the plan uses: the deadline, or N days earlier with "마감 여유일" (buffer)
+function planEndStr(task) {
+  const b = parseInt(task.bufferDays) || 0;
+  if (b <= 0 || !task.end) return task.end;
+  const e = fmtDate(addDays(parseDate(task.end), -b));
+  return e >= task.start ? e : task.end;
+}
 function getContentDates(task) {
   const paceCfg = { type: task.pace, value: task.paceValue };
-  const allDates = getActiveDates(task.start, task.end, paceCfg);
+  let allDates = getActiveDates(task.start, planEndStr(task), paceCfg);
   const reviewSet = new Set(task.reviewDays || []);
-  if (reviewSet.size === 0) return allDates;
-  return allDates.filter(d => !reviewSet.has(d.getDay()));
+  if (reviewSet.size > 0) allDates = allDates.filter(d => !reviewSet.has(d.getDay()));
+  if (_offSet.size > 0) allDates = allDates.filter(d => !_offSet.has(fmtDate(d))); // 쉬는 날
+  return allDates;
 }
 
 // Append review-day entries to a content schedule. Shared by both count-based and
@@ -3190,6 +3421,7 @@ function appendReviewEntries(task, contentSchedule, tdy) {
     const d = addDays(startD, i);
     if (!reviewSet.has(d.getDay())) continue;
     if (isSkipped(d)) { prevReviewDate = d; continue; } // postponed review day
+    if (isOffDate(d)) continue; // 쉬는 날: the next review day covers this window too
     const windowSessions = contentSchedule.filter(s =>
       s.date < d && (prevReviewDate === null || s.date > prevReviewDate)
     );
@@ -3254,21 +3486,102 @@ function holdTracker(holds) {
   };
 }
 
-function replayExpected(allDates, isSkipped, tdy, total, exact, holds) {
+// ===== 지난 날 다시 계산 — 설정이 중간에 바뀐 경우 =====
+// The status replay re-runs the plan over the passed days "as it looked on each day".
+// A setting changed mid-way must not rewrite the past (that turned an on-plan user into
+// "밀림" just for adding a rest day):
+//   · a 쉬는 날 is off only while it was on the list (settings.offLog) — before it was added
+//     (or after it was removed) it was an ordinary study day; reached while off, or marked
+//     off after it passed, it acts like a postponed day;
+//   · weekday ratios apply from the day they were saved (settings.wHist);
+//   · for a goal already checked off on the day of the change, it counts from the next day
+//     (that day's work was done under the old plan).
+// Without such changes (the usual case) this is exactly the plain replay.
+function wUniform(arr) { return arr.every(x => x === arr[0]); }
+function replayCtx(task, allDates) {
+  const tid = task.id, startStr = task.start, endStr = planEndStr(task);
+  const nextDay = (x) => (x ? fmtDate(addDays(parseDate(x), 1)) : x);
+  const eff = (x, ids) => (x && Array.isArray(ids) && ids.includes(tid) ? nextDay(x) : x);
+  // weekday-ratio history as it applies to this goal
+  const histArr = Array.isArray(settings.wHist) && settings.wHist.length > 1
+    ? settings.wHist.map(e => ({ from: eff(e.from, e.dn), w: e.w })) : null;
+  // off-day intervals [start, end) per date, as they apply to this goal
+  const log = settings.offLog || {};
+  const iv = new Map();
+  Object.keys(log).forEach(d => {
+    if (d < startStr || d > endStr) return;
+    const arr = log[d].map(e => [eff(e.a, e.ad), e.r === null ? null : eff(e.r, e.rd)]).filter(([a, r]) => r === null || a < r);
+    if (arr.length) iv.set(d, arr);
+  });
+  const offOn = (x, day) => { const a = iv.get(x); return !!a && a.some(([s0, e0]) => s0 <= day && (e0 === null || day < e0)); };
+  // dates whose off/on state differs between replay days (the rest is the same every day)
+  const special = new Set();
+  iv.forEach((arr, d) => {
+    const cur = _offSet.has(d);
+    const alwaysOff = cur && arr.some(([s0, e0]) => e0 === null && s0 <= startStr);
+    if (alwaysOff) return;
+    if (arr.some(([s0, e0]) => e0 === null || e0 > startStr)) special.add(d);
+  });
+  if (!special.size && !histArr) {
+    const ws = weightSuffix(allDates);
+    const N0 = allDates.length;
+    let sumAll = null;
+    return { dates: allDates, isLate: () => false, w: (i, j) => effW(allDates[j]), W: (i) => ws[i], count: (i) => N0 - i,
+      countAll: () => N0, uniform: () => weightsUniform(), sig: () => '',
+      sumAllW: () => { if (sumAll == null) sumAll = allDates.map(effW).reduce((a, b) => a + b, 0) || 1; return sumAll; } };
+  }
+  let dates = allDates;
+  if ([...special].some(d => _offSet.has(d))) { // put off dates that weren't always off back into the timeline
+    const reviewSet = new Set(task.reviewDays || []);
+    dates = getActiveDates(task.start, endStr, { type: task.pace, value: task.paceValue })
+      .filter(d => !reviewSet.has(d.getDay()) && (!_offSet.has(fmtDate(d)) || special.has(fmtDate(d))));
+  }
+  const N = dates.length, ds = dates.map(fmtDate);
+  const spIdx = []; ds.forEach((x, j) => { if (special.has(x)) spIdx.push(j); });
+  const isSp = ds.map(x => special.has(x));
+  const H = histArr || [{ from: '', w: settings.weights }];
+  const hOf = ds.map(x => { let k = 0; for (let q = 0; q < H.length; q++) if (H[q].from <= x) k = q; return k; });
+  const wOf = (k, d) => { const arr = H[k].w; return wUniform(arr) ? 1 : (arr[d.getDay()] > 0 ? arr[d.getDay()] : 1); };
+  const known = (j, i) => isSp[j] && offOn(ds[j], ds[i]);
+  const sigOf = ds.map((x, i) => hOf[i] + ':' + spIdx.map(j => (known(j, i) ? 1 : 0)).join(''));
+  const w = (i, j) => (known(j, i) ? 0 : wOf(hOf[i], dates[j]));
+  // reached: an off date now (marked later = like a postponed day) or one that was off on that
+  // day — except a day made off only after this goal was already checked off that same day
+  // (it was studied as planned)
+  const studiedThen = (x) => (log[x] || []).some(e => e.r === null && e.a === x && Array.isArray(e.ad) && e.ad.includes(tid));
+  const late = ds.map((x, i) => isSp[i] && (offOn(x, x) || (_offSet.has(x) && !studiedThen(x))));
+  const groups = new Map(); // sig → {suf (weights), cnt (days), all (forward sum)}
+  const grp = (i) => {
+    let g = groups.get(sigOf[i]);
+    if (!g) {
+      const suf = new Float64Array(N + 1), cnt = new Int32Array(N + 1);
+      for (let j = N - 1; j >= 0; j--) { const x = w(i, j); suf[j] = suf[j + 1] + x; cnt[j] = cnt[j + 1] + (x > 0 ? 1 : 0); }
+      let all = 0; for (let j = 0; j < N; j++) all += w(i, j);
+      g = { suf, cnt, all: all || 1 };
+      groups.set(sigOf[i], g);
+    }
+    return g;
+  };
+  return { dates, isLate: (i) => late[i], w, W: (i) => grp(i).suf[i], count: (i) => grp(i).cnt[i],
+    countAll: (i) => grp(i).cnt[0], uniform: (i) => wUniform(H[hOf[i]].w), sig: (i) => sigOf[i], sumAllW: (i) => grp(i).all };
+}
+
+function replayExpected(ctx, isSkipped, tdy, total, exact, holds) {
   let pos = 0;
-  const N = allDates.length;
+  const allDates = ctx.dates, N = allDates.length;
   const holdAt = holdTracker(holds);
   for (let i = 0; i < N && allDates[i] < tdy; i++) {
     const d = allDates[i];
-    if (isSkipped(d)) continue;
+    if (isSkipped(d) || ctx.isLate(i)) continue;
     const hold = holdAt(d);
     let share;
+    const w = ctx.w(i, i);
     if (hold) {
-      let left = 0;
-      for (let j = i; j < N && allDates[j] <= hold.weekEnd; j++) left++;
-      const tgt = left === N - i ? total : Math.min(total, hold.target);
-      share = pos < tgt ? (tgt - pos) / left : 0;
-    } else share = (total - pos) / (N - i);
+      let left = 0, wl = 0;
+      for (let j = i; j < N && allDates[j] <= hold.weekEnd; j++) { const x = ctx.w(i, j); if (x > 0) { left++; wl += x; } }
+      const tgt = left === ctx.count(i) ? total : Math.min(total, hold.target);
+      share = pos < tgt ? (tgt - pos) * w / wl : 0;
+    } else share = (total - pos) * w / ctx.W(i);
     pos += exact ? share : Math.round(share);
   }
   return Math.min(total, exact ? pos : Math.round(pos));
@@ -3313,8 +3626,9 @@ function buildSchedule(task) {
   // a postponed/paused day's share moves to the days after it, exactly like the real plan.
   // (Dividing by ALL days instead made every postpone permanently lower the target.)
   const replayHolds = getReplayHolds(task);
-  const expectedProgress = replayExpected(allDates, isSkipped, tdy, task.total, false, replayHolds);
-  const expectedProgressEnd = replayExpected(allDates, isSkipped, addDays(tdy, 1), task.total, false, replayHolds); // incl. today's share
+  const rctx = replayCtx(task, allDates);
+  const expectedProgress = replayExpected(rctx, isSkipped, tdy, task.total, false, replayHolds);
+  const expectedProgressEnd = replayExpected(rctx, isSkipped, addDays(tdy, 1), task.total, false, replayHolds); // incl. today's share
 
   // Today's starting anchor = progress at the START of today, derived from completion
   // records (current progress minus today's recorded amount). No stored field, no
@@ -3366,8 +3680,9 @@ function buildSchedule(task) {
   // Hold applies only if this week's target is still ahead of where today starts. Once the
   // plan reaches the target, the week's leftover days stay empty (the goal stays exactly as
   // set); only real progress beyond the target (cursor > holdEnd) falls back to normal pacing.
-  const holdActive = hold && cursor < holdEnd;
+  const holdActive = hold && cursor <= holdEnd; // goal reached → rest of the week stays free (as replayed)
 
+  const remW = weightSuffix(remainingDates);
   remainingDates.forEach((d, idx) => {
     if (cursor >= totalEnd) return;
     const isThisToday = fmtDate(d) === tdyStr;
@@ -3380,7 +3695,9 @@ function buildSchedule(task) {
       const daysLeft = inHold ? inWeekCount - idx : remainingDates.length - idx;
       const amountLeft = inHold ? holdEnd - cursor : totalEnd - cursor;
       if (daysLeft <= 0 || amountLeft <= 0) return;
-      const amt = Math.round(amountLeft / daysLeft);
+      // share of what's left ∝ this weekday's weight (요일별 분량); equal weights → left/days
+      const wLeft = inHold ? remW[idx] - remW[inWeekCount] : remW[idx];
+      const amt = Math.round(amountLeft * effW(d) / wLeft);
       to = Math.min(totalEnd, cursor + amt);
     }
     const from = cursor + 1;
@@ -3439,10 +3756,10 @@ function getPartState(task, itemAbs, beforeStr) {
     if (!k.startsWith(pre) || !v || !v.part || v.part.item !== itemAbs) return;
     const ds = k.slice(pre.length);
     if (ds >= beforeStr) return;
-    if (!best || ds > best.ds) best = { ds, n: v.part.n, of: v.part.of };
+    if (!best || ds > best.ds) best = { ds, n: v.part.n, of: v.part.of, m: v.part.m };
   });
   if (!best || !(best.of > 0)) return { done: 0, frac: 0, of: 0 };
-  return { done: best.n, frac: Math.min(0.99, Math.max(0, best.n / best.of)), of: best.of };
+  return { done: best.n, frac: Math.min(0.99, Math.max(0, best.n / best.of)), of: best.of, m: best.m };
 }
 
 // Is this schedule item checked on dateStr? A part-day record ("오늘 몫 완료") only counts
@@ -3476,7 +3793,7 @@ function planMaxDayLoad(task, plan) {
     if (x.isPart) load = w(x.from) / x.partOf;
     else {
       load = prefix[x.to - sn] - prefix[x.from - sn - 1];
-      if (x.partOf > 1) load -= w(x.from) * (x.partOf - 1) / x.partOf; // chapter's last share only
+      if (x.partOf > 1) load -= w(x.from) * ((x.partN || x.partOf) - 1) / x.partOf; // chapter's last share only
     }
     const k = fmtDate(x.date);
     byDay.set(k, (byDay.get(k) || 0) + load);
@@ -3506,6 +3823,8 @@ function dailyNeedCore(task, plan) {
   if (isCap) {
     const now = fmt(task.dailyMinutes);
     if (plan.capacityInsufficient) {
+      const inDeadline = plan.capacityFinishDate && fmtDate(plan.capacityFinishDate) <= task.end;
+      if (inDeadline) return `<div style="${infoStyle}">⏳ 하루 ${josa(now, 'ro')}는 마감 여유일 전엔 못 끝내고, ${fmtDate(plan.capacityFinishDate)}에 끝나요 (마감일 안이에요)</div>`;
       return `<div style="${warnStyle}">⚠️ 하루 ${josa(now, 'ro')}는 마감일 안에 못 끝나요.${plan.capacityFinishDate ? ` 이 속도면 ${fmtDate(plan.capacityFinishDate)}에 끝나요.` : ''}`
         + (n && !n.impossible ? `<br>⏱ 마감일까지 끝내려면 <b>하루 최소 ${fmt(n.need)}</b> (남은 ${days}일)` : n && n.impossible ? '<br>정한 일수 때문에 남은 날로는 마감일까지 못 끝내요' : '')
         + `</div>`;
@@ -3548,6 +3867,11 @@ function multiDayNoteHtml(task, plan) {
 }
 // Days the user fixed for chapter at relative index `rel` (0 = 자동).
 function cleanItemDays(arr) { return Array.isArray(arr) && arr.some(v => v > 0) ? arr : undefined; }
+// Part record + the chapter's 일수 at that time (to notice a later change of 일수)
+function withManualDays(task, partInfo) {
+  if (!partInfo || typeof partInfo.item !== 'number') return partInfo;
+  return Object.assign({}, partInfo, { m: getManualDays(task, partInfo.item - (task.startNum || 0) - 1) });
+}
 function getManualDays(task, rel) {
   const v = Array.isArray(task.itemDays) ? parseInt(task.itemDays[rel]) : 0;
   return v > 0 ? Math.min(14, v) : 0;
@@ -3569,7 +3893,11 @@ const _expCache = new Map(); // task id → {key, e0, e1} (status replay)
 // hold (optional) = {n, days}: the first n chapters must be finished within the first
 // `days` days (this week's goal), and no later chapter may finish inside those days —
 // leftover week days are either free or part days of the next chapter.
-function planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit, kCap, hold, relaxOwn) {
+// dayW (optional, length nDays) + rate: weekday ratios — day j's target load is rate·dayW[j]
+// instead of the plain average (see 요일별 분량).
+// forceK0: a chapter already under way keeps the number of days it was planned with
+// (remaining days = forceK0), so following the plan never re-shuffles it.
+function planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit, kCap, hold, relaxOwn, dayW, rate, forceK0) {
   const n = toRel - fromRel, D = nDays;
   if (n <= 0 || D <= 0) return [];
   const W = [], M = [];
@@ -3582,11 +3910,17 @@ function planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit
     if (i === 0 && m > 0) m = Math.max(1, m - pDone);
     M.push(m);
   }
-  const key = [task.id, fromRel, toRel, D, pDone, pFrac.toFixed(4), unit, kCap, hold ? hold.n + '/' + hold.days : '-', relaxOwn ? 'r' : '', W.join(','), M.join(',')].join('|');
+  const key = [task.id, fromRel, toRel, D, pDone, pFrac.toFixed(4), unit, kCap, hold ? hold.n + '/' + hold.days : '-', relaxOwn ? 'r' : '', dayW ? dayW.join(',') + '@' + rate : '', forceK0 || 0, W.join(','), M.join(',')].join('|');
   if (_chapterPlanCache.has(key)) return _chapterPlanCache.get(key);
 
   const total = W.reduce((a, b) => a + b, 0);
   const T = total / D;
+  // per-day target load; PT/PT2 = prefix sums of Tj and Tj² for quick split costs
+  const Tj = new Float64Array(D), PT = new Float64Array(D + 1), PT2 = new Float64Array(D + 1);
+  for (let j = 0; j < D; j++) {
+    Tj[j] = dayW ? rate * dayW[j] : T;
+    PT[j + 1] = PT[j] + Tj[j]; PT2[j + 1] = PT2[j] + Tj[j] * Tj[j];
+  }
   // Penalty (× days off²) for not following a chapter's 일수. Scaled by the WHOLE plan's
   // average day (unit), not today's — so re-planning tomorrow, after following today's
   // plan, gives the same remaining days (Σ(load−T)² ≡ Σload² + const, so T itself
@@ -3616,9 +3950,10 @@ function planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit
       let load = 0, pen = 0;
       const mMax = Math.min(n, i + Math.max(minCap, 40));
       for (let m = i + 1; m <= mMax; m++) {
+        if (i === 0 && forceK0 > 1) break; // the started chapter keeps its planned split
         load += W[m - 1];
         if (M[m - 1] >= 2) pen += (M[m - 1] - 1) * (M[m - 1] - 1) * P;
-        const cost = c0 + (load - T) * (load - T) + pen, nid = m * S + j + 1;
+        const cost = c0 + (load - Tj[j]) * (load - Tj[j]) + pen, nid = m * S + j + 1;
         if (cost < best[nid] - 1e-12 && ok(m, j + 1)) { best[nid] = cost; prev[nid] = id; kind[nid] = 1; }
         // A chapter already started on earlier days finishes on a day of its own (as its
         // split was planned) — keeps tomorrow's re-plan identical to today's plan.
@@ -3626,28 +3961,32 @@ function planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit
         // (Only a count cap — a load-based cap would make tomorrow's re-plan differ.)
       }
       // Free day — only inside the hold week, after its goal chapters are done
-      if (hold && i === hN && j < hD) relax(i, j + 1, c0 + T * T, id, 0);
+      if (hold && i === hN && j < hD) relax(i, j + 1, c0 + Tj[j] * Tj[j], id, 0);
       // Chapter i alone over k days
       // kCap = most days one chapter may take (stable per task). For the chapter already
       // under way, its earlier days count too — otherwise it could stretch forever.
       const kMax = Math.min(i === 0 ? kCap - pDone : kCap, D - j);
       for (let k = 2; k <= kMax; k++) {
+        if (i === 0 && forceK0 > 0 && k !== forceK0) continue;
         const per = W[i] / k;
         const pn = M[i] > 0 ? (k - M[i]) * (k - M[i]) * P : 0; // squared: shortfalls are shared fairly
-        relax(i + 1, j + k, c0 + k * (per - T) * (per - T) + pn, id, k);
+        // Σ over the k days of (per − Tj)² = k·per² − 2·per·ΣTj + ΣTj²
+        const sq = dayW ? k * per * per - 2 * per * (PT[j + k] - PT[j]) + (PT2[j + k] - PT2[j]) : k * (per - T) * (per - T);
+        relax(i + 1, j + k, c0 + sq + pn, id, k);
       }
     }
   }
   let bj = -1, bc = Infinity;
   for (let j = 1; j <= D; j++) {
     if (!ok(n, j)) continue;
-    const c = best[n * S + j] + (D - j) * T * T; // unused days at the end cost a full day's gap
+    const c = best[n * S + j] + (dayW ? PT2[D] - PT2[j] : (D - j) * T * T); // unused days at the end cost a full day's gap
     if (c < bc - 1e-12) { bc = c; bj = j; }
   }
   // Week goal can't fit with the own-day rule → relax that rule first; drop the hold only
   // if it still can't fit.
-  if (bj < 0 && hold && !relaxOwn && pDone > 0) return planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit, kCap, hold, true);
-  if (bj < 0 && hold) return planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit, kCap, null);
+  if (bj < 0 && forceK0) return planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit, kCap, hold, relaxOwn, dayW, rate, 0);
+  if (bj < 0 && hold && !relaxOwn && pDone > 0) return planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit, kCap, hold, true, dayW, rate);
+  if (bj < 0 && hold) return planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit, kCap, null, false, dayW, rate);
   if (bj < 0) { // safety net (shouldn't happen): everything on the first day
     const out = [{ fromRel, toRel, lastOf: 0 }];
     while (out.length < D) out.push(null);
@@ -3686,6 +4025,11 @@ function buildTimeBasedSchedule(task) {
   const totalEnd = startNum + task.total;
   const prefix = getDurationPrefix(task);
   const totalTime = prefix[task.total];
+  // Weekday ratios for the chapter planner: per-day weights and a fixed rate (time per
+  // unit of weight over the whole plan), so re-planning tomorrow keeps the same layout.
+  const uniW = weightsUniform();
+  const allW = allDates.map(effW), sumAllW = allW.reduce((a, b) => a + b, 0) || 1;
+  const wRate = totalTime / sumAllW;
 
   const skipSet = new Set(task.skipDates || []);
   const isSkipped = (d) => skipSet.has(fmtDate(d));
@@ -3713,7 +4057,13 @@ function buildTimeBasedSchedule(task) {
     if (isCapacity) {
       // Same day-by-day rule as the plan (incl. multi-day chapters)
       const st = { pos: 0, left: 0, set: 0 };
-      const steps = passedDates.length + (inclToday && todayIsPlanDay ? 1 : 0);
+      // days made 쉬는 날 only after this goal was checked off that day were studied as planned
+      const oLog = settings.offLog || {}, rvS = new Set(task.reviewDays || []), tS = fmtDate(tdy);
+      const studiedThen = (x) => (oLog[x] || []).some(e => e.r === null && e.a === x && Array.isArray(e.ad) && e.ad.includes(task.id));
+      const offStudied = _offSet.size ? getActiveDates(task.start, planEndStr(task), { type: task.pace, value: task.paceValue })
+        .map(fmtDate).filter(x => _offSet.has(x) && !rvS.has(parseDate(x).getDay()) && !skipSet.has(x) && studiedThen(x)) : [];
+      const steps = passedDates.length + offStudied.filter(x => x < tS).length
+        + (inclToday && (todayIsPlanDay || offStudied.includes(tS)) ? 1 : 0);
       for (let k = 0; k < steps; k++) capacityStep(st, task, prefix, dailyMinutes, splitSim);
       const p = Math.min(task.total, st.pos);
       return { p, f: p + (st.set > 1 && st.left > 0 && p < task.total ? (st.set - st.left) / st.set : 0) };
@@ -3722,26 +4072,27 @@ function buildTimeBasedSchedule(task) {
       // Replay the deadline plan itself (whole lectures, daily target recomputed each day)
       // over the passed days — exactly where you'd be if you had followed it.
       const bound = inclToday ? addDays(tdy, 1) : tdy;
-      const N = allDates.length;
+      const rc = replayCtx(task, allDates), RD = rc.dates;
+      const N = RD.length;
       let pos = 0;
       const holdAt = holdTracker(replayHolds);
-      for (let i = 0; i < N && allDates[i] < bound; i++) {
-        const d = allDates[i];
-        if (isSkipped(d)) continue;
+      for (let i = 0; i < N && RD[i] < bound; i++) {
+        const d = RD[i];
+        if (isSkipped(d) || rc.isLate(i)) continue;
         const hold = holdAt(d);
         if (pos >= task.total) continue;
         if (hold) {
-          let left = 0;
-          for (let j = i; j < N && allDates[j] <= hold.weekEnd; j++) left++;
-          const tgt = left === N - i ? task.total : Math.max(0, Math.min(task.total, hold.target));
+          let left = 0, wl = 0;
+          for (let j = i; j < N && RD[j] <= hold.weekEnd; j++) { const x = rc.w(i, j); if (x > 0) { left++; wl += x; } }
+          const tgt = left === rc.count(i) ? task.total : Math.max(0, Math.min(task.total, hold.target));
           if (pos >= tgt) continue; // week goal reached: rest of the week stays free
           if (left <= 1) { pos = tgt; continue; }
-          pos = Math.min(tgt, advanceByTimeBudget(prefix, pos, Math.round((prefix[tgt] - prefix[pos]) / left)));
+          pos = Math.min(tgt, advanceByTimeBudget(prefix, pos, Math.round((prefix[tgt] - prefix[pos]) * rc.w(i, i) / wl)));
           continue;
         }
-        const left = N - i;
+        const left = rc.count(i);
         if (left <= 1) { pos = task.total; continue; }
-        pos = advanceByTimeBudget(prefix, pos, Math.round((totalTime - prefix[pos]) / left));
+        pos = advanceByTimeBudget(prefix, pos, Math.round((totalTime - prefix[pos]) * rc.w(i, i) / rc.W(i)));
       }
       pos = Math.min(task.total, pos);
       return { p: pos, f: pos, t: prefix[pos] };
@@ -3749,28 +4100,34 @@ function buildTimeBasedSchedule(task) {
     // Multi-day chapters: replay the whole-plan layout (planChapterDays) over the passed
     // days, re-planning at each postponed day — where you'd be if you had followed it.
     const bound = inclToday ? addDays(tdy, 1) : tdy;
-    const N = allDates.length, unit = totalTime / Math.max(1, N);
-    const kCap = Math.max(14, Math.ceil(3 * N / Math.max(1, task.total)));
-    let pos = 0, pDone = 0, pOf = 0, base = 0, lay = [], replan = true, lastHold = null;
+    const rc = replayCtx(task, allDates), RD = rc.dates;
+    const N = RD.length;
+    let pos = 0, pDone = 0, pOf = 0, lay = [], layPos = null, replan = true, lastHold = null, lastSig = null;
     const holdAt = holdTracker(replayHolds);
-    for (let i = 0; i < N && allDates[i] < bound && pos < task.total; i++) {
-      if (isSkipped(allDates[i])) { replan = true; continue; }
-      const hold = holdAt(allDates[i]);
-      if (replan || hold !== lastHold) {
-        // (Re)lay out the rest from here — after a postponed day, or when a week-mode
-        // hold starts/ends — with that week's goal as a constraint while it applies.
-        base = i;
+    for (let i = 0; i < N && RD[i] < bound && pos < task.total; i++) {
+      if (isSkipped(RD[i]) || rc.isLate(i)) { replan = true; continue; }
+      const hold = holdAt(RD[i]);
+      if (replan || hold !== lastHold || rc.sig(i) !== lastSig) {
+        // (Re)lay out the rest from here — after a postponed day, when a week-mode hold
+        // starts/ends, or when a setting changed — with that week's goal as a constraint.
+        const idxs = [];
+        for (let j = i; j < N; j++) if (rc.w(i, j) > 0) idxs.push(j);
+        layPos = new Map(idxs.map((j, q) => [j, q]));
+        const nAll = rc.countAll(i);
+        const unit = totalTime / Math.max(1, nAll);
+        const kCap = Math.max(14, Math.ceil(3 * nAll / Math.max(1, task.total)));
         let holdArg = null;
         if (hold) {
           let days = 0;
-          for (let j = i; j < N && allDates[j] <= hold.weekEnd; j++) days++;
-          const tgt = days === N - i ? task.total : Math.max(0, Math.min(task.total, hold.target));
+          for (const j of idxs) { if (RD[j] <= hold.weekEnd) days++; else break; }
+          const tgt = days === idxs.length ? task.total : Math.max(0, Math.min(task.total, hold.target));
           if (days > 0 && tgt >= pos) holdArg = { n: tgt - pos, days };
         }
-        lay = planChapterDays(task, prefix, pos, task.total, N - i, pDone, pDone > 0 ? Math.min(0.99, pDone / pOf) : 0, unit, kCap, holdArg);
-        replan = false; lastHold = hold;
+        lay = planChapterDays(task, prefix, pos, task.total, idxs.length, pDone, pDone > 0 ? Math.min(0.99, pDone / pOf) : 0, unit, kCap, holdArg, false,
+          rc.uniform(i) ? null : idxs.map(j => rc.w(i, j)), totalTime / rc.sumAllW(i), pDone > 0 && pOf > pDone ? pOf - pDone : 0);
+        replan = false; lastHold = hold; lastSig = rc.sig(i);
       }
-      const e = lay[i - base];
+      const e = lay[layPos.get(i)];
       if (!e) continue;
       if (e.part) { pDone = e.n; pOf = e.of; }
       else { pos = e.toRel; pDone = 0; pOf = 0; }
@@ -3782,7 +4139,8 @@ function buildTimeBasedSchedule(task) {
   // The replay can be costly (multi-day-chapter plans re-plan at every postponed day):
   // cache it per task for today and the exact inputs it depends on.
   const expKey = JSON.stringify([fmtDate(tdy), task.type, task.total, task.startNum || 0, task.start, task.end, task.pace, task.paceValue,
-    task.reviewDays, task.skipDates, task.lectureDurations, task.itemDays, task.timeMode, task.dailyMinutes, task.weekSkips, task.weekHold]);
+    task.reviewDays, task.skipDates, task.lectureDurations, task.itemDays, task.timeMode, task.dailyMinutes, task.weekSkips, task.weekHold,
+    task.bufferDays, settings.weights, settings.offDates, settings.wHist, settings.offLog]);
   const expSlot = task.id + (task._preview ? '#preview' : '');
   let expPair = _expCache.get(expSlot);
   if (!expPair || expPair.key !== expKey) {
@@ -3828,17 +4186,20 @@ function buildTimeBasedSchedule(task) {
   const inWeekCount = hold ? remainingDates.filter(d => d <= hold.weekEnd).length : 0;
   const holdRel = hold ? (inWeekCount === remainingDates.length ? task.total
     : Math.max(0, Math.min(task.total, hold.endAbs - startNum))) : null;
-  const holdActive = hold && cursorRel < holdRel; // see buildSchedule
+  const holdActive = hold && cursorRel <= holdRel; // see buildSchedule
 
   // Multi-day chapter state: how far into the chapter at cursorRel we already are.
   const splitOn = isSplitTask(task);
-  let partDone = 0, partFrac = 0;
+  let partDone = 0, partFrac = 0, partOfPlanned = 0;
   if (splitOn && cursorRel < task.total) {
     const ps = getPartState(task, startNum + cursorRel + 1, tdyStr);
-    partDone = ps.done; partFrac = ps.frac;
+    partDone = ps.done; partFrac = ps.frac; partOfPlanned = ps.of || 0;
+    // 일수 changed since this chapter was started → plan it with the new 일수
+    if (ps.m !== undefined && ps.m !== getManualDays(task, cursorRel)) partOfPlanned = 0;
   }
   const partFracStart = partFrac;
   const splitKCap = Math.max(14, Math.ceil(3 * allDates.length / Math.max(1, task.total)));
+  let remW = null;
   let curPartOf = 0; // capacity loop: planned day count of the chapter currently in parts
 
   if (splitOn && !isCapacity) {
@@ -3847,21 +4208,35 @@ function buildTimeBasedSchedule(task) {
     // the "이번 주 안에 채우기" hold (segment A = this week up to holdRel, B = the rest).
     let i0 = 0, pDone = partDone, pFrac = partFrac;
     if (remainingDates.length && fmtDate(remainingDates[0]) === tdyStr && progressAbs > startNum + cursorRel) {
-      schedule.push({ date: remainingDates[0], from: startNum + cursorRel + 1, to: startNum + task.progress,
-        amount: task.progress - cursorRel, isPast: false, isToday: true });
+      const tSess = { date: remainingDates[0], from: startNum + cursorRel + 1, to: startNum + task.progress,
+        amount: task.progress - cursorRel, isPast: false, isToday: true };
+      if (partDone > 0) { tSess.partN = partDone + 1; tSess.partOf = Math.max(partDone + 1, partOfPlanned); } // chapter's last day
+      schedule.push(tSess);
       cursorRel = task.progress; i0 = 1; pDone = 0; pFrac = 0;
+    } else if (remainingDates.length && fmtDate(remainingDates[0]) === tdyStr) {
+      // today's part day already checked: keep it, plan from tomorrow (as tomorrow will)
+      const r0 = completedMap.get(task.id + '|' + tdyStr);
+      if (r0 && r0.part && r0.part.item === startNum + cursorRel + 1 && r0.part.of > r0.part.n) {
+        schedule.push({ date: remainingDates[0], from: r0.part.item, to: r0.part.item, amount: 0, isPast: false, isToday: true, isPart: true, partN: r0.part.n, partOf: r0.part.of });
+        i0 = 1; pDone = r0.part.n; pFrac = Math.min(0.99, r0.part.n / r0.part.of);
+        partOfPlanned = (r0.part.m !== undefined && r0.part.m !== getManualDays(task, cursorRel)) ? 0 : r0.part.of;
+      }
     }
     // "이번 주 안에 채우기": this week's goal chapters must be done by Sunday (constraint
     // inside the planner, so the week's spare days can already start the next chapter).
     let holdArg = null;
-    if (holdActive && cursorRel <= holdRel) {
+    // (also once the week's goal is reached: the rest of the week keeps the same rule —
+    // free or part days only — exactly as planned when the goal was set)
+    if (hold && cursorRel <= holdRel) {
       const aEnd = Math.max(0, Math.min(inWeekCount, remainingDates.length) - i0);
       if (aEnd > 0) holdArg = { n: holdRel - cursorRel, days: aEnd };
     }
     const nDays = remainingDates.length - i0;
     if (nDays > 0 && cursorRel < task.total) {
       planChapterDays(task, prefix, cursorRel, task.total, nDays, pDone, pFrac,
-        totalTime / Math.max(1, allDates.length), splitKCap, holdArg).forEach((p, k) => {
+        totalTime / Math.max(1, allDates.length), splitKCap, holdArg, false,
+        uniW ? null : remainingDates.slice(i0).map(effW), wRate,
+        pDone > 0 && partOfPlanned > pDone ? partOfPlanned - pDone : 0).forEach((p, k) => {
         if (!p) return;
         const d = remainingDates[i0 + k];
         const isThisToday = fmtDate(d) === tdyStr;
@@ -3878,6 +4253,7 @@ function buildTimeBasedSchedule(task) {
       cursorRel = task.total;
     }
   } else remainingDates.forEach((d, idx) => {
+    if (idx === 0) remW = weightSuffix(remainingDates);
     if (startNum + cursorRel >= totalEnd) return;
     const isThisToday = fmtDate(d) === tdyStr;
     let newCursorRel;
@@ -3902,7 +4278,8 @@ function buildTimeBasedSchedule(task) {
         // Stop on position, not time: 0-minute items must still be scheduled.
         if (daysLeft <= 0 || cursorRel >= targetRel) return;
         const timeLeft = Math.max(0, prefix[targetRel] - prefix[cursorRel] - doneInItem);
-        rawBudget = timeLeft / daysLeft;
+        const wLeft = inHold ? remW[idx] - remW[inWeekCount] : remW[idx];
+        rawBudget = timeLeft * effW(d) / wLeft;
         budget = Math.round(rawBudget);
       }
       let manual = 0;
@@ -3944,7 +4321,7 @@ function buildTimeBasedSchedule(task) {
       date: d, from: fromAbs, to: toAbs,
       amount: toAbs - fromAbs + 1, isPast: false, isToday: isThisToday,
     };
-    if (partDone > 0) { sess.partN = partDone + 1; sess.partOf = partDone + 1; } // chapter's last day
+    if (partDone > 0) { sess.partN = partDone + 1; sess.partOf = Math.max(partDone + 1, isThisToday && newCursorRel === task.progress ? partOfPlanned : 0); } // chapter's last day
     schedule.push(sess);
     partDone = 0; partFrac = 0;
     cursorRel = newCursorRel;
@@ -3958,15 +4335,20 @@ function buildTimeBasedSchedule(task) {
   if (splitOn && task.progress < task.total) {
     const tRec = completedMap.get(task.id + '|' + tdyStr);
     const todayPart = tRec && tRec.part && tRec.part.item === startNum + task.progress + 1 && tRec.part.of > 0
-      ? Math.min(0.9, tRec.part.n / tRec.part.of) : 0;
-    effProgress += Math.min(0.9, Math.max(todayPart, task.progress === anchor ? partFracStart : 0));
+      ? Math.min(0.99, tRec.part.n / tRec.part.of) : 0;
+    effProgress += Math.min(0.99, Math.max(todayPart, task.progress === anchor ? partFracStart : 0));
   }
+  // Long chapters: "half a chapter" can be many days — also call it 밀림 when more than
+  // half an average day's work is missing.
+  const timeAt = (f) => { const k = Math.max(0, Math.min(task.total, Math.floor(f))); return prefix[k] + (k < task.total ? (f - k) * (prefix[k + 1] - prefix[k]) : 0); };
+  const missingTime = splitOn && !isCapacity ? timeAt(expectedFrac) - timeAt(effProgress) : 0;
+  const halfDay = 0.5 * totalTime / Math.max(1, allDates.length);
 
   let status = 'active';
   const daysToEnd = daysBetween(tdy, parseDate(task.end));
   if (task.progress >= task.total) status = 'done';
   else if (daysToEnd < 0) status = 'overdue';
-  else if (effProgress < expectedFrac - 0.5) status = 'behind';
+  else if (effProgress < expectedFrac - 0.5 || missingTime > halfDay + 1e-9) status = 'behind';
   else if (effProgress > expectedFracEnd + originalPerSession * 0.5) status = 'ahead';
 
   // Capacity mode: if the fixed daily budget can't fit everything by the deadline,
@@ -4114,7 +4496,7 @@ function estimateCapacityFinishDate(task, prefix, startCursorRel, tdy, carry) {
   const skipSet = new Set(task.skipDates || []);
   const st = { pos: startCursorRel, left: carry ? carry.left : 0, set: carry ? carry.set : 0 };
   const split = isSplitTask(task);
-  let d = addDays(parseDate(task.end), 1);
+  let d = addDays(parseDate(planEndStr(task)), 1);
   if (d < tdy) d = addDays(tdy, 0); // overdue: the estimate starts from today, never the past
   const hardStop = addDays(tdy, 365 * 3);
   const weeklyDays = paceCfg.type === 'weekly-n'
@@ -4128,7 +4510,7 @@ function estimateCapacityFinishDate(task, prefix, startCursorRel, tdy, carry) {
     else if (paceCfg.type === 'every-other') isSessionDay = (daysBetween(parseDate(task.start), d) % 2 === 0);
     else if (paceCfg.type === 'weekly-n') isSessionDay = weeklyDays.has(fmtDate(d)); // same N-per-week pattern continued
     else if (paceCfg.type === 'custom-days') isSessionDay = (paceCfg.value || []).includes(dow);
-    if (isSessionDay && !reviewSet.has(dow) && !skipSet.has(fmtDate(d))) capacityStep(st, task, prefix, dailyMinutes, split);
+    if (isSessionDay && !reviewSet.has(dow) && !skipSet.has(fmtDate(d)) && !isOffDate(d)) capacityStep(st, task, prefix, dailyMinutes, split);
     if (st.pos >= task.total) return d;
     d = addDays(d, 1);
   }
@@ -4303,6 +4685,10 @@ function renderAgenda() {
   document.getElementById('tomorrowDateLabel').textContent = `${fmtDate(tmr)} (${days[tmr.getDay()]})`;
   renderAgendaList('todayList', getAgendaForDate(tdy), tdy, true);
   renderAgendaList('tomorrowList', getAgendaForDate(tmr), tmr, false);
+  document.getElementById('todayTotal').innerHTML = dayTotalHtml(tdy, true);
+  document.getElementById('tomorrowTotal').innerHTML = dayTotalHtml(tmr, false);
+  document.getElementById('riskBox').innerHTML = riskBoxHtml();
+  document.getElementById('backupBanner').innerHTML = backupBannerHtml();
 }
 
 function renderAgendaList(elementId, items, targetDate, isToday) {
@@ -4367,7 +4753,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
         // Part day of a multi-day chapter: progress doesn't move until the chapter's
         // last day — the check just records "this day's share is done".
         if (wasCompleted) setCompleted(id, dateStr, false);
-        else setCompleted(id, dateStr, true, 0, { part: partInfo });
+        else setCompleted(id, dateStr, true, 0, { part: withManualDays(task, partInfo) });
       } else if (isReviewItem) {
         // Review check is visual-only: it never touches progress. Amount 0 keeps
         // anchor math untouched whether today or a future day.
@@ -4478,7 +4864,17 @@ function renderWeek() {
       if (totalBook > 0) parts.push(`📖 ${totalBook}p`);
       if (totalLec > 0) parts.push(`🎓 ${totalLec}`);
       if (totalOther > 0) parts.push(`✓ ${totalOther}`);
-      summaryHtml = `<div class="week-summary"><span>${parts.join(' · ')}</span><span>${completedCnt}/${dayItems.length}</span></div>`;
+      // 하루 총 공부량 for this day (all goals in view)
+      let dayMin = 0, dayUnknown = 0;
+      dayItems.forEach(({ task, item, plan }) => {
+        if (item.isReview) return;
+        const m = taskMinutesOn(task, plan, dateStr);
+        if (m == null) dayUnknown++; else dayMin += m;
+      });
+      const avail = Array.isArray(settings.avail) ? settings.avail[date.getDay()] : 0;
+      const over = avail > 0 && dayMin > avail + 5;
+      const timeLine = dayMin > 0 ? `<span class="week-time ${over ? 'over' : ''}">약 ${formatDuration(Math.round(dayMin))}${dayUnknown ? ' +' : ''}${avail > 0 ? ` / ${formatDuration(avail)}` : ''}</span>` : '';
+      summaryHtml = `<div class="week-summary"><span>${parts.join(' · ')}${timeLine}</span><span>${completedCnt}/${dayItems.length}</span></div>`;
     }
 
     html += `
@@ -4502,6 +4898,7 @@ function renderWeek() {
   });
 
   renderWeekGoals(weekStart, weekEnd);
+  document.getElementById('weekReview').innerHTML = weekReviewHtml(weekStart, weekEnd);
 }
 
 // Render the per-goal weekly summary shown above the week grid.
@@ -4509,12 +4906,12 @@ function renderWeek() {
 // combine them into one "start ~ end" range so the user can copy a single line like
 // "《책제목》 p.108~170" or "강의명 3~9강".
 // Live computation of a task's weekly new-content range for a given week span.
-function computeWeekGoal(task, weekStartStr, weekEndStr) {
+function computeWeekGoal(task, weekStartStr, weekEndStr, onlyFromStr) {
   const plan = buildSchedule(task);
   const inWeek = plan.schedule.filter(s => {
     if (s.isReview) return false; // review entries don't contribute to the weekly new-content range
     const ds = fmtDate(s.date);
-    return ds >= weekStartStr && ds <= weekEndStr;
+    return ds >= weekStartStr && ds <= weekEndStr && (!onlyFromStr || ds >= onlyFromStr);
   });
   if (inWeek.length === 0) return null;
   // The goal ends at the last chapter FINISHED this week. A multi-day chapter that only
@@ -4558,7 +4955,31 @@ function refreshWeekGoal(taskId, weekStartStr) {
   if (!weekStartStr) weekStartStr = fmtDate(startOfWeek(today()));
   const weekEndStr = fmtDate(addDays(parseDate(weekStartStr), 6));
   const key = taskId + '|' + weekStartStr;
-  const g = computeWeekGoal(task, weekStartStr, weekEndStr);
+  const tStr = fmtDate(today()), old = weekGoalsMap.get(key);
+  let g;
+  const sn0 = task.startNum || 0, startPos0 = sn0 + getTodayAnchor(task);
+  // (an edit that renumbered the goal — e.g. a new 시작 번호 — starts over from the plan)
+  if (old && typeof old.from === 'number' && weekStartStr < tStr && tStr <= weekEndStr
+      && old.from >= sn0 + 1 && old.from - 1 <= startPos0 && startPos0 <= sn0 + task.total) {
+    // Mid-week: the days already passed keep where the week really started (the frozen
+    // goal's start) and what was really done; only today → Sunday follows the new plan.
+    const fut = computeWeekGoal(task, weekStartStr, weekEndStr, tStr);
+    const startPos = (task.startNum || 0) + getTodayAnchor(task);
+    const to = fut ? Math.max(fut.to, startPos) : startPos;
+    const from = Math.min(old.from, to + 1);
+    g = { from, to, amount: Math.max(0, to - from + 1) };
+    // a multi-day chapter under way: count its part days already done this week too
+    const item = fut && fut.part && fut.part.item > to ? fut.part.item : to + 1;
+    let minN = null, maxN = null, recOf = 0;
+    completedMap.forEach((v, k) => {
+      const [id, d] = k.split('|');
+      if (id !== taskId || !v || !v.part || v.part.item !== item || d < weekStartStr || d >= tStr) return;
+      minN = minN == null ? v.part.n : Math.min(minN, v.part.n); maxN = maxN == null ? v.part.n : Math.max(maxN, v.part.n); recOf = v.part.of;
+    });
+    if (fut && fut.part && fut.part.item > to) g.part = Object.assign({}, fut.part, minN != null ? { firstN: Math.min(minN, fut.part.firstN) } : {});
+    else if (maxN != null && item <= (task.startNum || 0) + task.total) g.part = { item, firstN: minN, n: maxN, of: recOf };
+    if (!g.amount && !g.part) g = null;
+  } else g = computeWeekGoal(task, weekStartStr, weekEndStr);
   if (g) weekGoalsMap.set(key, g);
   else weekGoalsMap.delete(key);
   persistWeekGoals();
@@ -5006,6 +5427,7 @@ function renderTasks() {
           </div>
         </div>
         ${dailyNeedHtml(task, plan)}
+        ${paceHtml(task, plan)}
         ${multiDayNoteHtml(task, plan)}
         ${scheduleHtml}
         `}
@@ -5066,9 +5488,371 @@ function flatIcon(name) {
     case 'week': return c('#DCD5F6', '#6E61B8', '<rect x="7.5" y="8.5" width="13" height="12" rx="2.5" fill="none" stroke="FG" stroke-width="1.8"/><path d="M7.5 12.5h13" stroke="FG" stroke-width="1.8"/><rect x="10" y="14.6" width="8" height="3" rx="1.2" fill="FG"/>');
     case 'deadline': return c('#CFE5F6', '#4B84B3', '<rect x="7.5" y="8.5" width="13" height="12" rx="2.5" fill="none" stroke="FG" stroke-width="1.8"/><path d="M7.5 12.5h13" stroke="FG" stroke-width="1.8"/><path d="M11 16.5h5.2m-2-2l2 2-2 2" fill="none" stroke="FG" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>');
     case 'later': return c('#E7E2DA', '#8A7C6B', '<path d="M8.5 14h9.5m-3.4-3.6L18.2 14l-3.6 3.6" fill="none" stroke="FG" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>');
+    case 'clock': return c('#CFE5F6', '#4B84B3', '<circle cx="14" cy="14" r="6.5" fill="none" stroke="FG" stroke-width="1.9"/><path d="M14 10.6V14l2.4 1.6" fill="none" stroke="FG" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>');
+    case 'trend': return c('#DCEFE0', '#4E8D5A', '<path d="M7.5 18l4.2-4.4 3 2.8 5.8-6.2" fill="none" stroke="FG" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.6 10.2h3.9v3.9" fill="none" stroke="FG" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>');
+    case 'alert': return c('#FCE3D6', '#C0683F', '<path d="M14 7.4l7 12.2H7z" fill="none" stroke="FG" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 11.6v3.6" stroke="FG" stroke-width="1.9" stroke-linecap="round"/><circle cx="14" cy="17.4" r="1.1" fill="FG"/>');
+    case 'backup': return c('#E6E1F7', '#6E61B8', '<path d="M9.5 15.5v3h9v-3" fill="none" stroke="FG" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 8.6v7.2m-3-3l3 3 3-3" fill="none" stroke="FG" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>');
+    case 'review': return c('#E1F0E4', '#4E8D5A', '<rect x="8.5" y="8" width="11" height="12.5" rx="2" fill="none" stroke="FG" stroke-width="1.8"/><path d="M11 12.5h6M11 15.5h4" stroke="FG" stroke-width="1.8" stroke-linecap="round"/>');
     case 'keep': return c('#FFFFFF', '#C98B5E', '<path d="M14 7.2l1.9 4.3 4.6.4-3.5 3 1.1 4.6L14 17l-4.1 2.5 1.1-4.6-3.5-3 4.6-.4z" fill="FG"/>');
     default: return '';
   }
+}
+
+// ===== 하루 총 공부량 =====
+// Minutes one unit takes: typed in (task.minPerUnit) or learned from "걸린 시간" entries.
+// 양·난이도 goals count in 양 (weight) units; other goals in pages/lectures/items.
+// "1개당 걸리는 시간" field: minutes (decimals ok, e.g. "1.5분", "90초", "2")
+function parseMpu(v) {
+  const t = String(v || '').trim();
+  if (!t) return undefined;
+  const sec = t.match(/^(\d+(?:\.\d+)?)\s*초$/);
+  if (sec) return Math.max(0.05, +sec[1] / 60);
+  const ms = t.match(/^(\d+)\s*분\s*(\d+)\s*초$/);
+  if (ms) return +ms[1] + +ms[2] / 60;
+  const n = t.match(/^(\d+(?:\.\d+)?)\s*분?$/);
+  if (n) return +n[1] > 0 ? +n[1] : undefined;
+  const d = parseDurationToken(t);
+  return d > 0 ? d : undefined;
+}
+function formatMpu(m) {
+  if (m >= 60) return formatDuration(m);
+  const sec = Math.round(m * 60);
+  if (sec % 60 === 0) return `${sec / 60}분`;
+  return sec < 60 ? `${sec}초` : `${Math.floor(sec / 60)}분 ${sec % 60}초`;
+}
+function setMpuLabel(prefix, type, timed) {
+  const el = document.getElementById(prefix + '-mpu-label');
+  if (!el) return;
+  const row = el.parentElement;
+  const unitName = type === 'book' ? (timed ? '양 1' : '1페이지') : type === 'lecture' ? '강의 1개' : (timed ? '양 1' : '1개');
+  el.textContent = `${unitName}당 걸리는 시간`;
+  row.style.display = (type === 'lecture' && timed) ? 'none' : ''; // lectures with times already know
+}
+function minutesPerUnit(task) {
+  if (task.minPerUnit > 0) return task.minPerUnit;
+  let u = 0, m = 0;
+  (task.timeLog || []).forEach(x => { if (x.u > 0 && x.m > 0) { u += x.u; m += x.m; } });
+  return u > 0 ? m / u : null;
+}
+function hasOwnMinutes(task) { return isTimeBasedTask(task) && task.type === 'lecture'; }
+const _loadsCache = new WeakMap();
+function loadsFor(task, plan) {
+  let l = _loadsCache.get(plan);
+  if (!l) { l = dayLoadsOf(task, plan); _loadsCache.set(plan, l); }
+  return l;
+}
+// Minutes a goal needs on dateStr (0 = nothing that day, null = unknown time)
+function taskMinutesOn(task, plan, dateStr) {
+  const v = loadsFor(task, plan).get(dateStr);
+  if (!v) return 0;
+  if (hasOwnMinutes(task)) return v;
+  const mpu = minutesPerUnit(task);
+  return mpu ? v * mpu : null;
+}
+// Sum over all active goals for one day
+function dayTotalFor(date) {
+  const ds = fmtDate(date);
+  let mins = 0, doneMins = 0, unknown = 0, count = 0, catchUp = 0;
+  tasks.filter(isTaskActive).forEach(task => {
+    const plan = buildSchedule(task);
+    const item = plan.schedule.find(x => fmtDate(x.date) === ds && !x.isReview);
+    if (!item) {
+      // No study day left by then (deadline passed / last day today): whatever today's plan
+      // leaves becomes that day's catch-up
+      if (ds <= fmtDate(today()) || plan.status === 'done' || plan.remainingDates.some(d => fmtDate(d) >= ds)) return;
+      const sn = task.startNum || 0;
+      const futAll = plan.schedule.filter(x => !x.isPast && !x.isReview && !x.isPart);
+      const lastTo = futAll.length ? Math.max(...futAll.map(x => x.to)) : sn + task.progress;
+      const fromAbs = Math.max(lastTo, sn + task.progress) + 1, toAbs = sn + task.total;
+      if (fromAbs > toAbs || ds !== fmtDate(addDays(today(), 1))) return;
+      count++; catchUp++;
+      let m;
+      if (isTimeBasedTask(task)) {
+        const pre = getDurationPrefix(task), v = pre[toAbs - sn] - pre[fromAbs - sn - 1];
+        m = hasOwnMinutes(task) ? v : (minutesPerUnit(task) ? v * minutesPerUnit(task) : null);
+      } else m = minutesPerUnit(task) ? (toAbs - fromAbs + 1) * minutesPerUnit(task) : null;
+      if (m == null) unknown++; else mins += m;
+      return;
+    }
+    count++;
+    const m = taskMinutesOn(task, plan, ds);
+    if (m == null) { unknown++; return; }
+    mins += m;
+    if (isItemCompleted(task, ds, item)) doneMins += m;
+  });
+  const avail = Array.isArray(settings.avail) ? settings.avail[date.getDay()] : null;
+  return { mins, doneMins, unknown, count, catchUp, avail: avail > 0 ? avail : null };
+}
+function dayTotalHtml(date, isToday) {
+  const t = dayTotalFor(date);
+  if (t.count === 0) return '';
+  const fmt = (m) => formatDuration(Math.round(m));
+  if (t.mins === 0 && t.unknown > 0) {
+    return `<div class="day-total"><div class="row1"><span>${isToday ? '오늘' : '내일'} 총 공부량: 시간 정보가 아직 없어요</span></div>
+      <div class="note">체크할 때 "걸린 시간"을 적거나, 목표 수정에서 "1개당 걸리는 시간"을 넣으면 하루 총 공부량을 계산해요</div></div>`;
+  }
+  const over = t.avail && t.mins > t.avail + 5;
+  const pct = t.avail ? Math.min(100, Math.round(t.mins / t.avail * 100)) : null;
+  return `<div class="day-total ${over ? 'over' : ''}">
+    <div class="row1"><span>${isToday ? '오늘' : '내일'} 총 공부량 약 <b>${fmt(t.mins)}</b>${isToday && t.doneMins > 0 ? ` · ${fmt(t.doneMins)} 완료` : ''}</span>
+      <span>${t.avail ? (over ? `<span class="warn">가능 ${fmt(t.avail)}보다 ${fmt(t.mins - t.avail)} 많아요</span>` : `가능 ${fmt(t.avail)} 안이에요`) : '<span style="color:var(--text-muted)">설정에서 가능 시간을 넣으면 비교해줘요</span>'}</span></div>
+    ${t.avail ? `<div class="meter"><span style="width:${pct}%"></span></div>` : ''}
+    ${t.unknown ? `<div class="note">+ 시간 정보 없는 목표 ${t.unknown}개 (체크할 때 걸린 시간을 적으면 같이 계산돼요)</div>` : ''}
+    ${t.catchUp ? `<div class="note">오늘 다 못 하면 이어서 할 남은 분량 ${t.catchUp}개 목표 포함 (마감일이 오늘이거나 지났어요)</div>` : ''}
+  </div>`;
+}
+
+// ===== 실제 속도로 본 예상 완료일 =====
+// Units per study day over the last 14 days (postponed days count as 0), and when the
+// rest would be done at that pace. null when there isn't enough history yet.
+function actualPace(task, plan) {
+  const tdy = today(), tdyStr = fmtDate(tdy);
+  if (!task.start || parseDate(task.start) > addDays(tdy, -3)) return null;
+  if (task.progress >= task.total) return null;
+  const paceCfg = { type: task.pace, value: task.paceValue };
+  const reviewSet = new Set(task.reviewDays || []), skip = new Set(task.skipDates || []);
+  const isStudy = (d) => !reviewSet.has(d.getDay()) && !isOffDate(d);
+  const sn = task.startNum || 0, pre = task.id + '|';
+  const f14 = fmtDate(addDays(tdy, -14));
+  const winStartStr = f14 > task.start ? f14 : task.start;
+  let units = 0, active = false, todayRec = false;
+  completedMap.forEach((v, k) => {
+    if (!k.startsWith(pre) || !v) return;
+    const ds = k.slice(pre.length);
+    if (ds < winStartStr || ds > tdyStr) return;
+    if (!v.part && !(v.amount > 0)) return;
+    if (!v.part) units += v.amount;
+    active = true;
+    if (ds === tdyStr) todayRec = true;
+  });
+  // study days in the window (postponed days count — as days with nothing done); one
+  // long date list so the pace pattern isn't cut short at yesterday
+  const pastDays = getActiveDates(task.start, fmtDate(addDays(tdy, 60)), paceCfg)
+    .filter(d => isStudy(d) && fmtDate(d) >= winStartStr && d < tdy);
+  const nDays = pastDays.length + (todayRec ? 1 : 0);
+  if (nDays < 3) return null;
+  // work measure: minutes/양 for time-based goals (incl. a chapter's part days), units otherwise
+  const prefix = isTimeBasedTask(task) ? getDurationPrefix(task) : null;
+  const split = isSplitTask(task);
+  const posAt = (p, beforeStr) => {
+    p = Math.max(0, Math.min(task.total, p));
+    if (!prefix) return p;
+    let v = prefix[p];
+    if (split && p < task.total) v += (prefix[p + 1] - prefix[p]) * getPartState(task, sn + p + 1, beforeStr).frac;
+    return v;
+  };
+  const tmrStr = fmtDate(addDays(tdy, 1));
+  const doneWork = posAt(task.progress, tmrStr) - posAt(task.progress - units, winStartStr);
+  const remWork = (prefix ? prefix[task.total] : task.total) - posAt(task.progress, tmrStr);
+  if (!active || !(doneWork > 0)) return { pace: 0, hasWork: false };
+  const pace = doneWork / nDays;
+  if (remWork <= 0) return null;
+  const need = Math.ceil(remWork / pace - 1e-9);
+  const far = fmtDate(addDays(tdy, Math.min(1500, need * 8 + 21)));
+  const future = getActiveDates(task.start, far, paceCfg)
+    .filter(d => (todayRec ? d > tdy : d >= tdy) && isStudy(d) && !skip.has(fmtDate(d)));
+  const finish = future[Math.min(future.length - 1, Math.max(0, need - 1))];
+  const unitPace = units / nDays;
+  // 양·난이도 goals: show the pace in 양 per day (chapters can take several days)
+  const shown = split ? { pace: pace, unitLabel: '양 ' } : { pace: unitPace };
+  if (!finish) return Object.assign({ hasWork: true }, shown);
+  return Object.assign({ hasWork: true, finish, late: daysBetween(parseDate(task.end), finish) }, shown);
+}
+function paceHtml(task, plan) {
+  if (task.archived || task.paused || !plan || plan.status === 'done') return '';
+  const a = actualPace(task, plan);
+  if (!a) return '';
+  const ti = typeInfo(task.type);
+  const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+  const per = Math.round(a.pace * 10) / 10;
+  // On plan (or ahead): the plan itself already finishes by the deadline — an average over
+  // a few uneven days shouldn't contradict it. Lateness is shown once actually behind.
+  const behind = plan.status === 'behind' || plan.status === 'overdue';
+  if (!a.finish) return behind && a.hasWork === false ? `<div class="pace-line late">최근 2주 동안 기록이 거의 없어요 — 이대로면 마감일을 넘겨요</div>` : '';
+  const perTxt = a.unitLabel ? `${a.unitLabel}${per}` : `${per}${ti.unit}`;
+  if (!behind && a.late > 0) return per > 0 ? `<div class="pace-line">최근 2주 하루 평균 ${perTxt} · 계획대로 가는 중이에요</div>` : '';
+  const tail = a.late > 0 ? `마감보다 <b>${a.late}일 늦어요</b>` : a.late === 0 ? '마감일에 딱 맞춰요' : `마감보다 ${-a.late}일 여유`;
+  return `<div class="pace-line ${a.late > 0 ? 'late' : ''}">최근 2주 실제 속도 하루 ${perTxt} → 이대로면 <b>${md(a.finish)}</b>쯤 끝나요 · ${tail}</div>`;
+}
+
+// ===== 주의가 필요한 목표 =====
+function riskReasons(task, plan) {
+  const r = [];
+  const tdy = today(), tdyStr = fmtDate(tdy);
+  if (plan.status === 'overdue') r.push('마감 지남');
+  if (plan.capacityInsufficient) r.push(plan.capacityFinishDate && fmtDate(plan.capacityFinishDate) <= task.end ? '여유일 없이 마감일에 끝남' : '하루 가능시간으론 마감 넘김');
+  if (plan.status === 'behind') {
+    const nx = plan.schedule.find(x => !x.isPast && !x.isReview && !x.isCatchUp && x.to >= x.from);
+    const size = nx ? (nx.isPart ? 1 : nx.to - nx.from + 1) : 1;
+    if (plan.behind >= Math.max(1, size) - 1e-9) r.push('하루치 넘게 밀림');
+  }
+  const behind = plan.status === 'behind' || plan.status === 'overdue';
+  const a = behind ? actualPace(task, plan) : null;
+  if (a && a.finish && a.late >= 2) r.push(`지금 속도면 ${a.late}일 늦음`);
+  if (a && a.hasWork === false) r.push('최근 2주 기록 없음');
+  const ws = fmtDate(startOfWeek(tdy)), we = fmtDate(addDays(startOfWeek(tdy), 6));
+  const pp = (task.skipDates || []).filter(d => d >= ws && d <= we).length;
+  if (pp >= 2) r.push(`이번 주 ${pp}번 미룸`);
+  return r;
+}
+function riskBoxHtml() {
+  const rows = [];
+  filterByCategory(tasks.filter(isTaskActive)).forEach(task => {
+    const plan = buildSchedule(task);
+    if (plan.status === 'done') return;
+    const r = riskReasons(task, plan);
+    if (r.length) rows.push(`<div class="risk-row"><span class="risk-name">${escapeHtml(task.title)}</span>${r.map(x => `<span class="risk-chip">${escapeHtml(x)}</span>`).join('')}</div>`);
+  });
+  if (!rows.length) return '';
+  return `<div class="soft-box peach"><span class="ic">${flatIcon('alert')}</span><div class="bd"><div class="ttl">주의가 필요한 목표 ${rows.length}개</div>${rows.join('')}</div></div>`;
+}
+
+// ===== 백업 알림 =====
+function backupBannerHtml() {
+  if (tasks.length === 0) return '';
+  const last = settings.lastBackup ? parseDate(settings.lastBackup.slice(0, 10)) : null;
+  const ago = last ? daysBetween(last, today()) : null;
+  if (ago !== null && ago < 7) return '';
+  return `<div class="soft-box lilac"><span class="ic">${flatIcon('backup')}</span><div class="bd">
+    <div class="ttl">${ago === null ? '아직 백업한 적이 없어요' : `마지막 백업이 ${ago}일 전이에요`}</div>
+    기록은 이 기기에만 저장돼요. 앱을 지우거나 기기를 바꾸면 사라질 수 있어요.
+    <div><button type="button" class="mini-btn primary" data-action="backup-now">지금 백업 파일 저장</button></div></div></div>`;
+}
+
+// ===== 주간 돌아보기 =====
+function weekReviewHtml(weekStart, weekEnd) {
+  const tdy = today();
+  const ws = fmtDate(weekStart), we = fmtDate(weekEnd);
+  if (ws > fmtDate(tdy)) return '';
+  const lastDay = fmtDate(weekEnd < tdy ? weekEnd : tdy);
+  const rows = [];
+  let pctSum = 0, pctN = 0, ppSum = 0;
+  filterByCategory(tasks.filter(t => !t.paused)).forEach(task => {
+    const snap = weekGoalsMap.get(task.id + '|' + ws);
+    const pre = task.id + '|';
+    let done = 0;
+    completedMap.forEach((v, k) => {
+      if (!k.startsWith(pre) || !v || v.part) return;
+      const ds = k.slice(pre.length);
+      if (ds >= ws && ds <= lastDay && v.amount > 0) done += v.amount;
+    });
+    const pp = (task.skipDates || []).filter(d => d >= ws && d <= lastDay).length;
+    const planned = snap && snap.amount > 0 ? snap.amount : 0;
+    if (!planned && !done && !pp) return;
+    const pct = planned ? Math.round(done / planned * 100) : null;
+    if (planned) { pctSum += Math.min(100, done / planned * 100); pctN++; }
+    ppSum += pp;
+    const ti = typeInfo(task.type);
+    rows.push(`<tr><td>${escapeHtml(task.title)}</td>
+      <td class="num">${done}${planned ? ` / ${planned}` : ''}${ti.unit}</td>
+      <td style="width:28%"><div class="review-bar"><span style="width:${pct == null ? 0 : Math.min(100, pct)}%"></span></div></td>
+      <td class="num">${pct == null ? '—' : pct + '%'}${pp ? ` · 미룸 ${pp}` : ''}</td></tr>`);
+  });
+  if (!rows.length) return '';
+  const isCur = ws === fmtDate(startOfWeek(tdy));
+  const overall = pctN ? Math.round(pctSum / pctN) : null;
+  return `<div class="soft-box mint"><span class="ic">${flatIcon('review')}</span><div class="bd">
+    <div class="ttl">${isCur ? '이번 주 돌아보기 (주간 목표 중 지금까지 한 양)' : '이 주 돌아보기'}${overall != null ? ` · 목표 대비 ${overall}%` : ''}${ppSum ? ` · 미룬 날 ${ppSum}번` : ''}</div>
+    <table class="review-table">${rows.join('')}</table></div></div>`;
+}
+
+// ===== 설정 화면 =====
+let _setOff = [];
+function openSettings() {
+  const days = ['일','월','화','수','목','금','토'];
+  const av = Array.isArray(settings.avail) ? settings.avail : [];
+  document.getElementById('set-avail').innerHTML = days.map((d, i) =>
+    `<label class="set-cell ${i === 0 || i === 6 ? 'weekend' : ''}">${d}<input type="text" data-avail="${i}" value="${av[i] > 0 ? escapeAttr(formatDuration(av[i])) : ''}" placeholder="—" inputmode="text"></label>`).join('');
+  const opts = [0.5, 1, 1.5, 2, 3];
+  settings.weights.forEach(w => { if (w > 0 && !opts.includes(w)) opts.push(w); });
+  opts.sort((a, b) => a - b);
+  document.getElementById('set-weights').innerHTML = days.map((d, i) =>
+    `<label class="set-cell ${i === 0 || i === 6 ? 'weekend' : ''}">${d}<select data-weight="${i}">${opts.map(o => `<option value="${o}" ${settings.weights[i] === o ? 'selected' : ''}>${o}배</option>`).join('')}</select></label>`).join('');
+  _setOff = [...settings.offDates];
+  renderOffList();
+  const last = settings.lastBackup ? settings.lastBackup.slice(0, 10) : null;
+  document.getElementById('set-backup-info').textContent = last ? `마지막 백업: ${last}` : '아직 백업한 적이 없어요';
+  document.getElementById('settingsModal').classList.add('show');
+}
+function renderOffList() {
+  const tdyStr = fmtDate(today());
+  const up = _setOff.filter(d => d >= tdyStr).sort();
+  const past = _setOff.filter(d => d < tdyStr).length;
+  const wd = (ds) => ['일','월','화','수','목','금','토'][parseDate(ds).getDay()];
+  document.getElementById('set-off-list').innerHTML =
+    (up.length ? up.map(d => `<span class="off-chip">${d.slice(5).replace('-', '/')}(${wd(d)})<button type="button" data-off-del="${d}" aria-label="삭제">×</button></span>`).join('') : '<span class="set-sub" style="margin:0">지정한 쉬는 날이 없어요</span>')
+    + (past ? `<span class="set-sub" style="margin:0 0 0 4px">· 지난 쉬는 날 ${past}일</span>` : '');
+  document.querySelectorAll('[data-off-del]').forEach(b => b.addEventListener('click', () => {
+    _setOff = _setOff.filter(x => x !== b.dataset.offDel); renderOffList();
+  }));
+}
+// 하루 가능 시간: "2시간", "90분", "1:30"(시:분), "1.5" or "2" (작은 숫자는 시간으로)
+function parseAvail(v) {
+  const t = String(v || '').trim();
+  if (!t) return 0;
+  if (/^\d+(\.\d+)?$/.test(t)) { const n = parseFloat(t); return n <= 12 ? Math.round(n * 60) : Math.round(n); }
+  const d = parseDurationToken(t);
+  return d > 0 ? d : 0;
+}
+function setupSettings() {
+  document.getElementById('set-avail').addEventListener('focusout', (e) => {
+    const i = e.target.closest('[data-avail]');
+    if (!i || !i.value.trim()) return;
+    const m = parseAvail(i.value);
+    i.value = m > 0 ? formatDuration(m) : '';
+  });
+  document.getElementById('btn-settings').addEventListener('click', openSettings);
+  document.getElementById('set-cancel').addEventListener('click', () => document.getElementById('settingsModal').classList.remove('show'));
+  document.getElementById('set-off-add').addEventListener('click', () => {
+    const v = document.getElementById('set-off-date').value;
+    if (!v) return showToast('날짜를 골라주세요');
+    if (!_setOff.includes(v)) _setOff.push(v);
+    renderOffList();
+  });
+  document.getElementById('set-backup-now').addEventListener('click', () => document.getElementById('btn-export').click());
+  document.getElementById('set-save').addEventListener('click', () => {
+    const av = Array.from(document.querySelectorAll('[data-avail]')).map(i => parseAvail(i.value));
+    settings.avail = av.some(v => v > 0) ? av : null;
+    const tStr = fmtDate(today());
+    const oldW = settings.weights.slice(), oldOff = settings.offDates.slice();
+    const newW = Array.from(document.querySelectorAll('[data-weight]')).map(sel => parseFloat(sel.value) || 1);
+    // goals already checked off today: for them the change counts from tomorrow
+    const doneToday = tasks.filter(t => { const r = completedMap.get(t.id + '|' + tStr); return r && (r.amount > 0 || r.part); }).map(t => t.id);
+    if (newW.join(',') !== oldW.join(',')) {
+      // remember when ratios changed, so days already passed keep the ratios they had
+      const h = Array.isArray(settings.wHist) && settings.wHist.length ? settings.wHist : [{ from: '', w: oldW, dn: [] }];
+      const last = h[h.length - 1];
+      if (h.length > 1 && last.from === tStr && (last.dn || []).join(',') === doneToday.join(',')) h.pop(); // never applies
+      h.push({ from: tStr, w: newW, dn: doneToday });
+      settings.wHist = h.length > 400 ? [h[0]].concat(h.slice(-399)) : h;
+    }
+    settings.weights = newW;
+    const newOff = [..._setOff].sort();
+    const log = settings.offLog || {};
+    newOff.forEach(d => { if (!oldOff.includes(d)) (log[d] = log[d] || []).push({ a: tStr, ad: doneToday, r: null, rd: [] }); });
+    oldOff.forEach(d => {
+      if (newOff.includes(d)) return;
+      const arr = log[d] || [];
+      const open = arr.find(e => e.r === null);
+      if (open && open.a === tStr && open.ad.join(',') === doneToday.join(',')) arr.splice(arr.indexOf(open), 1); // added & removed today
+      else if (open) { open.r = tStr; open.rd = doneToday; }
+      if (arr.length) log[d] = arr; else delete log[d];
+    });
+    settings.offLog = log;
+    settings.offDates = newOff;
+    normalizeOffLog();
+    persistSettings();
+    const planChanged = newW.join(',') !== oldW.join(',') || settings.offDates.join(',') !== oldOff.join(',');
+    _expCache.clear(); _chapterPlanCache.clear();
+    document.getElementById('settingsModal').classList.remove('show');
+    if (planChanged) tasks.filter(isTaskActive).forEach(t => refreshWeekGoalsAfterEdit(t.id)); // 이번 주 목표도 새 계획으로
+    showToast(planChanged ? '✓ 설정을 저장했어요 · 계획을 다시 계산했어요' : '✓ 설정을 저장했어요');
+    rerender();
+  });
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-action="backup-now"]');
+    if (b) document.getElementById('btn-export').click();
+  });
 }
 
 // Per-day study load of a plan's future sessions: units for count goals, minutes/양 for
@@ -5085,7 +5869,7 @@ function dayLoadsOf(task, plan) {
     else if (x.isPart) load = w(x.from) / x.partOf;
     else {
       load = prefix[x.to - sn] - prefix[x.from - sn - 1];
-      if (x.partOf > 1) load -= w(x.from) * (x.partOf - 1) / x.partOf;
+      if (x.partOf > 1) load -= w(x.from) * ((x.partN || x.partOf) - 1) / x.partOf;
     }
     const k = fmtDate(x.date);
     byDay.set(k, (byDay.get(k) || 0) + load);
@@ -5304,7 +6088,7 @@ function attachTaskHandlers() {
       const wasCompleted = isCompleted(id, todayStr);
       const startNum = task.startNum || 0;
       if (partInfo && !wasCompleted) {
-        setCompleted(id, todayStr, true, 0, { part: partInfo });
+        setCompleted(id, todayStr, true, 0, { part: withManualDays(task, partInfo) });
         rerender();
       } else if (!wasCompleted) {
         // Ask how far they actually got
@@ -5649,7 +6433,8 @@ function updateDailyNeed(prefix) {
     : { pace: editPace, val: editPace === 'weekly-n' ? Math.min(7, Math.max(1, parseInt(document.getElementById('e-weekly-n-val').value) || 3)) : editPace === 'custom-days' ? [...editCustomDays] : null, rv: editReviewDays };
   const start = document.getElementById(prefix + '-start').value, end = document.getElementById(prefix + '-end').value;
   if (!start || !end || end < start) { el.innerHTML = ''; return; }
-  const probe = { start, end, pace: P.pace, paceValue: P.val, reviewDays: [...(P.rv || [])] };
+  const probe = { start, end, pace: P.pace, paceValue: P.val, reviewDays: [...(P.rv || [])],
+    bufferDays: parseInt(document.getElementById(prefix + '-buffer').value) || 0 };
   const tdy = today();
   let dates = getContentDates(probe).filter(d => d >= tdy);
   let fromRel = 0;
@@ -5699,6 +6484,7 @@ function updateDailyNeed(prefix) {
     try {
       const probe = { id: '__probe', title: '', type, total: durs.length, startNum: 0, start, end, pace: P.pace, paceValue: P.val,
         reviewDays: [...(P.rv || [])], skipDates: editTask ? [...(editTask.skipDates || [])] : [], progress: fromRel,
+        bufferDays: probe.bufferDays,
         timeBased: true, timeMode: 'deadline', lectureDurations: durs.slice(), itemDays: stub.itemDays };
       busiest = planMaxDayLoad(probe, buildSchedule(probe));
     } catch (e) {}
@@ -6121,7 +6907,9 @@ function setupForm() {
   document.getElementById('f-end').value = fmtDate(addDays(t, 30));
 
   setNamesPanelTexts('f', document.getElementById('f-type').value);
+  setMpuLabel('f', document.getElementById('f-type').value, false);
   document.getElementById('f-type').addEventListener('change', (e) => {
+    setMpuLabel('f', e.target.value, formTimeBased);
     const v = e.target.value;
     const unit = v === 'book' ? '(페이지)' : v === 'lecture' ? '(강의)' : '(번호)';
     document.getElementById('from-label').textContent = unit;
@@ -6325,6 +7113,8 @@ function addNewTask() {
   const task = {
     id: 'tsk_' + Date.now() + '_' + Math.floor(Math.random()*1000),
     title, type, categoryId, total, startNum, start, end,
+    bufferDays: (parseInt(document.getElementById('f-buffer').value) || 0) || undefined,
+    minPerUnit: parseMpu(document.getElementById('f-mpu').value),
     pace, paceValue,
     reviewDays: [...reviewDaysSel],
     reviewLabel: (document.getElementById('f-reviewLabel').value || '').trim() || undefined,
@@ -6365,6 +7155,8 @@ function addNewTask() {
   document.getElementById('f-showNamesToggle').classList.remove('active');
   document.getElementById('f-showNamesPanel').style.display = 'none';
   clearRowCache('f');
+  document.getElementById('f-buffer').value = '0';
+  document.getElementById('f-mpu').value = '';
   formTimeBased = false;
   formTimeMode = 'capacity';
   document.getElementById('f-timeBasedToggle').classList.remove('active');
@@ -6392,6 +7184,11 @@ function openEditModal(id) {
   document.getElementById('e-currentPos').value = startNum + task.progress;
   document.getElementById('e-start').value = task.start;
   document.getElementById('e-end').value = task.end;
+  document.getElementById('e-buffer').value = String(parseInt(task.bufferDays) || 0);
+  document.getElementById('e-mpu').value = task.minPerUnit > 0 ? formatMpu(task.minPerUnit) : '';
+  { const learned = minutesPerUnit(Object.assign({}, task, { minPerUnit: 0 }));
+    document.getElementById('e-mpu').placeholder = learned ? `기록으로 계산: 약 ${formatMpu(learned)}` : '선택 · 예: 3분'; }
+  setMpuLabel('e', task.type, isTimeBasedTask(task));
   populateCategorySelect('e-categoryId', task.categoryId || '');
 
   const ti = typeInfo(task.type);
@@ -6598,7 +7395,8 @@ function setupEditModal() {
       if (editCustomDays.length === 0) return showToast('요일을 선택해 주세요');
       newPaceValue = [...editCustomDays];
     }
-    const probe = { start: newStart, end: newEnd, pace: editPace, paceValue: newPaceValue, reviewDays: editReviewDays };
+    const probe = { start: newStart, end: newEnd, pace: editPace, paceValue: newPaceValue, reviewDays: editReviewDays,
+      bufferDays: parseInt(document.getElementById('e-buffer').value) || 0 };
     if (getContentDates(probe).length === 0) {
       return showToast('복습 요일이 모든 일정을 덮어요. 요일을 조정해 주세요');
     }
@@ -6646,6 +7444,8 @@ function setupEditModal() {
     task.progress = newCurrentPos - newStartNum;
     task.start = newStart;
     task.end = newEnd;
+    task.bufferDays = (parseInt(document.getElementById('e-buffer').value) || 0) || undefined;
+    task.minPerUnit = parseMpu(document.getElementById('e-mpu').value);
     task.pace = editPace;
     task.paceValue = newPaceValue;
 
@@ -6901,13 +7701,16 @@ function setupDataIO() {
     const weekGoalsObj = {};
     weekGoalsMap.forEach((v, k) => { weekGoalsObj[k] = v; });
     const data = {
-      version: 6,
+      version: 7,
       exportedAt: new Date().toISOString(),
       tasks,
       categories,
       completed: completedObj,
       weekGoals: weekGoalsObj,
+      settings: { avail: settings.avail, weights: settings.weights, offDates: settings.offDates, wHist: settings.wHist, offLog: settings.offLog },
     };
+    settings.lastBackup = fmtDate(today());
+    persistSettings();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -6964,6 +7767,14 @@ function setupDataIO() {
         completedMap = new Map(Object.entries(data.completed));
       }
       persistCompleted();
+    }
+    if (data.settings && typeof data.settings === 'object') {
+      let keepBackup = settings.lastBackup;
+      const exp = typeof data.exportedAt === 'string' ? data.exportedAt.slice(0, 10) : null;
+      if (exp && /^\d{4}-\d{2}-\d{2}$/.test(exp) && (!keepBackup || exp > keepBackup)) keepBackup = exp;
+      settings = Object.assign({ avail: null, weights: [1, 1, 1, 1, 1, 1, 1], offDates: [], lastBackup: null, wHist: [], offLog: {} }, data.settings, { lastBackup: keepBackup });
+      persistSettings(); loadSettings();
+      _expCache.clear(); _chapterPlanCache.clear();
     }
     if (data.weekGoals && typeof data.weekGoals === 'object') {
       weekGoalsMap = new Map(Object.entries(data.weekGoals));
@@ -7038,6 +7849,7 @@ function init() {
   setupQuickDeadlineChips();
   setupCompleteModal();
   setupPostponeModal();
+  setupSettings();
   rerender();
   checkDayRollover();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
