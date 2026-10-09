@@ -467,7 +467,13 @@
   .day-total .note { margin-top: 4px; font-size: 11px; color: var(--text-muted); }
   .week-time { display: block; font-size: 10px; margin-top: 2px; color: var(--text-muted); }
   .week-time.over { color: #b9554a; font-weight: 700; }
-  .review-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+  .check-result { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.6; }
+  .check-result.ok { background: #E3F1E6; color: #3F7A4B; }
+  .check-result.bad { background: #FDE5DC; color: #B0472B; }
+  .check-result ul { margin: 6px 0 0 18px; padding: 0; }
+  .check-result .sub { font-size: 12px; opacity: .85; }
+  .review-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; table-layout: fixed; }
+  .review-table td, .task-title, .agenda-title, .agenda-detail .range, .week-day-item-title, .week-day-item-range, .risk-name, .week-goal-title { overflow-wrap: anywhere; word-break: break-word; }
   .review-table td { padding: 4px 4px; border-top: 1px dashed rgba(0,0,0,0.08); vertical-align: middle; }
   .review-table td.num { text-align: right; white-space: nowrap; }
   .review-bar { height: 5px; border-radius: 999px; background: rgba(255,255,255,0.8); overflow: hidden; min-width: 50px; }
@@ -1925,7 +1931,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.0.1 · 최근 업데이트 2026-10-08</div>
+      <div class="build-badge" id="buildBadge">v4.1 · 최근 업데이트 2026-10-09</div>
     </div>
   </aside>
 
@@ -2365,6 +2371,17 @@
       <div id="set-off-list" class="set-off-list"></div>
     </div>
     <div class="set-sec">
+      <div class="set-h">계산 점검</div>
+      <div class="set-sub">지금 저장된 목표의 일정이 규칙대로 계산됐는지 확인해요 (확인만 하고, 아무것도 바꾸지 않아요)</div>
+      <button type="button" class="btn" id="set-selfcheck">지금 점검하기</button>
+      <div id="set-selfcheck-result"></div>
+    </div>
+    <div class="set-sec">
+      <div class="set-h">카테고리</div>
+      <div class="set-sub">카테고리 추가·이름 바꾸기·삭제</div>
+      <button type="button" class="btn" id="set-cats">카테고리 관리</button>
+    </div>
+    <div class="set-sec">
       <div class="set-h">백업</div>
       <div class="set-sub" id="set-backup-info"></div>
       <button type="button" class="btn" id="set-backup-now">지금 백업 파일 저장</button>
@@ -2440,7 +2457,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.0.1';
+const APP_VERSION = 'v4.1';
 const APP_BUILD_DATE = '2026-10-08';
 
 // ===== STATE =====
@@ -2468,6 +2485,7 @@ function loadSettings() {
   } catch (e) {}
   if (!Array.isArray(settings.weights) || settings.weights.length !== 7) settings.weights = [1, 1, 1, 1, 1, 1, 1];
   settings.weights = settings.weights.map(v => (v > 0 ? Math.min(5, +v) : 1));
+  if (typeof settings.lastBackup !== 'string') settings.lastBackup = null;
   if (!Array.isArray(settings.offDates)) settings.offDates = [];
   settings.offDates = settings.offDates.filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d));
   if (!Array.isArray(settings.avail) || settings.avail.length !== 7) settings.avail = null;
@@ -2971,6 +2989,63 @@ async function copyToClipboard(text, btnEl) {
 }
 
 // ===== STORAGE =====
+// Repair or reject one stored/imported goal so a malformed entry can never break the app.
+function validDateStr(x) { return typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) && !isNaN(parseDate(x).getTime()); }
+function sanitizeTask(item, catIds) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+  const total = Math.floor(Number(item.total));
+  if (!(total >= 1) || total > 100000) return null;
+  let start = validDateStr(item.start) ? item.start : null, end = validDateStr(item.end) ? item.end : null;
+  if (!start && !end) return null;
+  if (!start) start = end;
+  if (!end) end = start;
+  if (end < start) end = start;
+  const t = Object.assign({}, item);
+  t.id = typeof item.id === 'string' && item.id ? item.id : ('tsk_' + Date.now() + '_' + Math.floor(Math.random() * 1e6));
+  t.title = typeof item.title === 'string' && item.title.trim() ? item.title : (item.title != null && String(item.title).trim() ? String(item.title) : '제목 없음');
+  t.type = ['book', 'lecture', 'other'].includes(item.type) ? item.type : 'book';
+  t.total = total; t.start = start; t.end = end;
+  t.startNum = Math.max(0, Math.floor(Number(item.startNum)) || 0);
+  const pr = Number(item.progress);
+  t.progress = isFinite(pr) ? Math.max(0, Math.min(total, Math.floor(pr))) : 0;
+  t.pace = ['daily', 'every-other', 'weekly-n', 'custom-days'].includes(item.pace) ? item.pace : 'daily';
+  if (t.pace === 'weekly-n') { const v = parseInt(item.paceValue); t.paceValue = v >= 1 && v <= 7 ? v : 3; }
+  else if (t.pace === 'custom-days') {
+    const v = Array.isArray(item.paceValue) ? [...new Set(item.paceValue.map(Number).filter(x => Number.isInteger(x) && x >= 0 && x <= 6))] : [];
+    if (v.length) t.paceValue = v; else { t.pace = 'daily'; t.paceValue = null; }
+  } else t.paceValue = null;
+  t.skipDates = Array.isArray(item.skipDates) ? item.skipDates.filter(validDateStr) : [];
+  t.reviewDays = Array.isArray(item.reviewDays) ? [...new Set(item.reviewDays.map(Number).filter(x => Number.isInteger(x) && x >= 0 && x <= 6))] : [];
+  t.archived = item.archived === true;
+  if ('paused' in item) t.paused = item.paused === true;
+  t.categoryId = typeof item.categoryId === 'string' && item.categoryId && (!catIds || catIds.has(item.categoryId)) ? item.categoryId : null;
+  if (t.reviewLabel != null && typeof t.reviewLabel !== 'string') delete t.reviewLabel;
+  if (t.bufferDays != null) { const b = parseInt(t.bufferDays); t.bufferDays = b > 0 ? Math.min(14, b) : undefined; }
+  if (t.minPerUnit != null && !(Number(t.minPerUnit) > 0)) t.minPerUnit = undefined;
+  if (t.timeLog != null && !Array.isArray(t.timeLog)) delete t.timeLog;
+  return t;
+}
+function sanitizeCategories(arr) {
+  return Array.isArray(arr) ? arr.filter(c => c && typeof c === 'object' && typeof c.id === 'string' && c.id
+    && typeof c.name === 'string' && typeof c.color === 'string') : [];
+}
+function sanitizeCompleted(entries) {
+  const m = new Map();
+  entries.forEach(([k, v]) => {
+    if (typeof k !== 'string' || !/^.+\|\d{4}-\d{2}-\d{2}$/.test(k)) return;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) v = { amount: 0 };
+    const amt = Number(v.amount);
+    const rec = Object.assign({}, v, { amount: isFinite(amt) && amt > 0 ? amt : 0 });
+    if (rec.part && (typeof rec.part !== 'object' || !(rec.part.item > 0) || !(rec.part.of > 1))) delete rec.part;
+    m.set(k, rec);
+  });
+  return m;
+}
+function sanitizeWeekGoals(entries) {
+  const m = new Map();
+  entries.forEach(([k, v]) => { if (typeof k === 'string' && k.includes('|') && v && typeof v === 'object' && typeof v.from === 'number' && typeof v.to === 'number') m.set(k, v); });
+  return m;
+}
 function loadAll() {
   loadSettings();
   try {
@@ -2980,9 +3055,14 @@ function loadAll() {
   } catch (e) { tasks = []; }
   try {
     const raw = localStorage.getItem(CATEGORIES_KEY);
-    categories = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(categories)) categories = [];
+    categories = sanitizeCategories(raw ? JSON.parse(raw) : []);
   } catch (e) { categories = []; }
+  { // goals: repair what can be repaired, drop what can't (kept intact when nothing's wrong)
+    const catIds = new Set(categories.map(c => c.id));
+    const before = JSON.stringify(tasks);
+    tasks = tasks.map(t => sanitizeTask(t, catIds)).filter(Boolean);
+    if (JSON.stringify(tasks) !== before) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch (e) {} }
+  }
   try {
     const savedSort = localStorage.getItem(SORT_KEY);
     if (savedSort) currentSort = savedSort;
@@ -2991,7 +3071,7 @@ function loadAll() {
     const rawCompleted = localStorage.getItem(COMPLETED_KEY);
     if (rawCompleted) {
       const obj = JSON.parse(rawCompleted);
-      completedMap = new Map(Object.entries(obj));
+      completedMap = obj && typeof obj === 'object' && !Array.isArray(obj) ? sanitizeCompleted(Object.entries(obj)) : new Map();
     }
     const oldRaw = localStorage.getItem('focus-calculate-completed');
     if (oldRaw && completedMap.size === 0) {
@@ -3018,7 +3098,7 @@ function loadAll() {
     const rawWG = localStorage.getItem(WEEKGOALS_KEY);
     if (rawWG) {
       const obj = JSON.parse(rawWG);
-      weekGoalsMap = new Map(Object.entries(obj));
+      weekGoalsMap = obj && typeof obj === 'object' && !Array.isArray(obj) ? sanitizeWeekGoals(Object.entries(obj)) : new Map();
     }
     // Prune snapshots older than ~9 weeks to keep storage tidy
     const cutoff = fmtDate(addDays(today(), -63));
@@ -3188,7 +3268,7 @@ function openCompleteModal(task, plannedToAbs, anchorAbs) {
   chips.push({ label: '계획대로', val: plannedToAbs });
   if (plannedToAbs + 1 <= totalEndAbs) chips.push({ label: '+1 더', val: plannedToAbs + 1 });
   if (plannedToAbs - 1 >= fromAbs) chips.push({ label: '-1 덜', val: plannedToAbs - 1 });
-  if (totalEndAbs > plannedToAbs) chips.push({ label: '끝까지 완독', val: totalEndAbs });
+  if (totalEndAbs > plannedToAbs) chips.push({ label: task.type === 'book' ? '끝까지 완독' : task.type === 'lecture' ? '끝까지 완강' : '끝까지 완료', val: totalEndAbs });
   quick.innerHTML = chips.map(c =>
     `<button class="quick-chip" data-cm-val="${c.val}">${c.label}</button>`
   ).join('');
@@ -3306,7 +3386,7 @@ function commitCompleteModal() {
   if (task.progress > anchor) {
     setCompleted(task.id, todayStr, true, task.progress - anchor);
     // "걸린 시간" → learn how long one unit takes (for 하루 총 공부량)
-    const spent = parseDurationToken(document.getElementById('cm-time').value);
+    const spent = parseSpent(document.getElementById('cm-time').value);
     if (spent > 0 && !hasOwnMinutes(task)) {
       const pre = isTimeBasedTask(task) ? getDurationPrefix(task) : null;
       let u = pre ? pre[task.progress] - pre[anchor] : task.progress - anchor;
@@ -4704,7 +4784,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
     const isFinal = isFinalSession(task, item);
     const completed = isItemCompleted(task, dateStr, item);
     const rvLabel = getReviewLabel(task);
-    const rangeText = (isReview ? rvLabel + ' ' : '') + formatRangeDisplay(task, item.from, item.to) + partPillHtml(item);
+    const rangeText = (isReview ? escapeHtml(rvLabel) + ' ' : '') + formatRangeDisplay(task, item.from, item.to) + partPillHtml(item);
     const copyText = buildCopyText(task, item);
     const color = getTaskColor(task);
     const cat = task.categoryId ? getCategoryById(task.categoryId) : null;
@@ -4842,7 +4922,7 @@ function renderWeek() {
           const isReview = !!item.isReview;
           const isFinal = isFinalSession(task, item);
           const isItemDone = isItemCompleted(task, dateStr, item);
-          const rangeText = (isReview ? getReviewLabel(task) + ' ' : '') + formatRangeDisplay(task, item.from, item.to) + (isFinal ? ` 🎉${getCompletionLabel(task.type)}` : '') + partPillHtml(item);
+          const rangeText = (isReview ? escapeHtml(getReviewLabel(task)) + ' ' : '') + formatRangeDisplay(task, item.from, item.to) + (isFinal ? ` 🎉${getCompletionLabel(task.type)}` : '') + partPillHtml(item);
           const copyText = buildCopyText(task, item);
           const color = getTaskColor(task);
           return `
@@ -5375,7 +5455,7 @@ function renderTasks() {
             <div class="task-icon">${ti.icon}</div>
             <div style="flex: 1; min-width: 0;">
               <div class="task-title">${escapeHtml(task.title)}</div>
-              <div class="task-desc">${ti.label} · ${task.start} → ${task.end} · ${ddayText}${startSuffix}</div>
+              <div class="task-desc">${ti.label} · ${escapeHtml(task.start)} → ${escapeHtml(task.end)} · ${ddayText}${startSuffix}</div>
               ${catPillHtml}
             </div>
           </div>
@@ -5502,6 +5582,18 @@ function flatIcon(name) {
 // Minutes one unit takes: typed in (task.minPerUnit) or learned from "걸린 시간" entries.
 // 양·난이도 goals count in 양 (weight) units; other goals in pages/lectures/items.
 // "1개당 걸리는 시간" field: minutes (decimals ok, e.g. "1.5분", "90초", "2")
+// "걸린 시간": 40분, 1시간 10분, 1:10 (시:분), 30초, 2.5 (분)
+function parseSpent(v) {
+  const t = String(v || '').trim();
+  if (!t) return 0;
+  const sec = t.match(/^(\d+(?:\.\d+)?)\s*초$/);
+  if (sec) return +sec[1] / 60;
+  const ms = t.match(/^(\d+)\s*분\s*(\d+)\s*초$/);
+  if (ms) return +ms[1] + +ms[2] / 60;
+  if (/^\d+\.\d+$/.test(t)) return parseFloat(t);
+  const d = parseDurationToken(t);
+  return d > 0 ? d : 0;
+}
 function parseMpu(v) {
   const t = String(v || '').trim();
   if (!t) return undefined;
@@ -5509,6 +5601,8 @@ function parseMpu(v) {
   if (sec) return Math.max(0.05, +sec[1] / 60);
   const ms = t.match(/^(\d+)\s*분\s*(\d+)\s*초$/);
   if (ms) return +ms[1] + +ms[2] / 60;
+  const colon = t.match(/^(\d+):(\d{1,2})$/); // like lecture rows: 1:30 = 1분 30초
+  if (colon) { const v = +colon[1] + +colon[2] / 60; return v > 0 ? v : undefined; }
   const n = t.match(/^(\d+(?:\.\d+)?)\s*분?$/);
   if (n) return +n[1] > 0 ? +n[1] : undefined;
   const d = parseDurationToken(t);
@@ -5524,12 +5618,17 @@ function setMpuLabel(prefix, type, timed) {
   const el = document.getElementById(prefix + '-mpu-label');
   if (!el) return;
   const row = el.parentElement;
-  const unitName = type === 'book' ? (timed ? '양 1' : '1페이지') : type === 'lecture' ? '강의 1개' : (timed ? '양 1' : '1개');
+  const unitName = type === 'book' ? (timed ? '양·난이도 "중간" 1개' : '1페이지') : type === 'lecture' ? '강의 1개' : (timed ? '양·난이도 "중간" 1개' : '1개');
   el.textContent = `${unitName}당 걸리는 시간`;
+  el.title = timed && type !== 'lecture' ? '양·난이도가 중간·중간인 항목 1개 기준이에요. 더 많거나 어려운 항목은 그만큼 길게 계산해요 (예: 많음·어려움 = 2.25배)' : '';
   row.style.display = (type === 'lecture' && timed) ? 'none' : ''; // lectures with times already know
 }
+// 양·난이도 goals plan in 양 points (난이도×양: 중간·중간 = 4, 많음·어려움 = 9). The typed
+// time is for ONE item of 중간·중간 — so per 양 point it's a quarter of that.
+const MID_ITEM_WEIGHT = 4;
+function isWeightTimed(task) { return isTimeBasedTask(task) && isWeightUnitType(task.type); }
 function minutesPerUnit(task) {
-  if (task.minPerUnit > 0) return task.minPerUnit;
+  if (task.minPerUnit > 0) return isWeightTimed(task) ? task.minPerUnit / MID_ITEM_WEIGHT : task.minPerUnit;
   let u = 0, m = 0;
   (task.timeLog || []).forEach(x => { if (x.u > 0 && x.m > 0) { u += x.u; m += x.m; } });
   return u > 0 ? m / u : null;
@@ -5756,6 +5855,77 @@ function weekReviewHtml(weekStart, weekEnd) {
     <table class="review-table">${rows.join('')}</table></div></div>`;
 }
 
+// ===== 계산 점검 =====
+// Read-only self-check of every active goal's plan against rules that must always hold
+// (the same checks the automated tests run): sessions follow on from each other with no
+// gap or overlap, the plan reaches the last item, nothing lands on a 쉬는 날 / 복습 요일 /
+// 미룬 날 or after the planned end, and a multi-day chapter isn't left half-planned.
+// It changes nothing.
+function selfCheckTask(task) {
+  const out = [];
+  const add = (m) => { if (!out.includes(m)) out.push(m); };
+  let p;
+  try { p = buildSchedule(task); } catch (e) { return ['계산 중 오류가 났어요 (' + (e && e.message ? e.message : e) + ')']; }
+  if (!(task.progress >= 0 && task.progress <= task.total)) add('진행 위치가 범위를 벗어났어요');
+  if (task.progress >= task.total) return out;
+  const sn = task.startNum || 0, tot = sn + task.total, tStr = fmtDate(today());
+  const pe = planEndStr(task), skip = new Set(task.skipDates || []), rv = new Set(task.reviewDays || []);
+  const anchor = getTodayAnchor(task);
+  const items = p.schedule.filter(s => !s.isReview);
+  const past = items.filter(s => s.isPast), fut = items.filter(s => !s.isPast);
+  let c = sn;
+  past.forEach(s => { if (s.from !== c + 1 || s.to < s.from) add('지난 일정이 이어지지 않아요'); c = s.to; });
+  if (past.length && c !== sn + anchor) add('지난 일정이 지금 진도와 맞지 않아요');
+  c = sn + anchor;
+  let partItem = null;
+  const seen = new Set();
+  fut.forEach(s => {
+    const ds = fmtDate(s.date), md = `${s.date.getMonth() + 1}/${s.date.getDate()}`;
+    if (seen.has(ds)) add(`${md}에 일정이 두 번 잡혀 있어요`);
+    seen.add(ds);
+    if (ds < tStr) add(`지난 날짜(${md})에 남은 일정이 있어요`);
+    if (!(s.amount >= 0)) add(`${md} 분량이 이상해요`);
+    if (!s.isCatchUp) {
+      if (isOffDate(s.date)) add(`쉬는 날(${md})에 분량이 있어요`);
+      if (rv.has(s.date.getDay())) add(`복습 요일(${md})에 새 분량이 있어요`);
+      if (skip.has(ds)) add(`미룬 날(${md})에 분량이 있어요`);
+      if (ds > pe) add(`계획 끝(${pe.slice(5).replace('-', '/')}) 뒤인 ${md}에 일정이 있어요`);
+    }
+    if (s.isPart) {
+      if (s.from !== c + 1 || s.to !== s.from) add(`${md} 나눠 하는 날이 앞 일정과 이어지지 않아요`);
+      if (partItem != null && partItem !== s.from) add(`${md} 나눠 하던 챕터가 끝나기 전에 바뀌어요`);
+      partItem = s.from;
+    } else {
+      if (s.from !== c + 1) add(`${md} 일정이 앞 일정과 ${s.from > c + 1 ? '끊겨요' : '겹쳐요'}`);
+      if (s.to < s.from) add(`${md} 일정이 비어 있어요`);
+      if (partItem != null && s.from !== partItem) add(`${md} 나눠 하던 챕터가 끝나기 전에 바뀌어요`);
+      partItem = null;
+      c = s.to;
+    }
+  });
+  const last = fut[fut.length - 1];
+  const todayOnlyCut = last && (last.isCatchUp || (p.remainingDates.length === 1 && fmtDate(p.remainingDates[0]) === tStr)) && c === sn + task.progress;
+  if ((p.remainingDates.length || fut.some(s => s.isCatchUp)) && fut.length && c !== tot && !p.capacityInsufficient && !todayOnlyCut)
+    add(`마지막 일정이 끝(${tot})까지 닿지 않아요 (${c}에서 끝나요)`);
+  if (partItem != null && !p.capacityInsufficient) add('마지막 날이 나눠 하는 날로 끝나요');
+  return out;
+}
+function runSelfCheck() {
+  const box = document.getElementById('set-selfcheck-result');
+  const list = tasks.filter(isTaskActive);
+  const bad = [];
+  list.forEach(t => { const r = selfCheckTask(t); if (r.length) bad.push({ t, r }); });
+  if (!list.length) { box.innerHTML = '<div class="check-result ok">점검할 진행 중인 목표가 없어요</div>'; return; }
+  if (!bad.length) {
+    box.innerHTML = `<div class="check-result ok">✓ 진행 중인 목표 ${list.length}개 모두 이상 없어요
+      <div class="sub">일정이 빠짐없이 이어지고, 마지막까지 계획돼 있고, 쉬는 날·복습 요일·미룬 날엔 분량이 없어요 (${fmtDate(today())} 기준)</div></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="check-result bad">⚠ 목표 ${bad.length}개에서 이상한 점을 찾았어요
+    <ul>${bad.map(b => `<li><b>${escapeHtml(b.t.title)}</b>: ${b.r.slice(0, 3).map(escapeHtml).join(' · ')}</li>`).join('')}</ul>
+    <div class="sub">이 화면을 캡처해서 백업 파일과 함께 보내주시면 원인을 정확히 찾을 수 있어요</div></div>`;
+}
+
 // ===== 설정 화면 =====
 let _setOff = [];
 function openSettings() {
@@ -5772,6 +5942,7 @@ function openSettings() {
   renderOffList();
   const last = settings.lastBackup ? settings.lastBackup.slice(0, 10) : null;
   document.getElementById('set-backup-info').textContent = last ? `마지막 백업: ${last}` : '아직 백업한 적이 없어요';
+  document.getElementById('set-selfcheck-result').innerHTML = '';
   document.getElementById('settingsModal').classList.add('show');
 }
 function renderOffList() {
@@ -5810,6 +5981,11 @@ function setupSettings() {
     renderOffList();
   });
   document.getElementById('set-backup-now').addEventListener('click', () => document.getElementById('btn-export').click());
+  document.getElementById('set-selfcheck').addEventListener('click', runSelfCheck);
+  document.getElementById('set-cats').addEventListener('click', () => {
+    document.getElementById('settingsModal').classList.remove('show');
+    openCategoryModal();
+  });
   document.getElementById('set-save').addEventListener('click', () => {
     const av = Array.from(document.querySelectorAll('[data-avail]')).map(i => parseAvail(i.value));
     settings.avail = av.some(v => v > 0) ? av : null;
@@ -5934,10 +6110,12 @@ function postponeVerdict(task, planBefore, best, extra) {
 }
 
 let postponeTaskId = null;
+let postponeDay = null;
 function openPostponeModal(taskId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
   postponeTaskId = taskId;
+  postponeDay = fmtDate(today());
   const tdy = today(), todayStr = fmtDate(tdy);
   const planBefore = buildSchedule(task);
   const isCap = isTimeBasedTask(task) && task.timeMode === 'capacity';
@@ -6007,8 +6185,12 @@ function openPostponeModal(taskId) {
 function setupPostponeModal() {
   const close = () => { document.getElementById('postponeModal').classList.remove('show'); postponeTaskId = null; };
   document.getElementById('pp-cancel').addEventListener('click', close);
-  document.getElementById('pp-week').addEventListener('click', () => { const id = postponeTaskId; close(); if (id) postponeToday(id, 'week'); });
-  document.getElementById('pp-deadline').addEventListener('click', () => { const id = postponeTaskId; close(); if (id) postponeToday(id, 'deadline'); });
+  const dayChanged = () => {
+    if (postponeDay && postponeDay !== fmtDate(today())) { close(); showToast('날짜가 바뀌었어요 · 오늘 기준으로 다시 확인해 주세요'); rerender(); return true; }
+    return false;
+  };
+  document.getElementById('pp-week').addEventListener('click', () => { if (dayChanged()) return; const id = postponeTaskId; close(); if (id) postponeToday(id, 'week'); });
+  document.getElementById('pp-deadline').addEventListener('click', () => { if (dayChanged()) return; const id = postponeTaskId; close(); if (id) postponeToday(id, 'deadline'); });
 }
 
 function postponeToday(taskId, mode = 'deadline') {
@@ -6901,10 +7083,36 @@ function setupBulkPasteNames(prefix) {
   });
 }
 
-function setupForm() {
-  const t = today();
-  document.getElementById('f-start').value = fmtDate(t);
+// The app can stay open for days (home-screen app): an untouched form must not keep the
+// day it was loaded as 시작일.
+let _formDatesDay = null;
+function resetFormDatesIfStale() {
+  const t = today(), ts = fmtDate(t);
+  if (_formDatesDay === ts) return;
+  const title = document.getElementById('f-title');
+  if (_formDatesDay !== null && title && title.value.trim()) return; // being filled in — leave it
+  document.getElementById('f-start').value = ts;
   document.getElementById('f-end').value = fmtDate(addDays(t, 30));
+  _formDatesDay = ts;
+}
+// Rebuild the per-item rows only for panels that are open, a moment after typing stops,
+// and not for absurd ranges (typing "1000000" would otherwise freeze the app).
+const MAX_ITEM_ROWS = 3000;
+const _rowsTimers = {};
+function rowsUpdateSoon(prefix, timedOn, namesOn) {
+  clearTimeout(_rowsTimers[prefix]);
+  _rowsTimers[prefix] = setTimeout(() => {
+    const f = parseInt(document.getElementById(prefix + '-from').value), t = parseInt(document.getElementById(prefix + '-to').value);
+    if (f > 0 && t >= f && t - f + 1 > MAX_ITEM_ROWS) {
+      if (timedOn() || namesOn()) showToast(`항목별 입력은 ${MAX_ITEM_ROWS}개까지 돼요`);
+      return;
+    }
+    if (timedOn()) renderDurationsList(prefix);
+    if (namesOn()) renderNamesList(prefix);
+  }, 150);
+}
+function setupForm() {
+  resetFormDatesIfStale();
 
   setNamesPanelTexts('f', document.getElementById('f-type').value);
   setMpuLabel('f', document.getElementById('f-type').value, false);
@@ -7009,8 +7217,9 @@ function setupForm() {
       document.getElementById('f-dailyMinutesField').style.display = formTimeMode === 'capacity' ? 'block' : 'none';
     });
   });
-  document.getElementById('f-from').addEventListener('input', () => { renderDurationsList('f'); renderNamesList('f'); });
-  document.getElementById('f-to').addEventListener('input', () => { renderDurationsList('f'); renderNamesList('f'); });
+  const fRows = () => rowsUpdateSoon('f', () => formTimeBased, () => formShowNames);
+  document.getElementById('f-from').addEventListener('input', fRows);
+  document.getElementById('f-to').addEventListener('input', fRows);
   setupBulkPaste('f');
 
   document.querySelectorAll('.form-card .day-toggle').forEach(btn => {
@@ -7040,6 +7249,7 @@ function setupForm() {
   });
 
   document.getElementById('btn-toggle-form').addEventListener('click', () => {
+    resetFormDatesIfStale();
     populateCategorySelect('f-categoryId',
       currentCategoryFilter && currentCategoryFilter !== '__none__' ? currentCategoryFilter : '');
     document.getElementById('formCard').classList.toggle('show');
@@ -7140,6 +7350,7 @@ function addNewTask() {
   if (getContentDates(task).length === 0) {
     return showToast('복습 요일이 모든 일정을 덮어요. 요일을 조정해 주세요');
   }
+  if (task.end < fmtDate(today()) && !confirm('마감일이 이미 지났어요.\n지금 추가하면 남은 분량이 모두 오늘 할 일로 잡혀요. 그래도 추가할까요?')) return;
 
   tasks.push(task);
   persistTasks();
@@ -7187,7 +7398,8 @@ function openEditModal(id) {
   document.getElementById('e-buffer').value = String(parseInt(task.bufferDays) || 0);
   document.getElementById('e-mpu').value = task.minPerUnit > 0 ? formatMpu(task.minPerUnit) : '';
   { const learned = minutesPerUnit(Object.assign({}, task, { minPerUnit: 0 }));
-    document.getElementById('e-mpu').placeholder = learned ? `기록으로 계산: 약 ${formatMpu(learned)}` : '선택 · 예: 3분'; }
+    const shownLearned = learned && isWeightTimed(task) ? learned * MID_ITEM_WEIGHT : learned;
+    document.getElementById('e-mpu').placeholder = shownLearned ? `기록으로 계산: 약 ${formatMpu(shownLearned)}` : '선택 · 예: 3분'; }
   setMpuLabel('e', task.type, isTimeBasedTask(task));
   populateCategorySelect('e-categoryId', task.categoryId || '');
 
@@ -7204,10 +7416,8 @@ function openEditModal(id) {
     c.classList.toggle('active', c.dataset.pace === editPace);
   });
   document.querySelectorAll('#editModal .pace-detail').forEach(d => d.classList.remove('show'));
-  if (editPace === 'weekly-n') {
-    document.getElementById('e-pace-weekly-n').classList.add('show');
-    document.getElementById('e-weekly-n-val').value = task.paceValue || 3;
-  }
+  document.getElementById('e-weekly-n-val').value = editPace === 'weekly-n' ? (task.paceValue || 3) : 3;
+  if (editPace === 'weekly-n') document.getElementById('e-pace-weekly-n').classList.add('show');
   if (editPace === 'custom-days') document.getElementById('e-pace-custom-days').classList.add('show');
   document.querySelectorAll('#e-day-toggles .day-toggle').forEach(b => {
     b.classList.toggle('active', editCustomDays.includes(parseInt(b.dataset.day)));
@@ -7324,8 +7534,9 @@ function setupEditModal() {
       document.getElementById('e-dailyMinutesField').style.display = editTimeMode === 'capacity' ? 'block' : 'none';
     });
   });
-  document.getElementById('e-from').addEventListener('input', () => { renderDurationsList('e'); renderNamesList('e'); });
-  document.getElementById('e-to').addEventListener('input', () => { renderDurationsList('e'); renderNamesList('e'); });
+  const eRows = () => rowsUpdateSoon('e', () => editTimeBased, () => editShowNames);
+  document.getElementById('e-from').addEventListener('input', eRows);
+  document.getElementById('e-to').addEventListener('input', eRows);
   setupBulkPaste('e');
   document.querySelectorAll('#e-apply-timing-row .chip[data-apply]').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -7452,20 +7663,21 @@ function setupEditModal() {
     if (task.type === 'other' || task.type === 'lecture') {
       if (task.type === 'other') task.copyFmt = editCopyFmt;
       task.showNames = editShowNames;
-      task.itemNames = editShowNames ? newItemNames : undefined;
-      task.itemParts = editShowNames ? newItemParts : undefined;
+      if (editShowNames) { task.itemNames = newItemNames; task.itemParts = newItemParts; } // off → kept for later
     }
     if (tbTypeOkE) {
       task.timeBased = editTimeBased;
       task.timeMode = editTimeMode;
-      task.lectureDurations = editTimeBased ? newLectureDurations : undefined;
-      task.colonMode = (task.type === 'lecture' && editTimeBased && colonModeFor('e') === 'hm') ? 'hm' : undefined;
-      task.dailyMinutes = (editTimeBased && editTimeMode === 'capacity') ? newDailyMinutes : undefined;
-      if (isWeightUnitType(task.type)) {
-        const ws = collectWeightSelections('e');
-        task.itemDifficulty = editTimeBased ? ws.diffs : undefined;
-        task.itemAmount = editTimeBased ? ws.amts : undefined;
-        task.itemDays = editTimeBased ? cleanItemDays(ws.days) : undefined;
+      if (editTimeBased) { // off → the rows are kept, so turning it back on restores them
+        task.lectureDurations = newLectureDurations;
+        task.colonMode = (task.type === 'lecture' && colonModeFor('e') === 'hm') ? 'hm' : undefined;
+        if (editTimeMode === 'capacity') task.dailyMinutes = newDailyMinutes;
+        if (isWeightUnitType(task.type)) {
+          const ws = collectWeightSelections('e');
+          task.itemDifficulty = ws.diffs;
+          task.itemAmount = ws.amts;
+          task.itemDays = cleanItemDays(ws.days);
+        }
       }
     }
     task.reviewDays = [...editReviewDays];
@@ -7478,7 +7690,13 @@ function setupEditModal() {
 
     const structuralChange = (oldStartNum !== newStartNum || oldTotal !== newTotal);
     if (structuralChange) {
-      [...completedMap.keys()].forEach(k => { if (k.startsWith(task.id + '|')) completedMap.delete(k); });
+      // Amounts done per day stay true after renumbering; only "part day" records point at
+      // item numbers — drop those if the numbering moved or the item no longer exists.
+      [...completedMap.keys()].forEach(k => {
+        if (!k.startsWith(task.id + '|')) return;
+        const v = completedMap.get(k);
+        if (v && v.part && (oldStartNum !== newStartNum || v.part.item > newStartNum + newTotal)) completedMap.delete(k);
+      });
       persistCompleted();
     }
 
@@ -7719,6 +7937,7 @@ function setupDataIO() {
     a.click();
     URL.revokeObjectURL(url);
     showToast(`✓ ${tasks.length}개 목표를 내보냈어요`);
+    rerender();
   });
 
   document.getElementById('btn-import').addEventListener('click', () => {
@@ -7742,50 +7961,39 @@ function setupDataIO() {
     let data;
     try { data = JSON.parse(txt); }
     catch (e) { return showToast('JSON 형식이 올바르지 않아요'); }
-    const incoming = Array.isArray(data) ? data : data.tasks;
+    const incoming = Array.isArray(data) ? data : (data && typeof data === 'object' ? data.tasks : null);
     if (!Array.isArray(incoming)) return showToast('목표 데이터를 찾을 수 없어요');
-    if (!confirm(`${incoming.length}개의 목표를 가져옵니다.\n기존 데이터는 모두 삭제됩니다. 계속할까요?`)) return;
+    const src = Array.isArray(data) ? {} : data;
+    const newCats = sanitizeCategories(src.categories);
+    const catIds = new Set(newCats.map(c => c.id));
+    const valid = incoming.map(t => sanitizeTask(t, catIds)).filter(Boolean);
+    const skipped = incoming.length - valid.length;
+    if (incoming.length > 0 && valid.length === 0) return showToast('가져올 수 있는 목표가 없어요 (형식이 맞지 않아요)');
+    if (!confirm(`${valid.length}개의 목표를 가져옵니다.${skipped ? `\n(형식이 맞지 않는 ${skipped}개는 건너뛰어요)` : ''}\n기존 데이터는 모두 삭제됩니다. 계속할까요?`)) return;
 
-    tasks = incoming.map(item => ({
-      ...item,
-      id: item.id || ('tsk_' + Date.now() + '_' + Math.floor(Math.random()*1000)),
-      progress: typeof item.progress === 'number' ? item.progress : 0,
-      archived: typeof item.archived === 'boolean' ? item.archived : false,
-      startNum: item.startNum || 0,
-      categoryId: item.categoryId || null,
-      skipDates: Array.isArray(item.skipDates) ? item.skipDates : [],
-      reviewDays: Array.isArray(item.reviewDays) ? item.reviewDays : [],
-    }));
-    if (Array.isArray(data.categories)) {
-      categories = data.categories.filter(c => c.id && c.name && c.color);
-      persistCategories();
-    }
-    if (data.completed) {
-      if (Array.isArray(data.completed)) {
-        completedMap = new Map(data.completed.map(k => [k, { amount: 0 }]));
-      } else if (typeof data.completed === 'object') {
-        completedMap = new Map(Object.entries(data.completed));
-      }
-      persistCompleted();
-    }
-    if (data.settings && typeof data.settings === 'object') {
+    tasks = valid;
+    categories = newCats;
+    persistCategories();
+    if (Array.isArray(src.completed)) completedMap = sanitizeCompleted(src.completed.map(k => [k, { amount: 0 }]));
+    else if (src.completed && typeof src.completed === 'object') completedMap = sanitizeCompleted(Object.entries(src.completed));
+    else completedMap = new Map();
+    persistCompleted();
+    {
       let keepBackup = settings.lastBackup;
-      const exp = typeof data.exportedAt === 'string' ? data.exportedAt.slice(0, 10) : null;
+      const exp = typeof src.exportedAt === 'string' ? src.exportedAt.slice(0, 10) : null;
       if (exp && /^\d{4}-\d{2}-\d{2}$/.test(exp) && (!keepBackup || exp > keepBackup)) keepBackup = exp;
-      settings = Object.assign({ avail: null, weights: [1, 1, 1, 1, 1, 1, 1], offDates: [], lastBackup: null, wHist: [], offLog: {} }, data.settings, { lastBackup: keepBackup });
-      persistSettings(); loadSettings();
+      const inSet = src.settings && typeof src.settings === 'object' && !Array.isArray(src.settings) ? src.settings : {};
+      settings = Object.assign({ avail: null, weights: [1, 1, 1, 1, 1, 1, 1], offDates: [], lastBackup: null, wHist: [], offLog: {} }, inSet, { lastBackup: keepBackup });
+      persistSettings(); loadSettings(); persistSettings();
       _expCache.clear(); _chapterPlanCache.clear();
     }
-    if (data.weekGoals && typeof data.weekGoals === 'object') {
-      weekGoalsMap = new Map(Object.entries(data.weekGoals));
-      persistWeekGoals();
-    } else {
-      weekGoalsMap = new Map();
-      persistWeekGoals();
-    }
+    weekGoalsMap = src.weekGoals && typeof src.weekGoals === 'object' && !Array.isArray(src.weekGoals) ? sanitizeWeekGoals(Object.entries(src.weekGoals)) : new Map();
+    persistWeekGoals();
+    currentCategoryFilter = null;
     persistTasks();
     ensureWeekGoalSnapshots();
     document.getElementById('importModal').classList.remove('show');
+    showToast(`✓ ${valid.length}개 목표를 불러왔어요${skipped ? ` · ${skipped}개는 형식이 맞지 않아 건너뛰었어요` : ''}`);    document.getElementById('importModal').classList.remove('show');
     showToast(`✓ ${incoming.length}개 목표를 불러왔어요`);
     rerender();
   });
@@ -7800,6 +8008,7 @@ function checkDayRollover() {
   const d = fmtDate(today());
   if (lastRenderDay !== null && d !== lastRenderDay) {
     lastRenderDay = d;
+    resetFormDatesIfStale();
     ensureWeekGoalSnapshots();
     rerender();
   } else {
@@ -7838,7 +8047,7 @@ function init() {
     const run = () => setTimeout(() => updateDailyNeed(pre), 0);
     ['input', 'change', 'click'].forEach(ev => box.addEventListener(ev, run));
   });
-  ensureWeekGoalSnapshots();
+  try { ensureWeekGoalSnapshots(); } catch (e) { console.error(e); }
   setupForm();
   setupEditModal();
   setupCategoryModal();
@@ -7850,7 +8059,7 @@ function init() {
   setupCompleteModal();
   setupPostponeModal();
   setupSettings();
-  rerender();
+  try { rerender(); } catch (e) { console.error(e); showToast('일부 목표를 표시하지 못했어요 · 백업 파일로 다시 가져오기를 해보세요'); }
   checkDayRollover();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
   window.addEventListener('focus', checkDayRollover);
