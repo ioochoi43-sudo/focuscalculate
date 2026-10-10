@@ -1931,7 +1931,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.1 · 최근 업데이트 2026-10-09</div>
+      <div class="build-badge" id="buildBadge">v4.2 · 최근 업데이트 2026-10-10</div>
     </div>
   </aside>
 
@@ -2013,6 +2013,10 @@
         <div class="field">
           <label>제목</label>
           <input type="text" id="f-title" placeholder="예: 데미안 읽기">
+        </div>
+        <div class="field">
+          <label>복사할 때 이름 <span style="color:var(--text-muted);">(선택)</span></label>
+          <input type="text" id="f-copyTitle" placeholder="비워두면 제목 그대로 복사돼요">
         </div>
         <div class="field">
           <label>종류</label>
@@ -2183,6 +2187,7 @@
     <div class="modal-title">목표 수정</div>
     <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
       <div class="field" style="grid-column: 1 / -1;"><label>제목</label><input type="text" id="e-title"></div>
+      <div class="field" style="grid-column: 1 / -1;"><label>복사할 때 이름 <span style="color:var(--text-muted);">(선택 · 비워두면 제목 그대로)</span></label><input type="text" id="e-copyTitle" placeholder="예: 짧은 이름"><div id="e-copyTitle-preview" style="font-size:12px; color:var(--text-muted); margin-top:4px;"></div></div>
       <div class="field"><label>카테고리</label><select id="e-categoryId"><option value="">(없음)</option></select></div>
       <div class="field"><label>시작 <span id="e-from-label" style="color:var(--text-muted);"></span></label><input type="number" id="e-from" min="1"></div>
       <div class="field"><label>끝 <span id="e-to-label" style="color:var(--text-muted);"></span></label><input type="number" id="e-to" min="1"></div>
@@ -2457,8 +2462,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.1';
-const APP_BUILD_DATE = '2026-10-08';
+const APP_VERSION = 'v4.2';
+const APP_BUILD_DATE = '2026-10-10';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2940,19 +2945,25 @@ function isFinalSession(task, item) {
   return item.to === totalEnd;
 }
 
+// Name used in copied text: the optional short "복사할 때 이름", else the title.
+function copyName(task) {
+  const c = typeof task.copyTitle === 'string' ? task.copyTitle.trim() : '';
+  return c || task.title;
+}
 function buildCopyText(task, item) {
   const prefix = item.isReview ? getReviewLabel(task) + ' ' : '';
+  const name = copyName(task);
   let text;
   if (hasValidItemNames(task)) {
-    text = `${task.title} ${prefix}${formatNamedRange(task, item.from, item.to)}`;
+    text = `${name} ${prefix}${formatNamedRange(task, item.from, item.to)}`;
   } else if (task.type === 'book') {
-    text = `${task.title} ${prefix}p.${formatRange(item.from, item.to)}`;
+    text = `${name} ${prefix}p.${formatRange(item.from, item.to)}`;
   } else if (task.type === 'lecture') {
-    text = `${task.title} ${prefix}${formatRange(item.from, item.to)}강`;
+    text = `${name} ${prefix}${formatRange(item.from, item.to)}강`;
   } else {
     const fmt = task.copyFmt || 'no';
     const rangeText = formatRange(item.from, item.to);
-    text = fmt === 'day' ? `${task.title} ${prefix}day${rangeText}` : `${task.title} ${prefix}no.${rangeText}`;
+    text = fmt === 'day' ? `${name} ${prefix}day${rangeText}` : `${name} ${prefix}no.${rangeText}`;
   }
   if (item.partOf > 1) text += ` (${item.partN}/${item.partOf})`;
   if (isFinalSession(task, item)) text += ` (${getCompletionLabel(task.type)})`;
@@ -3020,6 +3031,7 @@ function sanitizeTask(item, catIds) {
   if ('paused' in item) t.paused = item.paused === true;
   t.categoryId = typeof item.categoryId === 'string' && item.categoryId && (!catIds || catIds.has(item.categoryId)) ? item.categoryId : null;
   if (t.reviewLabel != null && typeof t.reviewLabel !== 'string') delete t.reviewLabel;
+  if (t.copyTitle != null && typeof t.copyTitle !== 'string') delete t.copyTitle;
   if (t.bufferDays != null) { const b = parseInt(t.bufferDays); t.bufferDays = b > 0 ? Math.min(14, b) : undefined; }
   if (t.minPerUnit != null && !(Number(t.minPerUnit) > 0)) t.minPerUnit = undefined;
   if (t.timeLog != null && !Array.isArray(t.timeLog)) delete t.timeLog;
@@ -5128,7 +5140,7 @@ function renderWeekGoals(weekStart, weekEnd) {
     const rangeDisplay = (hasRange ? formatRangeDisplay(task, from, to) : '') + (part ? `${hasRange ? ' + ' : ''}<span class="part-pill">⏳ ${escapeHtml(partText)}</span>` : '');
     const copyText = hasRange
       ? buildCopyText(task, { from, to }) + (part ? ` + ${partText}` : '')
-      : `${task.title} ${partText}`;
+      : `${copyName(task)} ${partText}`;
     const isFinal = hasRange && isFinalSession(task, { from, to });
     const finalPill = isFinal ? `<span class="week-goal-final-pill">🎉 ${getCompletionLabel(task.type)}</span>` : '';
     const refreshBtn = frozen
@@ -7323,6 +7335,7 @@ function addNewTask() {
   const task = {
     id: 'tsk_' + Date.now() + '_' + Math.floor(Math.random()*1000),
     title, type, categoryId, total, startNum, start, end,
+    copyTitle: document.getElementById('f-copyTitle').value.trim() || undefined,
     bufferDays: (parseInt(document.getElementById('f-buffer').value) || 0) || undefined,
     minPerUnit: parseMpu(document.getElementById('f-mpu').value),
     pace, paceValue,
@@ -7357,6 +7370,7 @@ function addNewTask() {
   ensureWeekGoalSnapshots();
 
   document.getElementById('f-title').value = '';
+  document.getElementById('f-copyTitle').value = '';
   document.getElementById('f-from').value = '';
   document.getElementById('f-to').value = '';
   reviewDaysSel = [];
@@ -7389,6 +7403,8 @@ function openEditModal(id) {
   clearRowCache('e');
   const startNum = task.startNum || 0;
   document.getElementById('e-title').value = task.title;
+  document.getElementById('e-copyTitle').value = task.copyTitle || '';
+  updateCopyTitlePreview(task);
   // Convert internal startNum/total back to "from ~ to"
   document.getElementById('e-from').value = startNum + 1;
   document.getElementById('e-to').value = startNum + task.total;
@@ -7494,7 +7510,22 @@ function openEditModal(id) {
   document.getElementById('editModal').classList.add('show');
 }
 
+// Edit modal: show what a copy will look like with the current 이름
+let _copyPreviewTask = null;
+function updateCopyTitlePreview(task) {
+  if (task) _copyPreviewTask = task;
+  const t = _copyPreviewTask, el = document.getElementById('e-copyTitle-preview');
+  if (!t || !el) return;
+  const probe = Object.assign({}, t, { copyTitle: document.getElementById('e-copyTitle').value,
+    title: document.getElementById('e-title').value.trim() || t.title });
+  let item = null;
+  try { item = buildSchedule(t).schedule.find(x => !x.isPast && !x.isReview && !x.isPart); } catch (e) {}
+  const sn = t.startNum || 0;
+  if (!item) item = { from: sn + Math.min(t.total, t.progress + 1), to: sn + Math.min(t.total, t.progress + 1) };
+  el.textContent = '복사 예: ' + buildCopyText(probe, { from: item.from, to: item.to });
+}
 function setupEditModal() {
+  ['e-copyTitle', 'e-title'].forEach(id => document.getElementById(id).addEventListener('input', () => updateCopyTitlePreview()));
   document.querySelectorAll('#e-pace-row .chip[data-pace]').forEach(chip => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('#e-pace-row .chip[data-pace]').forEach(c => c.classList.remove('active'));
@@ -7649,6 +7680,7 @@ function setupEditModal() {
     const todayWasPartPre = !!(todayRecPre && todayRecPre.part); // checked a multi-day chapter's part day
 
     task.title = newTitle;
+    task.copyTitle = document.getElementById('e-copyTitle').value.trim() || undefined;
     task.categoryId = newCategoryId;
     task.total = newTotal;
     task.startNum = newStartNum;
