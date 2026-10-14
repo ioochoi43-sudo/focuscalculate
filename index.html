@@ -472,6 +472,7 @@
   .check-result.bad { background: #FDE5DC; color: #B0472B; }
   .check-result ul { margin: 6px 0 0 18px; padding: 0; }
   .check-result .sub { font-size: 12px; opacity: .85; }
+  .week-goal-fixed { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
   .review-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; table-layout: fixed; }
   .review-table td, .task-title, .agenda-title, .agenda-detail .range, .week-day-item-title, .week-day-item-range, .risk-name, .week-goal-title { overflow-wrap: anywhere; word-break: break-word; }
   .review-table td { padding: 4px 4px; border-top: 1px dashed rgba(0,0,0,0.08); vertical-align: middle; }
@@ -1931,7 +1932,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.2 · 최근 업데이트 2026-10-10</div>
+      <div class="build-badge" id="buildBadge">v4.3.1 · 최근 업데이트 2026-10-14</div>
     </div>
   </aside>
 
@@ -2462,8 +2463,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.2';
-const APP_BUILD_DATE = '2026-10-10';
+const APP_VERSION = 'v4.3.1';
+const APP_BUILD_DATE = '2026-10-14';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2701,11 +2702,11 @@ function parseDurationToken(tok) {
   tok = String(tok).trim();
   if (!tok) return null;
   const hourMatch = tok.match(/(\d+(?:\.\d+)?)\s*시간/);
-  const minMatch = tok.match(/(\d+)\s*분/);
+  const minMatch = tok.match(/(\d+(?:\.\d+)?)\s*분/);
   if (hourMatch || minMatch) {
     const h = hourMatch ? parseFloat(hourMatch[1]) : 0;
-    const m = minMatch ? parseInt(minMatch[1]) : 0;
-    return Math.round(h * 60) + m;
+    const m = minMatch ? parseFloat(minMatch[1]) : 0;
+    return Math.round(h * 60 + m);
   }
   const colonMatch = tok.match(/^(\d+):(\d{1,2})(?::\d{1,2})?$/);
   if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2]);
@@ -4284,7 +4285,10 @@ function buildTimeBasedSchedule(task) {
   const splitOn = isSplitTask(task);
   let partDone = 0, partFrac = 0, partOfPlanned = 0;
   if (splitOn && cursorRel < task.total) {
-    const ps = getPartState(task, startNum + cursorRel + 1, tdyStr);
+    // A part day already checked today counts as done when today is no longer a plan day
+    // (e.g. made a 쉬는 날 after checking) — otherwise only days before today count.
+    const todayInPlan = remainingDates.length > 0 && fmtDate(remainingDates[0]) === tdyStr;
+    const ps = getPartState(task, startNum + cursorRel + 1, todayInPlan ? tdyStr : fmtDate(addDays(tdy, 1)));
     partDone = ps.done; partFrac = ps.frac; partOfPlanned = ps.of || 0;
     // 일수 changed since this chapter was started → plan it with the new 일수
     if (ps.m !== undefined && ps.m !== getManualDays(task, cursorRel)) partOfPlanned = 0;
@@ -4998,6 +5002,14 @@ function renderWeek() {
 // combine them into one "start ~ end" range so the user can copy a single line like
 // "《책제목》 p.108~170" or "강의명 3~9강".
 // Live computation of a task's weekly new-content range for a given week span.
+// When/why a week goal was frozen — shown under the goal ("📌 10/12(월) 자동 고정")
+function stampGoal(g, why) { if (g) { g.fixedAt = fmtDate(today()); g.fixedBy = why; } return g; }
+function fixedLabel(g) {
+  if (!g || !validDateStr(g.fixedAt)) return '';
+  const d = parseDate(g.fixedAt), wd = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+  const why = { auto: '자동 고정', refresh: '↻로 다시 고정', edit: '목표 수정으로 다시 고정', settings: '설정 변경으로 다시 고정', lock: '확정', copy: '복사해서 확정' }[g.fixedBy] || '고정';
+  return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${why}`;
+}
 function computeWeekGoal(task, weekStartStr, weekEndStr, onlyFromStr) {
   const plan = buildSchedule(task);
   const inWeek = plan.schedule.filter(s => {
@@ -5035,13 +5047,13 @@ function ensureWeekGoalSnapshots() {
     const key = task.id + '|' + weekStartStr;
     if (weekGoalsMap.has(key)) return;
     const g = computeWeekGoal(task, weekStartStr, weekEndStr);
-    if (g) { weekGoalsMap.set(key, g); changed = true; }
+    if (g) { weekGoalsMap.set(key, stampGoal(g, 'auto')); changed = true; }
   });
   if (changed) persistWeekGoals();
 }
 
 // Re-freeze one task's goal for a week (default: the current week) from the live plan.
-function refreshWeekGoal(taskId, weekStartStr) {
+function refreshWeekGoal(taskId, weekStartStr, why) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
   if (!weekStartStr) weekStartStr = fmtDate(startOfWeek(today()));
@@ -5063,27 +5075,29 @@ function refreshWeekGoal(taskId, weekStartStr) {
     // a multi-day chapter under way: count its part days already done this week too
     const item = fut && fut.part && fut.part.item > to ? fut.part.item : to + 1;
     let minN = null, maxN = null, recOf = 0;
+    // today's record counts too when today has no session in the plan any more (made off)
+    const todayInFut = !!buildSchedule(task).schedule.find(x => !x.isPast && !x.isReview && fmtDate(x.date) === tStr);
     completedMap.forEach((v, k) => {
       const [id, d] = k.split('|');
-      if (id !== taskId || !v || !v.part || v.part.item !== item || d < weekStartStr || d >= tStr) return;
+      if (id !== taskId || !v || !v.part || v.part.item !== item || d < weekStartStr || d > tStr || (d === tStr && todayInFut)) return;
       minN = minN == null ? v.part.n : Math.min(minN, v.part.n); maxN = maxN == null ? v.part.n : Math.max(maxN, v.part.n); recOf = v.part.of;
     });
     if (fut && fut.part && fut.part.item > to) g.part = Object.assign({}, fut.part, minN != null ? { firstN: Math.min(minN, fut.part.firstN) } : {});
     else if (maxN != null && item <= (task.startNum || 0) + task.total) g.part = { item, firstN: minN, n: maxN, of: recOf };
     if (!g.amount && !g.part) g = null;
   } else g = computeWeekGoal(task, weekStartStr, weekEndStr);
-  if (g) weekGoalsMap.set(key, g);
+  if (g) weekGoalsMap.set(key, stampGoal(g, why || 'refresh'));
   else weekGoalsMap.delete(key);
   persistWeekGoals();
 }
 
 // After a plan edit, re-freeze this task's goal for the current week and for any future
 // week the user already locked (e.g. "다음 주 목표 확정" on Sunday), so goals follow the new plan.
-function refreshWeekGoalsAfterEdit(taskId) {
+function refreshWeekGoalsAfterEdit(taskId, why) {
   const cur = fmtDate(startOfWeek(today()));
   const weeks = new Set([cur]);
   weekGoalsMap.forEach((v, k) => { const [id, ws] = k.split('|'); if (id === taskId && ws > cur) weeks.add(ws); });
-  weeks.forEach(ws => refreshWeekGoal(taskId, ws));
+  weeks.forEach(ws => refreshWeekGoal(taskId, ws, why || 'edit'));
 }
 
 // Lock (snapshot) every active task's goal for a given week — used for next week on Sunday,
@@ -5093,7 +5107,7 @@ function lockWeekGoals(weekStartStr) {
   tasks.filter(isTaskActive).forEach(task => {
     const g = computeWeekGoal(task, weekStartStr, weekEndStr);
     const key = task.id + '|' + weekStartStr;
-    if (g) weekGoalsMap.set(key, g); else weekGoalsMap.delete(key);
+    if (g) weekGoalsMap.set(key, stampGoal(g, 'lock')); else weekGoalsMap.delete(key);
   });
   persistWeekGoals();
 }
@@ -5118,7 +5132,7 @@ function renderWeekGoals(weekStart, weekEnd) {
     const live = computeWeekGoal(task, weekStartStr, weekEndStr);
     if (!g) g = live;
     if (!g) return;
-    goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live });
+    goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live, fixed: frozen ? fixedLabel(g) : '' });
   });
 
   if (goals.length === 0) { container.innerHTML = ''; return; }
@@ -5126,10 +5140,10 @@ function renderWeekGoals(weekStart, weekEnd) {
   const allFrozen = goals.every(x => x.frozen);
   const weekName = isCurrentWeek ? '이번 주' : (document.getElementById('weekNavTitle').textContent || '이 주');
   const muted = (t) => ` <span style="font-weight:500; text-transform:none; letter-spacing:0; color:var(--text-muted);">· ${t}</span>`;
-  const titleSuffix = isCurrentWeek ? muted('주 시작 기준 고정')
+  const titleSuffix = isCurrentWeek ? muted('고정한 날 기준 · 새로고침해도 그대로, ↻ 누르면 오늘 계획으로 다시 고정')
     : isFutureWeek ? (allFrozen ? muted('📌 확정됨') : muted('미리보기 · 복사하거나 📌 누르면 고정돼요') + `<button class="week-goal-lock" data-action="lock-week-goals">📌 이 목표로 확정</button>`)
     : '';
-  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, part, frozen, live }) => {
+  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, part, frozen, live, fixed }) => {
     const ti = typeInfo(task.type);
     const color = getTaskColor(task);
     const hasRange = to >= from;
@@ -5160,6 +5174,7 @@ function renderWeekGoals(weekStart, weekEnd) {
         <div class="week-goal-info">
           <div class="week-goal-title">${escapeHtml(task.title)}${finalPill}</div>
           <div class="week-goal-range">${rangeDisplay}${hasRange ? `<span class="amt">총 ${amount}${ti.unit}</span>` : ''}</div>
+          ${fixed ? `<div class="week-goal-fixed">📌 ${escapeHtml(fixed)}</div>` : ''}
           ${hint}
         </div>
         ${refreshBtn}
@@ -5179,7 +5194,7 @@ function renderWeekGoals(weekStart, weekEnd) {
         const t = tasks.find(x => x.id === id);
         const g = t && computeWeekGoal(t, weekStartStr, weekEndStr);
         if (g) {
-          weekGoalsMap.set(id + '|' + weekStartStr, g);
+          weekGoalsMap.set(id + '|' + weekStartStr, stampGoal(g, 'copy'));
           persistWeekGoals();
           showToast('📌 복사한 목표로 확정했어요 · 미뤄도 안 바뀌어요');
           setTimeout(rerender, 900);
@@ -5603,6 +5618,8 @@ function parseSpent(v) {
   const ms = t.match(/^(\d+)\s*분\s*(\d+)\s*초$/);
   if (ms) return +ms[1] + +ms[2] / 60;
   if (/^\d+\.\d+$/.test(t)) return parseFloat(t);
+  const dm = t.match(/^(\d+(?:\.\d+)?)\s*분$/); // 12.5분
+  if (dm) return +dm[1];
   const d = parseDurationToken(t);
   return d > 0 ? d : 0;
 }
@@ -6033,7 +6050,7 @@ function setupSettings() {
     const planChanged = newW.join(',') !== oldW.join(',') || settings.offDates.join(',') !== oldOff.join(',');
     _expCache.clear(); _chapterPlanCache.clear();
     document.getElementById('settingsModal').classList.remove('show');
-    if (planChanged) tasks.filter(isTaskActive).forEach(t => refreshWeekGoalsAfterEdit(t.id)); // 이번 주 목표도 새 계획으로
+    if (planChanged) tasks.filter(isTaskActive).forEach(t => refreshWeekGoalsAfterEdit(t.id, 'settings')); // 이번 주 목표도 새 계획으로
     showToast(planChanged ? '✓ 설정을 저장했어요 · 계획을 다시 계산했어요' : '✓ 설정을 저장했어요');
     rerender();
   });
@@ -7290,6 +7307,7 @@ function addNewTask() {
   if (!fromVal || fromVal < 1) return showToast('시작 번호를 입력해 주세요');
   if (!toVal || toVal < 1) return showToast('끝 번호를 입력해 주세요');
   if (toVal < fromVal) return showToast('끝 번호가 시작 번호보다 작아요');
+  if (toVal - fromVal + 1 > 100000) return showToast('항목은 100000개까지 돼요');
   if (!start || !end) return showToast('시작일과 마감일을 입력해 주세요');
   if (parseDate(end) < parseDate(start)) return showToast('마감일이 시작일보다 빠릅니다');
 
@@ -7618,6 +7636,7 @@ function setupEditModal() {
     if (!fromVal || fromVal < 1) return showToast('시작 번호를 입력해 주세요');
     if (!toVal || toVal < 1) return showToast('끝 번호를 입력해 주세요');
     if (toVal < fromVal) return showToast('끝 번호가 시작 번호보다 작아요');
+    if (toVal - fromVal + 1 > 100000) return showToast('항목은 100000개까지 돼요');
     if (!newStart) return showToast('시작일을 입력해 주세요');
     if (!newEnd) return showToast('마감일을 입력해 주세요');
     if (parseDate(newEnd) < parseDate(newStart)) return showToast('마감일이 시작일보다 빠릅니다');
