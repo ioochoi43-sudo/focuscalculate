@@ -473,6 +473,13 @@
   .check-result ul { margin: 6px 0 0 18px; padding: 0; }
   .check-result .sub { font-size: 12px; opacity: .85; }
   .week-goal-fixed { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+  .yday-section { margin-bottom: 18px; }
+  .yday-section .label-pill { white-space: nowrap; }
+  .label-pill.yday { background: #EDE7F6; color: #6E61B8; }
+  .yday-note { font-size: 12px; color: var(--text-muted); margin: -4px 0 8px; }
+  .yday-section .agenda-item { display: flex; align-items: center; gap: 12px; }
+  .yday-section .agenda-detail { flex: 1; min-width: 0; }
+  .yday-section .mini-btn { flex-shrink: 0; }
   .review-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; table-layout: fixed; }
   .review-table td, .task-title, .agenda-title, .agenda-detail .range, .week-day-item-title, .week-day-item-range, .risk-name, .week-goal-title { overflow-wrap: anywhere; word-break: break-word; }
   .review-table td { padding: 4px 4px; border-top: 1px dashed rgba(0,0,0,0.08); vertical-align: middle; }
@@ -1932,7 +1939,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.3.1 · 최근 업데이트 2026-10-14</div>
+      <div class="build-badge" id="buildBadge">v4.4.1 · 최근 업데이트 2026-10-15</div>
     </div>
   </aside>
 
@@ -1971,6 +1978,7 @@
     <div id="agendaView" style="display:none;">
       <div id="backupBanner"></div>
       <div id="riskBox"></div>
+      <div id="yesterdayBox"></div>
       <div class="agenda-section">
         <div class="agenda-header">
           <div class="agenda-title">
@@ -2421,7 +2429,8 @@
     <div class="modal-title">오늘 미룰까요?</div>
     <p id="pp-sub" style="font-size: 13px; color: var(--text-soft); margin-bottom: 12px; line-height: 1.6;"></p>
     <div id="pp-verdict" class="pp-verdict"></div>
-    <div id="pp-choose-label" style="font-size: 12px; color: var(--text-muted); margin: 14px 0 8px;">그래도 미룬다면, 오늘 분량을 어디에 담을까요?</div>
+    <div id="pp-choose-label" style="font-size: 12px; color: var(--text-muted); margin: 14px 0 2px;">그래도 미룬다면, 오늘 분량을 어디에 담을까요?</div>
+    <div id="pp-rule-note" style="font-size: 12px; color: var(--text-muted); margin: 0 0 8px;">미룬 날도 안 한 날처럼 "밀림"에 들어가요 (따라잡으면 사라져요)</div>
     <button type="button" class="pp-option" id="pp-week">
       <div class="t"><span class="pp-ic" data-ic="week"></span><span class="pp-tt">이번 주 안에 채우기</span></div>
       <div class="d" id="pp-week-desc"></div>
@@ -2463,8 +2472,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.3.1';
-const APP_BUILD_DATE = '2026-10-14';
+const APP_VERSION = 'v4.4.1';
+const APP_BUILD_DATE = '2026-10-15';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2492,6 +2501,9 @@ function loadSettings() {
   if (!Array.isArray(settings.weights) || settings.weights.length !== 7) settings.weights = [1, 1, 1, 1, 1, 1, 1];
   settings.weights = settings.weights.map(v => (v > 0 ? Math.min(5, +v) : 1));
   if (typeof settings.lastBackup !== 'string') settings.lastBackup = null;
+  // After this date (the day of the update), a postponed day counts toward 밀림 like a
+  // missed day; postpones up to that day keep the old rule, so the status doesn't jump.
+  if (!validDateStr(settings.ppRuleFrom)) { settings.ppRuleFrom = fmtDate(today()); try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
   if (!Array.isArray(settings.offDates)) settings.offDates = [];
   settings.offDates = settings.offDates.filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d));
   if (!Array.isArray(settings.avail) || settings.avail.length !== 7) settings.avail = null;
@@ -2594,7 +2606,8 @@ const fmtDate = (d) => {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 };
-const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+let _todayOverride = null; // only while computing "the plan as it was yesterday"
+const today = () => { if (_todayOverride) return parseDate(_todayOverride); const d = new Date(); d.setHours(0,0,0,0); return d; };
 const tomorrow = () => addDays(today(), 1);
 const parseDate = (s) => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
 const daysBetween = (a, b) => {
@@ -3027,6 +3040,7 @@ function sanitizeTask(item, catIds) {
     if (v.length) t.paceValue = v; else { t.pace = 'daily'; t.paceValue = null; }
   } else t.paceValue = null;
   t.skipDates = Array.isArray(item.skipDates) ? item.skipDates.filter(validDateStr) : [];
+  if (t.pauseDays != null) t.pauseDays = Array.isArray(item.pauseDays) ? item.pauseDays.filter(validDateStr) : undefined;
   t.reviewDays = Array.isArray(item.reviewDays) ? [...new Set(item.reviewDays.map(Number).filter(x => Number.isInteger(x) && x >= 0 && x <= 6))] : [];
   t.archived = item.archived === true;
   if ('paused' in item) t.paused = item.paused === true;
@@ -3238,22 +3252,26 @@ function syncTodayCompletion(task, oldProgress) {
 // end, we ask where they actually got to. They can tap a quick option (plan end / +1 / -1)
 // or type an exact position. Progress updates to that point and the rest auto-redistributes.
 let completeModalTask = null;
+let completeModalPast = null; // "어제 했어요": the past date being recorded
 let completeModalPlannedTo = 0; // absolute planned end for today
 
 let completeModalDay = null; // the day the modal was opened for
-function openCompleteModal(task, plannedToAbs, anchorAbs) {
+function openCompleteModal(task, plannedToAbs, anchorAbs, pastDateStr) {
   completeModalTask = task;
   completeModalDay = fmtDate(today());
+  completeModalPast = pastDateStr || null;
   completeModalPlannedTo = plannedToAbs;
   const ti = typeInfo(task.type);
   const startNum = task.startNum || 0;
   const fromAbs = anchorAbs + 1; // first unit for today
 
-  document.getElementById('cm-title').textContent = `오늘 어디까지 했나요?`;
+  const dayWord = pastDateStr ? '어제' : '오늘';
+  document.getElementById('cm-title').textContent = `${dayWord} 어디까지 했나요?`;
   const isFinalDay = plannedToAbs === startNum + task.total;
-  const finalNote = isFinalDay ? `<br><span style="color: var(--cocoa); font-weight:700;">🎉 오늘이 마지막 날이에요!</span>` : '';
+  const finalNote = isFinalDay ? `<br><span style="color: var(--cocoa); font-weight:700;">🎉 ${dayWord}이 마지막 날이었어요!</span>` : '';
   document.getElementById('cm-sub').innerHTML =
-    `<strong>${escapeHtml(task.title)}</strong><br>오늘 계획: ${formatRangeDisplay(task, fromAbs, plannedToAbs)} (${plannedToAbs - fromAbs + 1}${ti.unit})${finalNote}`;
+    `<strong>${escapeHtml(task.title)}</strong><br>${dayWord} 계획: ${formatRangeDisplay(task, fromAbs, plannedToAbs)} (${plannedToAbs - fromAbs + 1}${ti.unit})${finalNote}`
+    + (pastDateStr ? `<br><span style="color:var(--text-muted);">어제 날짜(${pastDateStr.slice(5).replace('-', '/')})로 기록돼요</span>` : '');
 
   let labelText, helperText;
   if (task.type === 'book') {
@@ -3313,7 +3331,7 @@ function openCompleteModal(task, plannedToAbs, anchorAbs) {
         <span class="nm">${part ? `<span class="grp">${escapeHtml(part)}</span>` : ''}${escapeHtml(nm)}</span>
         ${tm ? `<span class="tm">${escapeHtml(tm)}</span>` : ''}</button>`;
     }
-    pickEl.innerHTML = `<div class="cm-pick-head"><span>들은 ${task.type === 'lecture' ? '강의' : '항목'}를 눌러 체크 · 점선까지가 오늘 계획</span>
+    pickEl.innerHTML = `<div class="cm-pick-head"><span>들은 ${task.type === 'lecture' ? '강의' : '항목'}를 눌러 체크 · 점선까지가 ${dayWord} 계획</span>
         <button type="button" class="cm-link" id="cm-pick-num">번호로 입력</button></div>
       <div class="cm-pick-list">${rows}</div><div class="cm-pick-sum" id="cm-pick-sum"></div>`;
     pickEl.style.display = '';
@@ -3328,8 +3346,8 @@ function openCompleteModal(task, plannedToAbs, anchorAbs) {
         if (on) { cnt++; if (timed && durs[n - startNum - 1] != null) mins += durs[n - startNum - 1]; }
       });
       document.getElementById('cm-pick-sum').textContent = cnt === 0
-        ? '아직 아무것도 체크하지 않았어요 (저장하면 오늘은 안 한 걸로 돼요)'
-        : `오늘 ${cnt}개${timed ? ` · ${fmtDailyAmount(task.type, mins)}` : ''} 체크${!isNaN(v) && v === plannedToAbs ? ' · 계획대로예요' : !isNaN(v) && v > plannedToAbs ? ' · 계획보다 더 했어요' : ''}`;
+        ? `아직 아무것도 체크하지 않았어요 (저장하면 ${dayWord === '어제' ? '어제는' : '오늘은'} 안 한 걸로 돼요)`
+        : `${dayWord} ${cnt}개${timed ? ` · ${fmtDailyAmount(task.type, mins)}` : ''} 체크${!isNaN(v) && v === plannedToAbs ? ' · 계획대로예요' : !isNaN(v) && v > plannedToAbs ? ' · 계획보다 더 했어요' : ''}`;
     };
     pickEl.querySelectorAll('.cm-item').forEach(b => b.addEventListener('click', () => {
       const n = parseInt(b.dataset.n), v = parseInt(input.value);
@@ -3351,17 +3369,138 @@ function openCompleteModal(task, plannedToAbs, anchorAbs) {
     input.oninput = null;
   }
 
-  { const prevT = (task.timeLog || []).find(x => x.d === fmtDate(today()));
+  { const prevT = (task.timeLog || []).find(x => x.d === (pastDateStr || fmtDate(today())));
     document.getElementById('cm-time').value = prevT ? formatDuration(prevT.m) : ''; }
   document.getElementById('cm-time-row').style.display = hasOwnMinutes(task) ? 'none' : '';
   document.getElementById('completeModal').classList.add('show');
   if (!usePicker) setTimeout(() => { input.focus(); input.select(); }, 50);
 }
 
+// ===== 어제 체크 =====
+// Yesterday's plan as it looked yesterday (only meaningful while today isn't checked:
+// then the progress is still where yesterday started).
+function yesterdayItem(task) {
+  const yStr = fmtDate(addDays(today(), -1));
+  if (!task.start || task.start > yStr) return null;
+  if ((task.skipDates || []).includes(yStr)) return null;
+  const tStr = fmtDate(today());
+  // the goal as it stood yesterday: today's postpone / week-mode hold not made yet
+  const ws = {}; Object.keys(task.weekSkips || {}).forEach(d => { if (d < tStr) ws[d] = task.weekSkips[d]; });
+  const clone = Object.assign({}, task, { _preview: 'yday',
+    skipDates: (task.skipDates || []).filter(d => d < tStr),
+    weekSkips: Object.keys(ws).length ? ws : undefined,
+    weekHold: task.ppUndo && task.ppUndo.date === tStr ? (task.ppUndo.hold || undefined) : task.weekHold });
+  // settings as they were yesterday: off days added today and ratios saved today don't apply
+  const prev = _todayOverride, prevOff = _offSet, prevW = settings.weights;
+  const offY = new Set(settings.offDates.filter(d => !(settings.offLog && (settings.offLog[d] || []).some(e => e.r === null && e.a === tStr))));
+  Object.keys(settings.offLog || {}).forEach(d => { if ((settings.offLog[d] || []).some(e => e.r === tStr)) offY.add(d); }); // removed today
+  let wY = settings.weights;
+  if (Array.isArray(settings.wHist) && settings.wHist.length > 1) settings.wHist.forEach(e => { if (e.from <= yStr) wY = e.w; });
+  _todayOverride = yStr; _offSet = offY; settings.weights = wY;
+  try {
+    const plan = buildSchedule(clone);
+    return plan.schedule.find(x => x.isToday && !x.isReview && x.to >= x.from) || null;
+  } catch (e) { return null; }
+  finally { _todayOverride = prev; _offSet = prevOff; settings.weights = prevW; }
+}
+function renderYesterdayBox() {
+  const box = document.getElementById('yesterdayBox');
+  if (!box) return;
+  const tStr = fmtDate(today()), yStr = fmtDate(addDays(today(), -1));
+  const rows = [];
+  filterByCategory(tasks.filter(isTaskActive)).forEach(task => {
+    if (task.progress >= task.total && !completedMap.get(task.id + '|' + yStr)) return;
+    const yRec = completedMap.get(task.id + '|' + yStr);
+    const tRec = completedMap.get(task.id + '|' + tStr);
+    if (yRec && !yRec.late) return;        // checked yesterday as usual
+    if (!yRec && tRec) return;             // today already checked: leave yesterday alone
+    const item = yesterdayItem(task);
+    if (!item && !yRec) return;
+    const ti = typeInfo(task.type), color = getTaskColor(task);
+    if (yRec) {
+      const canUndo = !tRec;
+      const what = yRec.part ? `${partLabel({ partN: yRec.part.n, partOf: yRec.part.of })} 몫` : `${yRec.amount}${ti.unit}`;
+      rows.push(`<div class="agenda-item completed" style="--item-color:${escapeAttr(color)};">
+        <span class="agenda-check" style="pointer-events:none;">✓</span>
+        <div class="agenda-detail"><div class="agenda-name">${ti.icon} ${escapeHtml(task.title)}</div>
+          <div class="range">어제 ${what} 기록했어요</div></div>
+        ${canUndo ? `<button class="mini-btn" data-action="yday-undo" data-id="${escapeAttr(task.id)}">취소</button>` : ''}</div>`);
+      return;
+    }
+    const rangeText = formatRangeDisplay(task, item.from, item.to) + partPillHtml(item);
+    rows.push(`<div class="agenda-item" style="--item-color:${escapeAttr(color)};">
+      <div class="agenda-detail"><div class="agenda-name">${ti.icon} ${escapeHtml(task.title)}</div>
+        <div class="range">${rangeText}</div></div>
+      <button class="mini-btn primary" data-action="yday-done" data-id="${escapeAttr(task.id)}">어제 했어요</button></div>`);
+  });
+  if (!rows.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="agenda-section yday-section"><div class="agenda-header"><div class="agenda-title"><span class="label-pill yday">어제</span><span>체크 못 한 할 일</span></div></div>
+    <div class="yday-note">했는데 깜빡했다면 여기서 체크하세요 · 오늘 것을 체크하기 전에만 할 수 있어요</div><div class="agenda-list">${rows.join('')}</div></div>`;
+  box.querySelectorAll('[data-action="yday-done"]').forEach(b => b.addEventListener('click', () => {
+    const task = tasks.find(t => t.id === b.dataset.id); if (!task) return;
+    const item = yesterdayItem(task); if (!item) return rerender();
+    const yS = fmtDate(addDays(today(), -1));
+    if (completedMap.get(task.id + '|' + fmtDate(today()))) { showToast('오늘 체크를 먼저 해제해 주세요'); return; }
+    if (item.isPart) {
+      setCompleted(task.id, yS, true, 0, { part: withManualDays(task, { item: item.from, n: item.partN, of: item.partOf }), late: true });
+      refreezeAutoGoal(task.id);
+      showToast('✓ 어제 몫을 기록했어요');
+      rerender();
+      return;
+    }
+    const sn = task.startNum || 0;
+    openCompleteModal(task, item.to, sn + task.progress, yS);
+  }));
+  box.querySelectorAll('[data-action="yday-undo"]').forEach(b => b.addEventListener('click', () => {
+    const task = tasks.find(t => t.id === b.dataset.id); if (!task) return;
+    const yS = fmtDate(addDays(today(), -1)), rec = completedMap.get(task.id + '|' + yS);
+    if (!rec || !rec.late || completedMap.get(task.id + '|' + fmtDate(today()))) return;
+    task.progress = Math.max(0, task.progress - (rec.amount || 0));
+    setCompleted(task.id, yS, false);
+    persistTasks();
+    refreezeAutoGoal(task.id);
+    showToast('어제 기록을 취소했어요');
+    rerender();
+  }));
+}
+// A week goal frozen automatically today (e.g. Monday's first open) was made before the
+// late check — make it again so it starts where the week really starts.
+function refreezeAutoGoal(taskId) {
+  const ws = fmtDate(startOfWeek(today())), g = weekGoalsMap.get(taskId + '|' + ws);
+  if (g && g.fixedBy === 'auto' && g.fixedAt === fmtDate(today())) refreshWeekGoal(taskId, ws, 'auto');
+}
+function commitPastComplete(task) {
+  const close = () => { document.getElementById('completeModal').classList.remove('show'); completeModalTask = null; completeModalPast = null; };
+  const yS = completeModalPast;
+  if (completeModalDay !== fmtDate(today())) { close(); showToast('날짜가 바뀌었어요 · 다시 확인해 주세요'); rerender(); return; }
+  if (completedMap.get(task.id + '|' + fmtDate(today()))) { close(); showToast('오늘 체크를 먼저 해제해 주세요'); rerender(); return; }
+  const sn = task.startNum || 0;
+  let val = parseInt(document.getElementById('cm-input').value);
+  if (isNaN(val)) { showToast('숫자를 입력해 주세요'); return; }
+  val = Math.max(sn, Math.min(sn + task.total, val));
+  const anchor = task.progress;
+  const np = Math.max(anchor, Math.min(task.total, val - sn));
+  if (np <= anchor) { close(); showToast('기록할 진도가 없어요'); rerender(); return; }
+  task.progress = np;
+  setCompleted(task.id, yS, true, np - anchor, { late: true });
+  const spent = parseSpent(document.getElementById('cm-time').value);
+  if (spent > 0 && !hasOwnMinutes(task)) {
+    const pre = isTimeBasedTask(task) ? getDurationPrefix(task) : null;
+    let u = pre ? pre[np] - pre[anchor] : np - anchor;
+    if (pre) { const ps = getPartState(task, sn + anchor + 1, yS); u -= (pre[anchor + 1] - pre[anchor]) * ps.frac; }
+    if (u > 0) task.timeLog = [...(task.timeLog || []).filter(x => x.d !== yS), { d: yS, u, m: spent }].slice(-20);
+  }
+  persistTasks();
+  refreezeAutoGoal(task.id);
+  close();
+  showToast(task.progress >= task.total ? '🎉 목표 달성! (어제 기록)' : `✓ 어제 ${np - anchor}${typeInfo(task.type).unit} 기록했어요`);
+  rerender();
+}
 function setupCompleteModal() {
   document.getElementById('cm-cancel').addEventListener('click', () => {
     document.getElementById('completeModal').classList.remove('show');
     completeModalTask = null;
+    completeModalPast = null;
     rerender(); // revert any optimistic UI
   });
   document.getElementById('cm-save').addEventListener('click', commitCompleteModal);
@@ -3373,6 +3512,7 @@ function setupCompleteModal() {
 function commitCompleteModal() {
   const task = completeModalTask;
   if (!task) return;
+  if (completeModalPast) return commitPastComplete(task);
   // Opened before midnight, saved after: don't credit the new day with yesterday's work
   if (completeModalDay && completeModalDay !== fmtDate(today())) {
     document.getElementById('completeModal').classList.remove('show');
@@ -3567,6 +3707,14 @@ function appendCatchUpSession(task, schedule, anchor, tdy, remainingDates) {
 // the week's end the replay aims at the target, exactly as the plan did then.
 // Which week-mode hold applies on day d (call with increasing d): the latest one set
 // before d, as long as d is still in that week.
+// Days the status replay leaves out (as if they weren't plan days): days of an 일시중단,
+// and postpones from before the new rule. A postponed day otherwise counts like a day
+// that wasn't done — it shows as 밀림 until made up. (The plan itself is the same either way.)
+function replaySkipper(task) {
+  const skipSet = new Set(task.skipDates || []), pause = new Set(task.pauseDays || []);
+  const from = validDateStr(settings.ppRuleFrom) ? settings.ppRuleFrom : '9999-12-31';
+  return (d) => { const ds = fmtDate(d); return skipSet.has(ds) && (ds <= from || pause.has(ds)); }; // update day: old rule
+}
 function holdTracker(holds) {
   const arr = holds ? [...holds.entries()].map(([ds, t]) => {
     const d = parseDate(ds);
@@ -3693,7 +3841,9 @@ function getReplayHolds(task) {
     skips.forEach(ds => { if (ds >= h.weekStart && ds <= we && !map.has(ds)) map.set(ds, h.endAbs - sn); });
   }
   // Every other postponed day was "마감일까지 나누기": it ends any hold from earlier that week
-  skips.forEach(ds => { if (!map.has(ds)) map.set(ds, null); });
+  // (일시중단 days aren't postpones — they leave the week's hold as it was)
+  const pause = new Set(task.pauseDays || []);
+  skips.forEach(ds => { if (!map.has(ds) && !pause.has(ds)) map.set(ds, null); });
   return map;
 }
 
@@ -3720,8 +3870,9 @@ function buildSchedule(task) {
   // (Dividing by ALL days instead made every postpone permanently lower the target.)
   const replayHolds = getReplayHolds(task);
   const rctx = replayCtx(task, allDates);
-  const expectedProgress = replayExpected(rctx, isSkipped, tdy, task.total, false, replayHolds);
-  const expectedProgressEnd = replayExpected(rctx, isSkipped, addDays(tdy, 1), task.total, false, replayHolds); // incl. today's share
+  const rSkip = replaySkipper(task);
+  const expectedProgress = replayExpected(rctx, rSkip, tdy, task.total, false, replayHolds);
+  const expectedProgressEnd = replayExpected(rctx, rSkip, addDays(tdy, 1), task.total, false, replayHolds); // incl. today's share
 
   // Today's starting anchor = progress at the START of today, derived from completion
   // records (current progress minus today's recorded amount). No stored field, no
@@ -4143,7 +4294,9 @@ function buildTimeBasedSchedule(task) {
   let expectedProgress, expectedFrac = null;
   // Expected position by the start of today (e0, for 밀림) and by the end of today (e1, for
   // 앞섬 — so finishing today's plan doesn't read as "앞서가는 중").
-  const todayIsPlanDay = allDates.some(d => fmtDate(d) === fmtDate(tdy)) && !isSkipped(tdy);
+  const rSkip = replaySkipper(task);
+  const todayIsPlanDay = allDates.some(d => fmtDate(d) === fmtDate(tdy)) && !rSkip(tdy);
+  const replayPassedCount = allDates.filter(d => d < tdy && !rSkip(d)).length;
   const splitSim = isSplitTask(task);
   const replayHolds = isCapacity ? new Map() : getReplayHolds(task);
   const expAt = (inclToday) => {
@@ -4155,7 +4308,7 @@ function buildTimeBasedSchedule(task) {
       const studiedThen = (x) => (oLog[x] || []).some(e => e.r === null && e.a === x && Array.isArray(e.ad) && e.ad.includes(task.id));
       const offStudied = _offSet.size ? getActiveDates(task.start, planEndStr(task), { type: task.pace, value: task.paceValue })
         .map(fmtDate).filter(x => _offSet.has(x) && !rvS.has(parseDate(x).getDay()) && !skipSet.has(x) && studiedThen(x)) : [];
-      const steps = passedDates.length + offStudied.filter(x => x < tS).length
+      const steps = replayPassedCount + offStudied.filter(x => x < tS).length
         + (inclToday && (todayIsPlanDay || offStudied.includes(tS)) ? 1 : 0);
       for (let k = 0; k < steps; k++) capacityStep(st, task, prefix, dailyMinutes, splitSim);
       const p = Math.min(task.total, st.pos);
@@ -4171,7 +4324,7 @@ function buildTimeBasedSchedule(task) {
       const holdAt = holdTracker(replayHolds);
       for (let i = 0; i < N && RD[i] < bound; i++) {
         const d = RD[i];
-        if (isSkipped(d) || rc.isLate(i)) continue;
+        if (rSkip(d) || rc.isLate(i)) continue;
         const hold = holdAt(d);
         if (pos >= task.total) continue;
         if (hold) {
@@ -4198,7 +4351,7 @@ function buildTimeBasedSchedule(task) {
     let pos = 0, pDone = 0, pOf = 0, lay = [], layPos = null, replan = true, lastHold = null, lastSig = null;
     const holdAt = holdTracker(replayHolds);
     for (let i = 0; i < N && RD[i] < bound && pos < task.total; i++) {
-      if (isSkipped(RD[i]) || rc.isLate(i)) { replan = true; continue; }
+      if (rSkip(RD[i]) || rc.isLate(i)) { replan = true; continue; }
       const hold = holdAt(RD[i]);
       if (replan || hold !== lastHold || rc.sig(i) !== lastSig) {
         // (Re)lay out the rest from here — after a postponed day, when a week-mode hold
@@ -4233,8 +4386,8 @@ function buildTimeBasedSchedule(task) {
   // cache it per task for today and the exact inputs it depends on.
   const expKey = JSON.stringify([fmtDate(tdy), task.type, task.total, task.startNum || 0, task.start, task.end, task.pace, task.paceValue,
     task.reviewDays, task.skipDates, task.lectureDurations, task.itemDays, task.timeMode, task.dailyMinutes, task.weekSkips, task.weekHold,
-    task.bufferDays, settings.weights, settings.offDates, settings.wHist, settings.offLog]);
-  const expSlot = task.id + (task._preview ? '#preview' : '');
+    task.bufferDays, settings.weights, settings.offDates, settings.wHist, settings.offLog, settings.ppRuleFrom, task.pauseDays]);
+  const expSlot = task.id + (task._preview ? '#' + (task._preview === true ? 'preview' : task._preview) : '');
   let expPair = _expCache.get(expSlot);
   if (!expPair || expPair.key !== expKey) {
     expPair = { key: expKey, e0: expAt(false), e1: expAt(true) };
@@ -4784,6 +4937,7 @@ function renderAgenda() {
   document.getElementById('todayTotal').innerHTML = dayTotalHtml(tdy, true);
   document.getElementById('tomorrowTotal').innerHTML = dayTotalHtml(tmr, false);
   document.getElementById('riskBox').innerHTML = riskBoxHtml();
+  renderYesterdayBox();
   document.getElementById('backupBanner').innerHTML = backupBannerHtml();
 }
 
@@ -5819,7 +5973,7 @@ function riskReasons(task, plan) {
   if (a && a.finish && a.late >= 2) r.push(`지금 속도면 ${a.late}일 늦음`);
   if (a && a.hasWork === false) r.push('최근 2주 기록 없음');
   const ws = fmtDate(startOfWeek(tdy)), we = fmtDate(addDays(startOfWeek(tdy), 6));
-  const pp = (task.skipDates || []).filter(d => d >= ws && d <= we).length;
+  const pp = (task.skipDates || []).filter(d => d >= ws && d <= we && !(task.pauseDays || []).includes(d)).length;
   if (pp >= 2) r.push(`이번 주 ${pp}번 미룸`);
   return r;
 }
@@ -5864,7 +6018,7 @@ function weekReviewHtml(weekStart, weekEnd) {
       const ds = k.slice(pre.length);
       if (ds >= ws && ds <= lastDay && v.amount > 0) done += v.amount;
     });
-    const pp = (task.skipDates || []).filter(d => d >= ws && d <= lastDay).length;
+    const pp = (task.skipDates || []).filter(d => d >= ws && d <= lastDay && !(task.pauseDays || []).includes(d)).length;
     const planned = snap && snap.amount > 0 ? snap.amount : 0;
     if (!planned && !done && !pp) return;
     const pct = planned ? Math.round(done / planned * 100) : null;
@@ -6158,7 +6312,7 @@ function openPostponeModal(taskId) {
 
   // Extra signals: postpones this week, days left, capacity finish date
   const ws = fmtDate(startOfWeek(tdy)), we = fmtDate(addDays(startOfWeek(tdy), 6));
-  const weekCount = (task.skipDates || []).filter(d => d >= ws && d <= we && d !== todayStr).length;
+  const weekCount = (task.skipDates || []).filter(d => d >= ws && d <= we && d !== todayStr && !(task.pauseDays || []).includes(d)).length;
   const todayLoad0 = dayLoadsOf(task, planBefore).get(todayStr) || 0;
   // "Behind" only counts when it's at least about a day's share (not 1 page of rounding)
   const behindDay = planBefore.status === 'behind' && (isTimeBasedTask(task) || planBefore.behind >= Math.max(1, todayLoad0));
@@ -6400,7 +6554,10 @@ function attachTaskHandlers() {
         if (!Array.isArray(task.skipDates)) task.skipDates = [];
         getContentDates(task).forEach(d => {
           const ds = fmtDate(d);
-          if (d >= pausedFrom && d < tdyR && !isCompleted(task.id, ds) && !task.skipDates.includes(ds)) task.skipDates.push(ds);
+          if (d >= pausedFrom && d < tdyR && !isCompleted(task.id, ds) && !task.skipDates.includes(ds)) {
+            task.skipDates.push(ds);
+            task.pauseDays = [...(task.pauseDays || []), ds]; // 일시중단 days aren't 밀림
+          }
         });
       }
       task.paused = false;
@@ -6695,7 +6852,7 @@ function updateDailyNeed(prefix) {
     try {
       const probe = { id: '__probe', title: '', type, total: durs.length, startNum: 0, start, end, pace: P.pace, paceValue: P.val,
         reviewDays: [...(P.rv || [])], skipDates: editTask ? [...(editTask.skipDates || [])] : [], progress: fromRel,
-        bufferDays: probe.bufferDays,
+        bufferDays: (parseInt((document.getElementById(prefix + '-buffer') || {}).value) || 0) || undefined,
         timeBased: true, timeMode: 'deadline', lectureDurations: durs.slice(), itemDays: stub.itemDays };
       busiest = planMaxDayLoad(probe, buildSchedule(probe));
     } catch (e) {}
@@ -7976,7 +8133,7 @@ function setupDataIO() {
       categories,
       completed: completedObj,
       weekGoals: weekGoalsObj,
-      settings: { avail: settings.avail, weights: settings.weights, offDates: settings.offDates, wHist: settings.wHist, offLog: settings.offLog },
+      settings: { avail: settings.avail, weights: settings.weights, offDates: settings.offDates, wHist: settings.wHist, offLog: settings.offLog, ppRuleFrom: settings.ppRuleFrom },
     };
     settings.lastBackup = fmtDate(today());
     persistSettings();
