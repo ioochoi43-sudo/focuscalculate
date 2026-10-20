@@ -473,6 +473,8 @@
   .check-result ul { margin: 6px 0 0 18px; padding: 0; }
   .check-result .sub { font-size: 12px; opacity: .85; }
   .week-goal-fixed { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+  .agenda-time { margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: #EEF3FA; color: #4C6E96; font-size: 11.5px; white-space: nowrap; display: inline-block; }
+  .agenda-item.completed .agenda-time { opacity: .6; }
   .yday-section { margin-bottom: 18px; }
   .yday-section .label-pill { white-space: nowrap; }
   .label-pill.yday { background: #EDE7F6; color: #6E61B8; }
@@ -1939,7 +1941,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.4.1 · 최근 업데이트 2026-10-15</div>
+      <div class="build-badge" id="buildBadge">v4.5 · 최근 업데이트 2026-10-20</div>
     </div>
   </aside>
 
@@ -2472,8 +2474,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.4.1';
-const APP_BUILD_DATE = '2026-10-15';
+const APP_VERSION = 'v4.5';
+const APP_BUILD_DATE = '2026-10-20';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -4028,21 +4030,8 @@ function parsePartData(str) {
 }
 // Busiest future day of a built plan, in minutes/양 (part days count w/of of the chapter).
 function planMaxDayLoad(task, plan) {
-  const prefix = getDurationPrefix(task), sn = task.startNum || 0;
-  const w = (abs) => prefix[abs - sn] - prefix[abs - sn - 1];
-  const byDay = new Map();
-  plan.schedule.forEach(x => {
-    if (x.isPast || x.isReview) return;
-    let load;
-    if (x.isPart) load = w(x.from) / x.partOf;
-    else {
-      load = prefix[x.to - sn] - prefix[x.from - sn - 1];
-      if (x.partOf > 1) load -= w(x.from) * ((x.partN || x.partOf) - 1) / x.partOf; // chapter's last share only
-    }
-    const k = fmtDate(x.date);
-    byDay.set(k, (byDay.get(k) || 0) + load);
-  });
-  let mx = 0; byDay.forEach(v => { mx = Math.max(mx, v); });
+  let mx = 0;
+  dayLoadsOf(task, plan).forEach(v => { mx = Math.max(mx, v); });
   return mx;
 }
 
@@ -4967,6 +4956,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
         : item.isPart
           ? (completed ? '오늘 몫 완료!' : '양이 많아 나눠서 하는 날')
           : `${item.amount}${ti.unit} ${completed ? '완료!' : (isToday ? '진행' : '예정')}`;
+    const timeText = isReview ? '' : itemTimeText(task, plan, dateStr);
     return `
       <div class="agenda-item ${completed ? 'completed' : ''} ${isReview ? 'review' : ''}" data-id="${escapeAttr(task.id)}" style="--item-color: ${escapeAttr(color)};">
         <button class="agenda-check" data-action="toggle-complete" data-id="${escapeAttr(task.id)}" data-date="${dateStr}" data-target="${item.to - (task.startNum || 0)}" data-amount="${item.amount}" data-is-today="${isToday}" data-review="${isReview}" data-part="${item.isPart ? `${item.from}|${item.partN}|${item.partOf}` : ''}">${completed ? '✓' : ''}</button>
@@ -4977,6 +4967,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
             <span class="range">${rangeText}</span>
             <span style="margin: 0 6px; color: var(--text-muted);">·</span>
             <span>${detailText}</span>
+            ${timeText ? `<span class="agenda-time" title="이 목표의 ${isToday ? '오늘' : '내일'} 분량에 걸리는 시간">⏱ ${timeText}</span>` : ''}
           </div>
         </div>
         <button class="agenda-copy" data-action="copy-item" data-copy="${escapeAttr(copyText)}" title="복사: ${escapeAttr(copyText)}">⧉</button>
@@ -5832,6 +5823,16 @@ function taskMinutesOn(task, plan, dateStr) {
   return mpu ? v * mpu : null;
 }
 // Sum over all active goals for one day
+// One goal's time for a day ("⏱ 45분"): exact for lectures with times, "약" when it comes
+// from 1개당 걸리는 시간 or the learned 걸린 시간. '' when unknown.
+function itemTimeText(task, plan, dateStr) {
+  if (!plan) return '';
+  let m;
+  try { m = taskMinutesOn(task, plan, dateStr); } catch (e) { return ''; }
+  if (m == null || !(m > 0)) return '';
+  const t = m < 1 ? '1분 미만' : formatDuration(m);
+  return hasOwnMinutes(task) ? t : `약 ${t}`;
+}
 function dayTotalFor(date) {
   const ds = fmtDate(date);
   let mins = 0, doneMins = 0, unknown = 0, count = 0, catchUp = 0;
@@ -5850,7 +5851,14 @@ function dayTotalFor(date) {
       count++; catchUp++;
       let m;
       if (isTimeBasedTask(task)) {
-        const pre = getDurationPrefix(task), v = pre[toAbs - sn] - pre[fromAbs - sn - 1];
+        const pre = getDurationPrefix(task);
+        let v = pre[toAbs - sn] - pre[fromAbs - sn - 1];
+        const cur = partChapterShares(task, plan);
+        if (cur && cur.item === fromAbs) { // part of that chapter done before / planned today
+          let done = cur.frac * cur.wi;
+          cur.shares.forEach((sh, row) => { if (row.isPart) done += sh; });
+          v -= Math.min(cur.wi, done);
+        }
         m = hasOwnMinutes(task) ? v : (minutesPerUnit(task) ? v * minutesPerUnit(task) : null);
       } else m = minutesPerUnit(task) ? (toAbs - fromAbs + 1) * minutesPerUnit(task) : null;
       if (m == null) unknown++; else mins += m;
@@ -6214,17 +6222,49 @@ function setupSettings() {
   });
 }
 
+// A multi-day chapter already under way (part days done before today, or today's part
+// day checked): what's left of it — as recorded, the same share the planner and
+// "걸린 시간" use — spread over its rows from today on. Map(row → 양) or null.
+function partChapterShares(task, plan) {
+  if (!isSplitTask(task)) return null;
+  const sn = task.startNum || 0, tStr = fmtDate(today());
+  const anchor = getTodayAnchor(task);
+  if (anchor >= task.total) return null;
+  const item = sn + anchor + 1;
+  const prefix = getDurationPrefix(task), wi = prefix[item - sn] - prefix[item - sn - 1];
+  const rows = plan.schedule.filter(x => !x.isPast && !x.isReview && x.from === item);
+  if (!rows.length) return null;
+  const ps = getPartState(task, item, tStr);
+  const tRec = completedMap.get(task.id + '|' + tStr);
+  const todayPart = tRec && tRec.part && tRec.part.item === item && tRec.part.of > 0;
+  if (!(ps.frac > 0) && !todayPart) return null;
+  const shares = new Map();
+  const todayRow = todayPart ? rows.find(x => x.isPart && fmtDate(x.date) === tStr) : null;
+  if (todayRow) {
+    const f1 = Math.min(0.99, Math.max(ps.frac, tRec.part.n / tRec.part.of));
+    shares.set(todayRow, wi * (f1 - ps.frac));
+    const rest = rows.filter(x => x !== todayRow);
+    rest.forEach(x => shares.set(x, wi * (1 - f1) / rest.length));
+  } else rows.forEach(x => shares.set(x, wi * (1 - ps.frac) / rows.length));
+  return { item, shares, frac: ps.frac, wi };
+}
 // Per-day study load of a plan's future sessions: units for count goals, minutes/양 for
-// time-based ones (a multi-day chapter's part days count w/of each).
+// time-based ones (a multi-day chapter's part days count w/of each; one already under
+// way counts what's really left of it).
 function dayLoadsOf(task, plan) {
   const byDay = new Map();
   const timed = isTimeBasedTask(task);
   const prefix = timed ? getDurationPrefix(task) : null, sn = task.startNum || 0;
   const w = (abs) => prefix[abs - sn] - prefix[abs - sn - 1];
+  const cur = timed ? partChapterShares(task, plan) : null;
   plan.schedule.forEach(x => {
     if (x.isPast || x.isReview) return;
     let load;
     if (!timed) load = x.amount;
+    else if (cur && cur.shares.has(x)) {
+      load = cur.shares.get(x);
+      if (!x.isPart && x.to > x.from) load += prefix[x.to - sn] - prefix[x.from - sn]; // later chapters on that row
+    }
     else if (x.isPart) load = w(x.from) / x.partOf;
     else {
       load = prefix[x.to - sn] - prefix[x.from - sn - 1];
