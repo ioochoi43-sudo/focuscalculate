@@ -3036,7 +3036,8 @@ function extraGlue(task) {
     const w = extraW(task, x, Z);
     if (!w) return;
     any = true;
-    const a = Math.max(0, Math.floor(Number(x.at)) || 0);
+    let a = Math.max(0, Math.floor(Number(x.at)) || 0);
+    if (Z) while (a < task.total && Z.has(a)) a++; // its chapter was skipped: before the next one in place
     if (a >= task.total) e += w; else s[a] += w;
   });
   const g = any ? { s, e, z: Z } : null;
@@ -3044,7 +3045,10 @@ function extraGlue(task) {
   return g;
 }
 // Where an extra sits now (the goal's 끝 번호 may have been edited since): rel index, total = 맨 뒤
-function extraPos(task, x) { return Math.max(0, Math.min(task.total, Math.floor(Number(x.at)) || 0)); }
+function extraPos(task, x) {
+  const a = Math.max(0, Math.min(task.total, Math.floor(Number(x.at)) || 0));
+  return a < task.total && x.sk == null ? fwdRel(task, a) : a; // (before a skipped chapter → before the next one)
+}
 // Chapter rel's share of reviews: s = before it, e = after it (last chapter only), W = all of it
 function glueOf(task, rel) {
   const g = extraGlue(task);
@@ -3610,6 +3614,7 @@ function extrasHtml(task, plan) {
   const dropped = Z ? [...Z].filter(k => !kept.has(k)).sort((a, b) => a - b) : [];
   const sn = task.startNum || 0;
   const dropHtml = dropped.map(k => `<div class="xr done"><span class="xn">${escapeHtml(formatRangePlain(task, sn + k + 1, sn + k + 1))}</span><span class="xm">안 하기로 했어요</span><button class="xr-act" data-action="skip-back" data-id="${id}" data-rel="${k}">되살리기</button></div>`).join('');
+  if (!rows && !dropHtml && !done.length) return '';
   const doneHtml = done.length ? `<div class="xr done">✓ 끝낸 것 ${done.length}개 · ${escapeHtml(done.slice(-3).map(extraLabel).join(', '))}${done.length > 3 ? ' …' : ''}</div>` : '';
   return `<div class="extras-box"><div class="extras-head"><span class="ic">${flatIcon('review')}</span><b>따로 할 것</b><span class="muted">· 목차와 따로, 계획에 같이 들어가요</span></div>${rows}${dropHtml}${doneHtml}</div>`;
 }
@@ -3880,7 +3885,7 @@ function openCompleteModal(task, plannedToAbs, anchorAbs, pastDateStr) {
   const isFinalDay = plannedToAbs === startNum + task.total;
   const finalNote = isFinalDay ? `<br><span style="color: var(--cocoa); font-weight:700;">🎉 ${dayWord}이 마지막 날이었어요!</span>` : '';
   document.getElementById('cm-sub').innerHTML =
-    `<strong>${escapeHtml(task.title)}</strong><br>${dayWord} 계획: ${formatRangeDisplay(task, fromAbs, plannedToAbs)} (${plannedToAbs - fromAbs + 1}${ti.unit})${(() => { const L = plannedRevs(task, pastDateStr); return L ? ` + ${escapeHtml(revNames(L))}` : ''; })()}${finalNote}`
+    `<strong>${escapeHtml(task.title)}</strong><br>${dayWord} 계획: ${formatRangeDisplay(task, fromAbs, plannedToAbs)} (${(() => { let n = plannedToAbs - fromAbs + 1; for (let a = fromAbs; a <= plannedToAbs; a++) if (isSkippedRel(task, a - startNum - 1)) n--; return Math.max(0, n); })()}${ti.unit})${(() => { const L = plannedRevs(task, pastDateStr); return L ? ` + ${escapeHtml(revPlanText(L))}` : ''; })()}${finalNote}`
     + (pastDateStr ? `<br><span style="color:var(--text-muted);">어제 날짜(${pastDateStr.slice(5).replace('-', '/')})로 기록돼요</span>` : '');
 
   let labelText, helperText;
@@ -4030,10 +4035,15 @@ function pageStateText(task, pg, fromPg, revDone) {
   if (ra && revDone) return `${st.prog > 0 ? formatRangePlain(task, sn + st.prog, sn + st.prog) + '까지 끝내고 ' : ''}복습도 했어요`;
   const cf = contentFrac(task, st.prog, st.f);
   if (cf > 0) return `${nm} ${pg - r[0] + 1}/${r[1] - r[0] + 1}쪽까지 했어요 · 나머지는 다음에 이어서 해요`;
-  return st.prog > 0 ? `${formatRangePlain(task, sn + st.prog, sn + st.prog)}까지 끝냈어요` : '';
+  let ld = st.prog; while (ld > 0 && isSkippedRel(task, ld - 1)) ld--; // (건너뛴 챕터 aren't "done")
+  return ld > 0 ? `${formatRangePlain(task, sn + ld, sn + ld)}까지 끝냈어요` : '';
 }
 function extraLabel(x) { return x && x.sk != null ? `건너뛴 ${x.t}` : x.t; }
 function revNames(list) { return list.map(extraLabel).join(', '); }
+function revPlanText(list) {
+  const R = list.filter(x => x.sk == null), K = list.filter(x => x.sk != null);
+  return [R.length ? `복습(${R.map(x => x.t).join(', ')})` : '', K.length ? `건너뛴 ${K.map(x => x.t).join(', ')}` : ''].filter(Boolean).join(' + ');
+}
 function revDoneText(list, share) {
   const anySk = list.some(x => x.sk != null);
   return `${share ? '오늘 몫 ' : ''}${anySk ? revNames(list) : `복습(${revNames(list)})`}도 했어요`;
@@ -4053,7 +4063,7 @@ function openPageCheckModal(task, item, pastDateStr) {
   const dayWord = pastDateStr ? '어제' : '오늘';
   const a = item.pFrom, b = item.pTo;
   document.getElementById('cm-title').textContent = `${dayWord} 어디까지 했나요?`;
-  document.getElementById('cm-sub').innerHTML = `<strong>${escapeHtml(task.title)}</strong><br>${dayWord} 계획: ${formatRangeDisplay(task, item.from, item.to)} ${pagesTextT(task, a, b)} (${pagesIn(task, a, b)}쪽)${item.revs ? ` + ${escapeHtml(revNames(item.revs))}` : ''}`
+  document.getElementById('cm-sub').innerHTML = `<strong>${escapeHtml(task.title)}</strong><br>${dayWord} 계획: ${formatRangeDisplay(task, item.from, item.to)} ${pagesTextT(task, a, b)} (${pagesIn(task, a, b)}쪽)${item.revs ? ` + ${escapeHtml(revPlanText(item.revs))}` : ''}`
     + (pastDateStr ? `<br><span style="color:var(--text-muted);">어제 날짜(${pastDateStr.slice(5).replace('-', '/')})로 기록돼요</span>` : '');
   document.getElementById('cm-label').textContent = '공부한 마지막 페이지';
   const helper = document.getElementById('cm-helper');
@@ -4082,7 +4092,10 @@ function openPageCheckModal(task, item, pastDateStr) {
   };
   revCb.onchange = sync;
   input.oninput = sync; sync();
-  const sn = task.startNum || 0, chEnd = P[Math.max(0, Math.min(task.total - 1, item.to - sn - 1))][1];
+  const sn = task.startNum || 0;
+  let chRel = Math.max(0, Math.min(task.total - 1, item.to - sn - 1));
+  while (chRel > item.from - sn - 1 && isSkippedRel(task, chRel)) chRel--; // not a skipped chapter's end
+  const chEnd = P[chRel][1];
   const chips = [{ label: `계획대로 (p.${b})`, val: b }];
   if (chEnd > b) chips.push({ label: `이 챕터 끝까지 (p.${chEnd})`, val: chEnd });
   if (lastPg > Math.max(b, chEnd)) chips.push({ label: '끝까지 완료', val: lastPg });
@@ -4113,7 +4126,8 @@ function commitPageCheck(task) {
   if (isNaN(pg)) { showToast('페이지 숫자를 입력해 주세요'); return; }
   pg = Math.max(P[0][0] - 1, Math.min(P[task.total - 1][1], pg));
   // where that day started (today: before today's work; yesterday: today isn't checked yet)
-  const anchor = fwdRel(task, past ? task.progress : Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress))));
+  const anchorRaw = past ? task.progress : Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
+  const anchor = fwdRel(task, anchorRaw); // (past chapters taken out: where work continues — for comparing)
   const ps0 = anchor < task.total ? getPartState(task, sn + anchor + 1, dS) : { done: 0, frac: 0 };
   const revBoxEl = document.getElementById('cm-rev');
   const revShown = !!(revBoxEl && revBoxEl.style.display !== 'none'), revOn = cmRevChecked();
@@ -4125,14 +4139,14 @@ function commitPageCheck(task) {
     st = { prog: task.total - 1, f: effFrac(task, task.total - 1, 1) };
   const noSnap = revShown && !revOn; // said the review wasn't done: exactly where the pages are
   const more = st.prog > anchor || (st.prog === anchor && st.f > ps0.frac + 1e-9);
-  if (!past) task.progress = anchor; // today's check is made again from where today began
+  if (!past) task.progress = anchorRaw; // today's check is made again from where today began
   if (!more) {
     if (!past) { setCompleted(task.id, tS, false); persistTasks(); showToast('오늘 완료를 해제했어요'); }
     else showToast('기록할 진도가 없어요');
     close(); rerender(); return;
   }
   task.progress = st.prog;
-  const amount = st.prog - anchor;
+  const amount = st.prog - anchorRaw;
   let part = null;
   if (st.f > 0 && st.prog < task.total) {
     let n = st.prog === anchor ? ps0.done + 1 : 1, f = Math.min(0.99, st.f);
@@ -4952,8 +4966,10 @@ function annotatePages(task, sched, anchor, startFrac, tdyStr) {
       x.pTo = Math.min(end, Math.max(pageAt(x.from, f1), x.pFrom));
       cur = x.from; cf = f1;
     } else {
-      if (glued && x.to <= x.from && cfr(x.from, f0) >= 1 - 1e-9) { cur = x.to + 1; cf = 0; return; } // only the last review left: no pages
-      x.pFrom = Math.min(pageAt(x.from, f0) + 1, rg(x.from)[1]); x.pTo = rg(Math.max(x.from, x.to))[1];
+      if (glued && x.to <= x.from && (cfr(x.from, f0) >= 1 - 1e-9 || pageAt(x.from, f0) >= rg(x.from)[1])) { cur = x.to + 1; cf = 0; return; } // only the last review left: no pages
+      let toP = Math.max(x.from, x.to);
+      if (glued) while (toP > x.from && isSkippedRel(task, toP - sn - 1)) toP--; // (건너뛴 챕터 at the end: not its pages)
+      x.pFrom = Math.min(pageAt(x.from, f0) + 1, rg(x.from)[1]); x.pTo = rg(toP)[1];
       cur = x.to + 1; cf = 0;
       // checked today by page: the next chapter is already started
       if (x.isToday && rec && rec.part && rec.part.item === x.to + 1 && x.to + 1 <= sn + N) {
@@ -7255,8 +7271,14 @@ function selfCheckTask(task) {
   const items = p.schedule.filter(s => !s.isReview);
   const past = items.filter(s => s.isPast), fut = items.filter(s => !s.isPast);
   let c = sn;
-  past.forEach(s => { if (s.from !== c + 1 || s.to < s.from) add('지난 일정이 이어지지 않아요'); c = s.to; });
-  if (past.length && c !== sn + anchor) add('지난 일정이 지금 진도와 맞지 않아요');
+  const nx = (cc) => sn + fwdRel(task, cc - sn) + 1; // next chapter to do after cc (건너뛴 챕터 passed over)
+  past.forEach(s => { if ((s.from !== c + 1 && s.from !== nx(c)) || s.to < s.from) add('지난 일정이 이어지지 않아요'); c = s.to; });
+  if (past.length && fwdRel(task, c - sn) !== fwdRel(task, anchor)) {
+    // past days are rebuilt in whole minutes/양 (rounded): ending where that rounding lands is fine
+    const pre0 = isTimeBasedTask(task) ? getDurationPrefix(task) : null;
+    const ok0 = pre0 && c - sn < anchor && fwdRel(task, c - sn) === fwdRel(task, Math.min(anchor, positionForCumulativeTime(pre0, Math.round(pre0[anchor]))));
+    if (!ok0) add('지난 일정이 지금 진도와 맞지 않아요');
+  }
   c = sn + anchor;
   let partItem = null;
   const seen = new Set();
@@ -7273,11 +7295,11 @@ function selfCheckTask(task) {
       if (ds > pe) add(`계획 끝(${pe.slice(5).replace('-', '/')}) 뒤인 ${md}에 일정이 있어요`);
     }
     if (s.isPart) {
-      if (s.from !== c + 1 || s.to !== s.from) add(`${md} 나눠 하는 날이 앞 일정과 이어지지 않아요`);
+      if ((s.from !== c + 1 && s.from !== nx(c)) || s.to !== s.from) add(`${md} 나눠 하는 날이 앞 일정과 이어지지 않아요`);
       if (partItem != null && partItem !== s.from) add(`${md} 나눠 하던 챕터가 끝나기 전에 바뀌어요`);
       partItem = s.from;
     } else {
-      if (s.from !== c + 1) add(`${md} 일정이 앞 일정과 ${s.from > c + 1 ? '끊겨요' : '겹쳐요'}`);
+      if (s.from !== c + 1 && s.from !== nx(c)) add(`${md} 일정이 앞 일정과 ${s.from > c + 1 ? '끊겨요' : '겹쳐요'}`);
       if (s.to < s.from) add(`${md} 일정이 비어 있어요`);
       if (partItem != null && s.from !== partItem) add(`${md} 나눠 하던 챕터가 끝나기 전에 바뀌어요`);
       partItem = null;
@@ -9352,6 +9374,8 @@ function setupEditModal() {
       delete task.ppUndo;
       delete task.weekSkips; // targets were in the old numbering
     }
+    if (newStartNum !== oldStartNum && Array.isArray(task.extras) && task.extras.some(x => x.sk != null)) // 건너뛴 챕터 names in the new numbering
+      task.extras = task.extras.map(x => (x.sk != null ? Object.assign({}, x, { t: formatRangePlain(task, newStartNum + x.sk + 1, newStartNum + x.sk + 1) }) : x));
     // A re-plan (마감일·분량·요일·시간 …): judged from today on by the new plan. An
     // "이번 주 안에 채우기" made under the old plan doesn't carry over to the new one.
     const replanned = planSig(task) !== sigBefore;
