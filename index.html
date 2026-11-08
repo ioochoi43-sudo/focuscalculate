@@ -3601,7 +3601,7 @@ function extrasHtml(task, plan) {
     const d = dateOf.get(x.id);
     const when = d ? (fmtDate(d) === tdyS ? '오늘' : `${d.getMonth() + 1}/${d.getDate()}(${wd[d.getDay()]})`) : '—';
     const isSk = x.sk != null;
-    const back = isSk && task.progress <= x.sk ? `<button class="xr-act" data-action="skip-back" data-id="${id}" data-rel="${x.sk}">다시 넣기</button>` : '';
+    const back = isSk && canRestoreInPlace(task, x.sk) ? `<button class="xr-act" data-action="skip-back" data-id="${id}" data-rel="${x.sk}">다시 넣기</button>` : '';
     return `<div class="xr"><span class="xn">${escapeHtml(isSk ? x.t + ' (건너뜀)' : x.t)}</span><span class="xm">${escapeHtml(isSk ? chapterAmtText(task, x.sk) : extraAmtText(task, x))} · ${escapeHtml(extraPosText(task, extraPos(task, x)))}</span><span class="xd">${when}</span>${back}`
       + (extraDeletable(task, x) ? `<button class="xr-del" data-action="del-extra" data-id="${id}" data-x="${escapeAttr(x.id)}">${isSk ? '안 하기' : '지우기'}</button>` : '') + `</div>`;
   }).join('');
@@ -3811,13 +3811,20 @@ function openSkipModal(taskId) {
   document.getElementById('skipModal').classList.add('show');
   skipPreview();
 }
+// A skipped chapter can go back in its place only while nothing after that place was done or started.
+function canRestoreInPlace(task, k) {
+  if (task.progress > k) return false;
+  const f = fwdRel(task, task.progress);
+  if (f < k) return true;
+  return firstOpenRel(task) === f; // the chapter after it isn't started yet
+}
 function unskipChapter(taskId, k) {
   const task = tasks.find(t => t.id === taskId);
   if (!task || !Array.isArray(task.skipped) || !task.skipped.includes(k)) return;
   if (ydayPending(task)) { showToast(YDAY_FIRST); return; }
   const sn = task.startNum || 0, nm = formatRangePlain(task, sn + k + 1, sn + k + 1);
   const X = Array.isArray(task.extras) ? task.extras : [];
-  if (task.progress <= k) { // back in its place
+  if (canRestoreInPlace(task, k)) { // back in its place
     changeExtras(task, X.filter(x => x.sk !== k), task.skipped.filter(r => r !== k));
     showToast(`${nm}을(를) 제자리에 다시 넣었어요 · 오늘부터 새 계획으로 계산해요`);
   } else if (!X.some(x => x.sk === k)) { // its place is passed: to the end again
