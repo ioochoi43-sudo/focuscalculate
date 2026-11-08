@@ -3635,7 +3635,7 @@ function openExtraModal(taskId) {
   opts.push(`<option value="${EXTRA_END}">${escapeHtml(extraPosText(task, task.total))}</option>`);
   const sel = document.getElementById('xm-at');
   sel.innerHTML = opts.join('');
-  sel.value = String(Math.min(k0, task.total));
+  sel.value = String(k0 < task.total ? k0 : EXTRA_END);
   document.getElementById('xm-sub').innerHTML = `<strong>${escapeHtml(task.title)}</strong><br>목차와 따로, 내가 하고 싶은 복습을 넣어요. 계획에 같이 들어가서 남은 날의 양이 그만큼 늘어나요.`
     + (k0 > task.progress ? `<br><span style="color:var(--text-muted);">지금 하는 ${escapeHtml(formatRangePlain(task, sn + task.progress + 1, sn + task.progress + 1))}은 이미 시작해서, 그다음부터 넣을 수 있어요</span>` : '');
   document.getElementById('extraModal').classList.add('show');
@@ -3874,7 +3874,7 @@ function openPageCheckModal(task, item, pastDateStr) {
     if (ra) {
       const k = ra.rel + ':' + ra.list.map(x => x.id).join(',');
       if (k !== revKey) { revCb.checked = ra.list.some(x => planRev.has(x.id)); revKey = k; }
-      const share = item.isPart && ra.rel >= task.total && item.from === snR + task.total && pg === item.pTo; // only part of it today
+      const share = item.isPart && ra.rel >= task.total && item.from === snR + task.total && pg === item.pTo && ra.list.some(x => planRev.has(x.id)); // only part of it today
       document.getElementById('cm-rev-txt').textContent = `${share ? '오늘 몫 ' : ''}복습(${revNames(ra.list)})도 했어요`;
       revBox.style.display = '';
       if (share && revCb.checked) { helper.textContent = '계획대로 했어요 · 남은 복습은 다음에 이어서 해요'; return; }
@@ -3921,7 +3921,8 @@ function commitPageCheck(task) {
   let st = pageToState(task, pg, revOn);
   // a part day of the last chapter that also holds part of the last review: ticked + the planned
   // page = that day's planned share (below), not the whole review
-  if (revOn && item && item.isPart && item.from === sn + task.total && pg === item.pTo && st.prog >= task.total)
+  if (revOn && item && item.isPart && item.from === sn + task.total && pg === item.pTo && st.prog >= task.total
+      && (item.revs || []).some(x => extraPos(task, x) >= task.total))
     st = { prog: task.total - 1, f: effFrac(task, task.total - 1, 1) };
   const noSnap = revShown && !revOn; // said the review wasn't done: exactly where the pages are
   const more = st.prog > anchor || (st.prog === anchor && st.f > ps0.frac + 1e-9);
