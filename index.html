@@ -571,12 +571,16 @@
   .extras-head .ic svg { width: 100%; height: 100%; display: block; }
   .extras-head b { color: var(--text); }
   .extras-head .muted { color: var(--text-muted); font-size: 11px; }
-  .xr { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-top: 1px dashed #DCEDE0; min-width: 0; }
-  .xr .xn { font-weight: 700; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
-  .xr .xm { color: var(--text-muted); font-size: 11px; flex: 1; min-width: 0; }
-  .xr .xd { white-space: nowrap; font-weight: 600; color: #3f7a4b; }
+  .xr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; row-gap: 1px; align-items: center; padding: 6px 0; border-top: 1px dashed #DCEDE0; min-width: 0; }
+  .xr .xn { grid-column: 1; grid-row: 1; font-weight: 700; color: var(--text); min-width: 0; word-break: keep-all; overflow-wrap: break-word; }
+  .xr .xd { grid-column: 2; grid-row: 1; justify-self: end; white-space: nowrap; font-weight: 600; color: #3f7a4b; }
+  .xr .xm { grid-column: 1; grid-row: 2; color: var(--text-muted); font-size: 11px; min-width: 0; word-break: keep-all; overflow-wrap: break-word; }
+  .xr .xa { grid-column: 2; grid-row: 2; justify-self: end; display: flex; gap: 4px; white-space: nowrap; }
+  .xr .xn .skip-pill { font-weight: 700; margin-left: 2px; }
+  .xr-line { padding: 6px 0 2px; border-top: 1px dashed #DCEDE0; font-size: 11px; word-break: keep-all; overflow-wrap: break-word; }
   .xr .xr-del { border: none; background: transparent; color: var(--text-muted); font-size: 11px; padding: 2px 4px; cursor: pointer; text-decoration: underline; flex-shrink: 0; }
-  .xr.done { color: var(--text-muted); }
+  .xr.done, .xr-line.done { color: var(--text-muted); }
+  .xr.done .xn { color: var(--text-soft); }
   #extraModal .field { margin-bottom: 14px; }
   .xm-sub { font-size: 13px; color: var(--text-soft); margin-bottom: 14px; line-height: 1.6; }
   .xm-row { display: flex; gap: 6px; align-items: center; }
@@ -2011,7 +2015,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.9.3 · 최근 업데이트 2026-11-08</div>
+      <div class="build-badge" id="buildBadge">v4.9.4 · 최근 업데이트 2026-11-08</div>
     </div>
   </aside>
 
@@ -2586,7 +2590,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.9.3';
+const APP_VERSION = 'v4.9.4';
 const APP_BUILD_DATE = '2026-11-08';
 
 // ===== STATE =====
@@ -3638,16 +3642,18 @@ function extrasHtml(task, plan) {
     const when = d ? (fmtDate(d) === tdyS ? '오늘' : `${d.getMonth() + 1}/${d.getDate()}(${wd[d.getDay()]})`) : '—';
     const isSk = x.sk != null;
     const back = isSk && canRestoreInPlace(task, x.sk) ? `<button class="xr-act" data-action="skip-back" data-id="${id}" data-rel="${x.sk}">다시 넣기</button>` : '';
-    return `<div class="xr"><span class="xn">${escapeHtml(isSk ? x.t + (x.rf ? ' (건너뜀 · 남은 부분)' : ' (건너뜀)') : x.t)}</span><span class="xm">${escapeHtml(isSk ? chapterAmtText(task, x.sk, x.rf) : extraAmtText(task, x))} · ${escapeHtml(extraPosText(task, extraPos(task, x)))}</span><span class="xd">${when}</span>${back}`
-      + (extraDeletable(task, x) ? `<button class="xr-del" data-action="del-extra" data-id="${id}" data-x="${escapeAttr(x.id)}">${isSk ? '안 하기' : '지우기'}</button>` : '') + `</div>`;
+    // two lines: [이름 (건너뜀)        날짜] / [양 · 위치        버튼]
+    const del = extraDeletable(task, x) ? `<button class="xr-del" data-action="del-extra" data-id="${id}" data-x="${escapeAttr(x.id)}">${isSk ? '안 하기' : '지우기'}</button>` : '';
+    return `<div class="xr"><span class="xn">${escapeHtml(x.t)}${isSk ? ` <span class="skip-pill">${x.rf ? '건너뜀 · 남은 부분' : '건너뜀'}</span>` : ''}</span><span class="xd">${when}</span>`
+      + `<span class="xm">${escapeHtml(isSk ? chapterAmtText(task, x.sk, x.rf) : extraAmtText(task, x))} · ${escapeHtml(extraPosText(task, extraPos(task, x)))}</span><span class="xa">${back}${del}</span></div>`;
   }).join('');
   // chapters taken out with no work left ("안 하기")
   const kept = new Set(X.filter(x => x.sk != null).map(x => x.sk));
   const dropped = Z ? [...Z].filter(k => !kept.has(k)).sort((a, b) => a - b) : [];
   const sn = task.startNum || 0;
-  const dropHtml = dropped.map(k => `<div class="xr done"><span class="xn">${escapeHtml(formatRangePlain(task, sn + k + 1, sn + k + 1))}</span><span class="xm">안 하기로 했어요</span><button class="xr-act" data-action="skip-back" data-id="${id}" data-rel="${k}">되살리기</button></div>`).join('');
+  const dropHtml = dropped.map(k => `<div class="xr done"><span class="xn">${escapeHtml(formatRangePlain(task, sn + k + 1, sn + k + 1))}</span><span class="xd"></span><span class="xm">안 하기로 했어요</span><span class="xa"><button class="xr-act" data-action="skip-back" data-id="${id}" data-rel="${k}">되살리기</button></span></div>`).join('');
   if (!rows && !dropHtml && !done.length) return '';
-  const doneHtml = done.length ? `<div class="xr done">✓ 끝낸 것 ${done.length}개 · ${escapeHtml(done.slice(-3).map(extraLabel).join(', '))}${done.length > 3 ? ' …' : ''}</div>` : '';
+  const doneHtml = done.length ? `<div class="xr-line done">✓ 끝낸 것 ${done.length}개 · ${escapeHtml(done.slice(-3).map(extraLabel).join(', '))}${done.length > 3 ? ' …' : ''}</div>` : '';
   return `<div class="extras-box"><div class="extras-head"><span class="ic">${flatIcon('review')}</span><b>따로 할 것</b><span class="muted">· 목차와 따로, 계획에 같이 들어가요</span></div>${rows}${dropHtml}${doneHtml}</div>`;
 }
 // The last chapter's weight changes while it's under way (a review added/removed after it):
