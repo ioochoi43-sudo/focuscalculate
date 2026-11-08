@@ -2011,7 +2011,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.9.2 · 최근 업데이트 2026-11-08</div>
+      <div class="build-badge" id="buildBadge">v4.9.3 · 최근 업데이트 2026-11-08</div>
     </div>
   </aside>
 
@@ -2586,7 +2586,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.9.2';
+const APP_VERSION = 'v4.9.3';
 const APP_BUILD_DATE = '2026-11-08';
 
 // ===== STATE =====
@@ -3023,7 +3023,8 @@ function extraW(task, x, z) {
   if (!x) return 0;
   if (x.sk != null) {
     const k = Math.floor(Number(x.sk)), zz = z === undefined ? skippedSet(task) : z;
-    return Number.isInteger(k) && zz && zz.has(k) ? Math.max(0, Number((task.lectureDurations || [])[k]) || 0) : 0;
+    const rf = Number(x.rf) > 0 && Number(x.rf) < 1 ? Number(x.rf) : 1; // skipped while under way: only what was left
+    return Number.isInteger(k) && zz && zz.has(k) ? Math.max(0, Number((task.lectureDurations || [])[k]) || 0) * rf : 0;
   }
   return Number(x.w) > 0 ? Number(x.w) : 0;
 }
@@ -3256,7 +3257,7 @@ function buildCopyText(task, item) {
   if (item.skips && item.skips.length) text += ` (${item.skipTxt || ''} 건너뜀)`;
   { const R = (item.revs || []).filter(x => x.sk == null), K = (item.revs || []).filter(x => x.sk != null);
     if (R.length) text += ` + 복습(${R.map(x => x.t).join(', ')})`;
-    if (K.length) text += ` + 건너뛴 ${K.map(x => x.t).join(', ')}`; }
+    if (K.length) text += ` + 건너뛴 ${K.map(skName).join(', ')}`; }
   if (isFinalSession(task, item)) text += ` (${getCompletionLabel(task.type)})`;
   return text;
 }
@@ -3335,7 +3336,8 @@ function sanitizeTask(item, catIds) {
         at: Math.max(0, Math.floor(Number(x.at))), d: validDateStr(x.d) ? x.d : undefined,
         u: ['min', 'da', 'pg'].includes(x.u) ? x.u : undefined, df: DIFFICULTY_LABEL[x.df] ? x.df : undefined,
         am: AMOUNT_LABEL[x.am] ? x.am : undefined, pg: Number.isInteger(x.pg) && x.pg > 0 ? x.pg : undefined,
-        sk: Number.isInteger(x.sk) && x.sk >= 0 ? x.sk : undefined })) : [];
+        sk: Number.isInteger(x.sk) && x.sk >= 0 ? x.sk : undefined,
+        rf: Number(x.rf) > 0 && Number(x.rf) < 1 ? Math.round(Number(x.rf) * 10000) / 10000 : undefined })) : [];
     if (X.length) t.extras = X.slice(0, 200); else delete t.extras;
   }
   if (t.ydayNo != null && !validDateStr(t.ydayNo)) delete t.ydayNo; // "어제 안 했어요" (v4.9.2)
@@ -3602,12 +3604,24 @@ function extraDeletable(task, x) {
   const q = glueOf(task, rel); // the last review: fine while it isn't started (still in the chapter itself)
   return !!q && fr * q.W < q.s + q.w - 1e-9;
 }
-function chapterAmtText(task, k) {
-  const u = extraUnit(task), w = Number((task.lectureDurations || [])[k]) || 0;
-  if (u === 'min') return formatDuration(w);
-  if (u === 'pg') return `${chapterPages(task, k)}쪽`;
+function chapterAmtText(task, k, rf) {
+  const u = extraUnit(task), w = Number((task.lectureDurations || [])[k]) || 0, r = Number(rf) > 0 && Number(rf) < 1 ? Number(rf) : 1;
+  if (u === 'min') return formatDuration(Math.round(w * r));
+  if (u === 'pg') return `${r < 1 ? Math.max(1, Math.round(chapterPages(task, k) * r)) : chapterPages(task, k)}쪽`;
   const d = (task.itemDifficulty || [])[k], a = (task.itemAmount || [])[k];
-  return d ? `${DIFFICULTY_LABEL[d] || '중간'} · 양 ${AMOUNT_LABEL[a] || '중간'}` : `양 ${Math.round(w * 10) / 10}`;
+  return d && r === 1 ? `${DIFFICULTY_LABEL[d] || '중간'} · 양 ${AMOUNT_LABEL[a] || '중간'}` : `양 ${Math.round(w * r * 10) / 10}`;
+}
+// Share of chapter k still to do (1 = not started) — what skipping it moves to the end
+function chapterLeftFrac(task, k) {
+  const fr = getPartState(task, (task.startNum || 0) + k + 1, fmtDate(addDays(today(), 1))).frac;
+  return fr > 0 ? Math.max(0.01, 1 - fr) : 1;
+}
+function skipExtraFor(task, k) {
+  const sn = task.startNum || 0, rf = chapterLeftFrac(task, k);
+  const x = { id: 'x' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), t: formatRangePlain(task, sn + k + 1, sn + k + 1),
+    w: Math.max(0.01, Number(task.lectureDurations[k]) || 1), at: EXTRA_END, d: fmtDate(today()), sk: k };
+  if (rf < 1) x.rf = Math.round(rf * 10000) / 10000;
+  return x;
 }
 function extrasHtml(task, plan) {
   const X = Array.isArray(task.extras) ? task.extras : [];
@@ -3624,7 +3638,7 @@ function extrasHtml(task, plan) {
     const when = d ? (fmtDate(d) === tdyS ? '오늘' : `${d.getMonth() + 1}/${d.getDate()}(${wd[d.getDay()]})`) : '—';
     const isSk = x.sk != null;
     const back = isSk && canRestoreInPlace(task, x.sk) ? `<button class="xr-act" data-action="skip-back" data-id="${id}" data-rel="${x.sk}">다시 넣기</button>` : '';
-    return `<div class="xr"><span class="xn">${escapeHtml(isSk ? x.t + ' (건너뜀)' : x.t)}</span><span class="xm">${escapeHtml(isSk ? chapterAmtText(task, x.sk) : extraAmtText(task, x))} · ${escapeHtml(extraPosText(task, extraPos(task, x)))}</span><span class="xd">${when}</span>${back}`
+    return `<div class="xr"><span class="xn">${escapeHtml(isSk ? x.t + (x.rf ? ' (건너뜀 · 남은 부분)' : ' (건너뜀)') : x.t)}</span><span class="xm">${escapeHtml(isSk ? chapterAmtText(task, x.sk, x.rf) : extraAmtText(task, x))} · ${escapeHtml(extraPosText(task, extraPos(task, x)))}</span><span class="xd">${when}</span>${back}`
       + (extraDeletable(task, x) ? `<button class="xr-del" data-action="del-extra" data-id="${id}" data-x="${escapeAttr(x.id)}">${isSk ? '안 하기' : '지우기'}</button>` : '') + `</div>`;
   }).join('');
   // chapters taken out with no work left ("안 하기")
@@ -3795,8 +3809,13 @@ function setupExtraModal() {
 // ===== 건너뛰기 (v4.9) =====
 // Chapters that can be skipped now: not started, not the last one, not skipped already.
 function skippableRels(task) {
-  const z = skippedSet(task), out = [];
-  for (let k = firstOpenRel(task); k < task.total - 1; k++) if (!(z && z.has(k))) out.push(k);
+  const z = skippedSet(task), out = [], cur = fwdRel(task, task.progress);
+  for (let k = cur; k < task.total - 1; k++) {
+    if (z && z.has(k)) continue;
+    // the chapter under way with a review before it (already done): stays in place
+    if (k === cur && chapterLeftFrac(task, k) < 1 && (task.extras || []).some(x => x.sk == null && extraPos(task, x) === k)) continue;
+    out.push(k);
+  }
   return out;
 }
 let skipModalTaskId = null;
@@ -3809,11 +3828,12 @@ function skipPreview() {
     const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`, sn = task.startNum || 0;
     const xid = '__skip';
     const clone = Object.assign({}, task, { _preview: 'sk', skipped: [...(task.skipped || []), k], weekHold: undefined, weekSkips: undefined,
-      extras: [...(task.extras || []), { id: xid, t: formatRangePlain(task, sn + k + 1, sn + k + 1), w: 1, at: EXTRA_END, sk: k }] });
+      extras: [...(task.extras || []), Object.assign(skipExtraFor(task, k), { id: xid })] });
     const plan = buildSchedule(clone);
     const row = plan.schedule.find(r => !r.isPast && r.revs && r.revs.some(x => x.id === xid));
     const nx = plan.schedule.find(r => !r.isPast && !r.isReview);
-    el.innerHTML = `<b>${escapeHtml(chapterAmtText(task, k))}</b>을 맨 뒤로 옮겨요${row ? ` · <b>${md(row.date)}</b>에 해요` : ''}`
+    const rf = chapterLeftFrac(task, k);
+    el.innerHTML = `${rf < 1 ? '한 부분은 그대로 두고, 남은 ' : ''}<b>${escapeHtml(chapterAmtText(task, k, rf))}</b>을 맨 뒤로 옮겨요${row ? ` · <b>${md(row.date)}</b>에 해요` : ''}`
       + (nx ? `<br>다음 할 일: ${escapeHtml(formatRangePlain(task, nx.from, nx.to))}${nx.skips ? ` (${escapeHtml(nx.skipTxt)} 건너뜀)` : ''}` : '');
   } catch (e) { el.textContent = ''; }
 }
@@ -3825,11 +3845,15 @@ function openSkipModal(taskId) {
   if (!ydayOk(task)) return;
   skipModalTaskId = taskId;
   const sel = document.getElementById('sk-rel');
-  sel.innerHTML = rels.map((k, i) => `<option value="${k}">${i === 0 ? '다음 챕터 · ' : ''}${escapeHtml(formatRangePlain(task, sn + k + 1, sn + k + 1))}</option>`).join('');
+  const cur = fwdRel(task, task.progress);
+  sel.innerHTML = rels.map(k => {
+    const nm = escapeHtml(formatRangePlain(task, sn + k + 1, sn + k + 1)), on = k === cur && chapterLeftFrac(task, k) < 1;
+    return `<option value="${k}">${k === cur ? (on ? '지금 하는 챕터 · ' : '다음 챕터 · ') : ''}${nm}${on ? ' (남은 부분)' : ''}</option>`;
+  }).join('');
   sel.value = String(rels[0]);
-  const started = firstOpenRel(task) > task.progress;
-  document.getElementById('sk-sub').innerHTML = `<strong>${escapeHtml(task.title)}</strong><br>건너뛴 챕터는 "따로 할 것" 맨 뒤로 옮겨가요. 지우기 전까지 계획에 들어가서 마감일은 지켜져요.`
-    + (started ? `<br><span style="color:var(--text-muted);">지금 하는 ${escapeHtml(formatRangePlain(task, sn + task.progress + 1, sn + task.progress + 1))}은 이미 시작해서 건너뛸 수 없어요</span>` : '');
+  const curBlocked = cur < task.total - 1 && !rels.includes(cur) && !isSkippedRel(task, cur);
+  document.getElementById('sk-sub').innerHTML = `<strong>${escapeHtml(task.title)}</strong><br>건너뛴 챕터는 "따로 할 것" 맨 뒤로 옮겨가요. 지우기 전까지 계획에 들어가서 마감일은 지켜져요. 하던 챕터면 한 부분은 그대로 두고 남은 부분만 옮겨요.`
+    + (curBlocked ? `<br><span style="color:var(--text-muted);">지금 하는 ${escapeHtml(formatRangePlain(task, sn + cur + 1, sn + cur + 1))}은 앞에 넣은 복습을 이미 해서 건너뛸 수 없어요</span>` : '');
   document.getElementById('skipModal').classList.add('show');
   skipPreview();
 }
@@ -3850,7 +3874,7 @@ function unskipChapter(taskId, k) {
     changeExtras(task, X.filter(x => x.sk !== k), task.skipped.filter(r => r !== k));
     showToast(`${nm}을(를) 제자리에 다시 넣었어요 · 오늘부터 새 계획으로 계산해요`);
   } else if (!X.some(x => x.sk === k)) { // its place is passed: to the end again
-    changeExtras(task, [...X, { id: 'x' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), t: nm, w: Math.max(0.01, Number(task.lectureDurations[k]) || 1), at: EXTRA_END, d: fmtDate(today()), sk: k }]);
+    changeExtras(task, [...X, skipExtraFor(task, k)]);
     showToast(`${nm}을(를) 맨 뒤에 다시 넣었어요 · 오늘부터 새 계획으로 계산해요`);
   }
   rerender();
@@ -3866,11 +3890,10 @@ function setupSkipModal() {
     if (!task) return close();
     const k = parseInt(document.getElementById('sk-rel').value);
     if (!skippableRels(task).includes(k)) { close(); showToast('이 챕터는 지금 건너뛸 수 없어요'); rerender(); return; }
-    const sn = task.startNum || 0, nm = formatRangePlain(task, sn + k + 1, sn + k + 1);
-    const x = { id: 'x' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), t: nm, w: Math.max(0.01, Number(task.lectureDurations[k]) || 1), at: EXTRA_END, d: fmtDate(today()), sk: k };
+    const x = skipExtraFor(task, k), nm = x.t;
     changeExtras(task, [...(task.extras || []), x], [...(task.skipped || []), k].sort((a, b) => a - b));
     close();
-    showToast(`↷ ${nm}을(를) 건너뛰고 맨 뒤로 옮겼어요 · 오늘부터 새 계획으로 계산해요`);
+    showToast(x.rf ? `↷ ${nm}의 남은 부분을 맨 뒤로 옮겼어요 · 오늘부터 새 계획으로 계산해요` : `↷ ${nm}을(를) 건너뛰고 맨 뒤로 옮겼어요 · 오늘부터 새 계획으로 계산해요`);
     rerender();
   });
 }
@@ -4054,11 +4077,12 @@ function pageStateText(task, pg, fromPg, revDone) {
   let ld = st.prog; while (ld > 0 && isSkippedRel(task, ld - 1)) ld--; // (건너뛴 챕터 aren't "done")
   return ld > 0 ? `${formatRangePlain(task, sn + ld, sn + ld)}까지 끝냈어요` : '';
 }
-function extraLabel(x) { return x && x.sk != null ? `건너뛴 ${x.t}` : x.t; }
+function skName(x) { return x.t + (Number(x.rf) > 0 && Number(x.rf) < 1 ? ' 나머지' : ''); }
+function extraLabel(x) { return x && x.sk != null ? `건너뛴 ${skName(x)}` : x.t; }
 function revNames(list) { return list.map(extraLabel).join(', '); }
 function revPlanText(list) {
   const R = list.filter(x => x.sk == null), K = list.filter(x => x.sk != null);
-  return [R.length ? `복습(${R.map(x => x.t).join(', ')})` : '', K.length ? `건너뛴 ${K.map(x => x.t).join(', ')}` : ''].filter(Boolean).join(' + ');
+  return [R.length ? `복습(${R.map(x => x.t).join(', ')})` : '', K.length ? `건너뛴 ${K.map(skName).join(', ')}` : ''].filter(Boolean).join(' + ');
 }
 function revDoneText(list, share) {
   const anySk = list.some(x => x.sk != null);
@@ -4646,7 +4670,7 @@ function setRebase(task) {
 function planSig(task) {
   return JSON.stringify([task.start, task.end, task.total, task.startNum || 0, task.pace, task.paceValue, task.reviewDays,
     parseInt(task.bufferDays) || 0, !!task.timeBased, task.timeMode, task.dailyMinutes, task.lectureDurations, task.itemDays]
-    .concat(Array.isArray(task.extras) && task.extras.length ? [task.extras.map(x => [x.id, x.w, x.at, x.sk])] : [])
+    .concat(Array.isArray(task.extras) && task.extras.length ? [task.extras.map(x => [x.id, x.w, x.at, x.sk, x.rf])] : [])
     .concat(Array.isArray(task.skipped) && task.skipped.length ? [['skip'].concat(task.skipped)] : []));
 }
 const PLAN_FIELDS = ['start', 'end', 'total', 'startNum', 'pace', 'paceValue', 'reviewDays', 'bufferDays', 'timeBased', 'timeMode',
@@ -5161,7 +5185,7 @@ function revPillHtml(item) {
   let h = '';
   const R = (item.revs || []).filter(x => x.sk == null), K = (item.revs || []).filter(x => x.sk != null);
   if (R.length) h += ` <span class="rev-pill" title="따로 추가한 복습">＋복습 ${escapeHtml(R.map(x => x.t).join(', '))}</span>`;
-  if (K.length) h += ` <span class="rev-pill" title="건너뛰었던 챕터">＋건너뛴 ${escapeHtml(K.map(x => x.t).join(', '))}</span>`;
+  if (K.length) h += ` <span class="rev-pill" title="건너뛰었던 챕터">＋건너뛴 ${escapeHtml(K.map(skName).join(', '))}</span>`;
   if (item.skips && item.skips.length) h += ` <span class="skip-pill" title="건너뛰어서 이번엔 안 해요 · 따로 할 것 맨 뒤에 있어요">↷ ${escapeHtml(item.skipTxt || (item.skips.length + '개'))} 건너뜀</span>`;
   return h;
 }
