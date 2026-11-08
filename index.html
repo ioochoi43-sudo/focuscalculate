@@ -482,6 +482,11 @@
   .yday-section .agenda-item { display: flex; align-items: center; gap: 12px; }
   .yday-section .agenda-detail { flex: 1; min-width: 0; }
   .yday-section .mini-btn { flex-shrink: 0; }
+  .yday-btns { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .yday-section .agenda-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .yday-link { border: none; background: transparent; color: var(--text-muted); font-size: 12px; padding: 2px 4px; cursor: pointer; text-decoration: underline; flex-shrink: 0; }
+  .yday-mini { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+  .yday-only-mini .yday-mini { margin: 0 0 14px; }
   .review-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; table-layout: fixed; }
   .review-table td, .task-title, .agenda-title, .agenda-detail .range, .week-day-item-title, .week-day-item-range, .risk-name, .week-goal-title { overflow-wrap: anywhere; word-break: break-word; }
   .review-table td { padding: 4px 4px; border-top: 1px dashed rgba(0,0,0,0.08); vertical-align: middle; }
@@ -2006,7 +2011,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.9.1 · 최근 업데이트 2026-11-08</div>
+      <div class="build-badge" id="buildBadge">v4.9.2 · 최근 업데이트 2026-11-08</div>
     </div>
   </aside>
 
@@ -2581,7 +2586,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.9.1';
+const APP_VERSION = 'v4.9.2';
 const APP_BUILD_DATE = '2026-11-08';
 
 // ===== STATE =====
@@ -3333,6 +3338,7 @@ function sanitizeTask(item, catIds) {
         sk: Number.isInteger(x.sk) && x.sk >= 0 ? x.sk : undefined })) : [];
     if (X.length) t.extras = X.slice(0, 200); else delete t.extras;
   }
+  if (t.ydayNo != null && !validDateStr(t.ydayNo)) delete t.ydayNo; // "어제 안 했어요" (v4.9.2)
   if (t.skipped != null) { // 건너뛴 챕터 (v4.9)
     const Z = Array.isArray(item.skipped) ? [...new Set(item.skipped.filter(r => Number.isInteger(r) && r >= 0 && r < 100000))].sort((a, b) => a - b) : [];
     if (Z.length) t.skipped = Z; else delete t.skipped;
@@ -3576,7 +3582,7 @@ function ydayLocked(task) {
 // "어제 했어요" still open for this goal (yesterday's plan used the reviews as they were)
 function ydayPending(task) {
   const yStr = fmtDate(addDays(today(), -1));
-  if (task.progress >= task.total || completedMap.get(task.id + '|' + yStr) || todayWorkRec(task.id) || ydayLocked(task)) return false;
+  if (task.progress >= task.total || completedMap.get(task.id + '|' + yStr) || todayWorkRec(task.id) || ydayLocked(task) || task.ydayNo === yStr) return false;
   return !!yesterdayItem(task);
 }
 // Before changing 따로 할 것 with yesterday still unchecked: ask (it closes yesterday's check)
@@ -4242,7 +4248,8 @@ function renderYesterdayBox() {
   const box = document.getElementById('yesterdayBox');
   if (!box) return;
   const tStr = fmtDate(today()), yStr = fmtDate(addDays(today(), -1));
-  const rows = [];
+  const rows = [], noIds = [];
+  let pendingN = 0;
   filterByCategory(tasks.filter(isTaskActive)).forEach(task => {
     if (task.progress >= task.total && !completedMap.get(task.id + '|' + yStr)) return;
     const yRec = completedMap.get(task.id + '|' + yStr);
@@ -4252,6 +4259,7 @@ function renderYesterdayBox() {
     if (!yRec && ydayLocked(task)) return; // 따로 할 것 changed today: yesterday's plan no longer applies
     const item = yesterdayItem(task);
     if (!item && !yRec) return;
+    if (!yRec && task.ydayNo === yStr) { noIds.push(task.id); return; } // "안 했어요": out of the list (plan unchanged)
     const ti = typeInfo(task.type), color = getTaskColor(task);
     if (yRec) {
       const canUndo = !tRec;
@@ -4264,14 +4272,28 @@ function renderYesterdayBox() {
       return;
     }
     const rangeText = formatRangeDisplay(task, item.from, item.to) + partPillHtml(item);
+    pendingN++;
     rows.push(`<div class="agenda-item" style="--item-color:${escapeAttr(color)};">
       <div class="agenda-detail"><div class="agenda-name">${ti.icon} ${escapeHtml(task.title)}</div>
         <div class="range">${rangeText}</div></div>
-      <button class="mini-btn primary" data-action="yday-done" data-id="${escapeAttr(task.id)}">어제 했어요</button></div>`);
+      <div class="yday-btns"><button class="mini-btn" data-action="yday-no" data-id="${escapeAttr(task.id)}" title="어제는 안 했어요 · 목록에서 빼요">안 했어요</button>
+      <button class="mini-btn primary" data-action="yday-done" data-id="${escapeAttr(task.id)}">어제 했어요</button></div></div>`);
   });
-  if (!rows.length) { box.innerHTML = ''; return; }
-  box.innerHTML = `<div class="agenda-section yday-section"><div class="agenda-header"><div class="agenda-title"><span class="label-pill yday">어제</span><span>체크 못 한 할 일</span></div></div>
-    <div class="yday-note">했는데 깜빡했다면 여기서 체크하세요 · 오늘 것을 체크하기 전에만 할 수 있어요</div><div class="agenda-list">${rows.join('')}</div></div>`;
+  const noLine = noIds.length ? `<div class="yday-mini">어제 안 한 걸로 한 목표 ${noIds.length}개 · <button type="button" class="yday-link" data-action="yday-no-undo">되돌리기</button></div>` : '';
+  if (!rows.length && !noLine) { box.innerHTML = ''; return; }
+  if (!rows.length) box.innerHTML = `<div class="yday-section yday-only-mini">${noLine}</div>`;
+  else box.innerHTML = `<div class="agenda-section yday-section"><div class="agenda-header"><div class="agenda-title"><span class="label-pill yday">어제</span><span>체크 못 한 할 일</span></div>${pendingN >= 2 ? `<button type="button" class="yday-link" data-action="yday-no-all">모두 안 했어요</button>` : ''}</div>
+    <div class="yday-note">했는데 깜빡했다면 "어제 했어요", 안 했다면 "안 했어요"를 눌러요 · 오늘 것을 체크하기 전에만 할 수 있어요</div><div class="agenda-list">${rows.join('')}</div>${noLine}</div>`;
+  // "안 했어요": only takes the goal off this list — the plan is exactly as if left unchecked
+  const setNo = (ids, on) => {
+    ids.forEach(id => { const t = tasks.find(x => x.id === id); if (!t) return; if (on) t.ydayNo = yStr; else if (t.ydayNo) delete t.ydayNo; });
+    persistTasks(); rerender();
+  };
+  box.querySelectorAll('[data-action="yday-no"]').forEach(b => b.addEventListener('click', () => { setNo([b.dataset.id], true); showToast('어제는 안 한 걸로 둘게요'); }));
+  box.querySelectorAll('[data-action="yday-no-all"]').forEach(b => b.addEventListener('click', () => {
+    setNo([...box.querySelectorAll('[data-action="yday-no"]')].map(x => x.dataset.id), true); showToast('어제는 모두 안 한 걸로 둘게요');
+  }));
+  box.querySelectorAll('[data-action="yday-no-undo"]').forEach(b => b.addEventListener('click', () => { setNo(noIds, false); showToast('어제 체크 목록을 되돌렸어요'); }));
   box.querySelectorAll('[data-action="yday-done"]').forEach(b => b.addEventListener('click', () => {
     const task = tasks.find(t => t.id === b.dataset.id); if (!task) return;
     if (ydayLocked(task)) return rerender();
