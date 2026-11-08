@@ -1993,7 +1993,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.7 · 최근 업데이트 2026-10-30</div>
+      <div class="build-badge" id="buildBadge">v4.8 · 최근 업데이트 2026-11-08</div>
     </div>
   </aside>
 
@@ -2552,8 +2552,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.7';
-const APP_BUILD_DATE = '2026-10-30';
+const APP_VERSION = 'v4.8';
+const APP_BUILD_DATE = '2026-11-08';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -2925,7 +2925,13 @@ function pagesIn(task, a, b) {
   P.forEach(q => { if (Array.isArray(q)) n += Math.max(0, Math.min(b, q[1]) - Math.max(a, q[0]) + 1); });
   return n;
 }
-function pagesLeft(task, rel, frac) { const n = chapterPages(task, rel); return n > 0 ? Math.max(1, Math.floor(n * (1 - contentFrac(task, rel, frac || 0)) + 1e-9)) : 0; }
+function pagesLeft(task, rel, frac) {
+  const n = chapterPages(task, rel);
+  if (!(n > 0)) return 0;
+  const q = glueOf(task, rel); // 따로 할 것: a review counts as pages at the chapter's own 양 per page
+  const nEff = q && q.w > 0 ? n * q.W / q.w : n;
+  return Math.max(1, Math.floor(nEff * (1 - (frac || 0)) + 1e-9));
+}
 let editingTaskType = null; // set when opening the edit modal, so weight-vs-time UI mode is known
 
 // Prefix-sum array of lecture durations: prefix[i] = total minutes for the first i
@@ -3456,6 +3462,7 @@ function syncTodayCompletion(task, oldProgress) {
 }
 
 // ===== 따로 할 것 (복습 추가, v4.8) =====
+const EXTRA_END = 100000; // 맨 뒤 (any 끝 번호 — total is at most 100000)
 function extraUnit(task) { return hasPages(task) ? 'pg' : isWeightUnitType(task.type) ? 'da' : 'min'; }
 function extraAmtText(task, x) {
   const u = extraUnit(task);
@@ -3474,6 +3481,13 @@ function firstOpenRel(task) {
   if (p >= task.total) return task.total;
   return getPartState(task, sn + p + 1, fmtDate(addDays(today(), 1))).frac > 0 ? p + 1 : p;
 }
+// "어제 했어요" still open for this goal (yesterday's plan used the reviews as they were)
+function ydayPending(task) {
+  const yStr = fmtDate(addDays(today(), -1));
+  if (task.progress >= task.total || completedMap.get(task.id + '|' + yStr) || todayWorkRec(task.id)) return false;
+  return !!yesterdayItem(task);
+}
+const YDAY_FIRST = '어제 체크 못 한 할 일이 있어요 · 어제 체크를 먼저 하거나, 오늘 것을 체크한 뒤에 해 주세요';
 // Can this (not done) extra be removed now? Not while its chapter is under way.
 function extraDeletable(task, x) {
   if (extraDone(task, x)) return false;
@@ -3484,7 +3498,7 @@ function extraDeletable(task, x) {
   if (!(fr > 0)) return true;
   if (a < N) return false; // review before a chapter you've started (can't happen normally)
   const q = glueOf(task, rel); // the last review: fine while it isn't started (still in the chapter itself)
-  return !!q && fr * q.W <= q.s + q.w + 1e-9;
+  return !!q && fr * q.W < q.s + q.w - 1e-9;
 }
 function extrasHtml(task, plan) {
   const X = Array.isArray(task.extras) ? task.extras : [];
@@ -3544,6 +3558,7 @@ function deleteExtra(taskId, xId) {
   const x = task.extras.find(e => e.id === xId);
   if (!x) return;
   if (!extraDeletable(task, x)) { showToast('지금 하는 챕터에 붙은 복습이라 지울 수 없어요'); return; }
+  if (ydayPending(task)) { showToast(YDAY_FIRST); return; }
   if (!confirm(`"${x.t}" 복습을 지울까요?\n남은 날의 양이 그만큼 줄어요.`)) return;
   changeExtras(task, task.extras.filter(e => e.id !== xId));
   showToast('복습을 지웠어요 · 오늘부터 새 계획으로 계산해요');
@@ -3597,6 +3612,7 @@ function updateExtraPreview() {
 function openExtraModal(taskId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task || !isTimeBasedTask(task)) return;
+  if (ydayPending(task)) { showToast(YDAY_FIRST); return; }
   extraModalTaskId = taskId;
   const u = extraUnit(task), k0 = firstOpenRel(task), sn = task.startNum || 0;
   document.getElementById('xm-name').value = '';
@@ -3616,7 +3632,7 @@ function openExtraModal(taskId) {
   }
   const opts = [];
   for (let a = k0; a < task.total; a++) opts.push(`<option value="${a}">${a === k0 ? '바로 다음 · ' : ''}${escapeHtml(extraPosText(task, a))}</option>`);
-  opts.push(`<option value="${task.total}">${escapeHtml(extraPosText(task, task.total))}</option>`);
+  opts.push(`<option value="${EXTRA_END}">${escapeHtml(extraPosText(task, task.total))}</option>`);
   const sel = document.getElementById('xm-at');
   sel.innerHTML = opts.join('');
   sel.value = String(Math.min(k0, task.total));
@@ -3638,6 +3654,7 @@ function setupExtraModal() {
     const r = extraFromForm(task);
     if (r.err) return showToast(r.err);
     if (r.x.at < task.total && r.x.at < firstOpenRel(task)) return showToast('이미 시작한 챕터 앞에는 넣을 수 없어요');
+    if (ydayPending(task)) { close(); return showToast(YDAY_FIRST); }
     changeExtras(task, [...(task.extras || []), r.x]);
     close();
     showToast(`✓ "${r.x.t}" 복습을 넣었어요 · 오늘부터 새 계획으로 계산해요`);
@@ -3720,7 +3737,8 @@ function openCompleteModal(task, plannedToAbs, anchorAbs, pastDateStr) {
   if (usePicker) {
     const lastShown = Math.min(totalEndAbs, Math.max(plannedToAbs + 5, fromAbs + 7));
     const timed = isTimeBasedTask(task);
-    const durs = timed ? task.lectureDurations : null;
+    const preD = timed && extraGlue(task) ? getDurationPrefix(task) : null; // 따로 할 것 minutes count with their lecture
+    const durs = timed ? (preD ? preD.slice(1).map((v, i) => v - preD[i]) : task.lectureDurations) : null;
     let rows = '';
     for (let n = fromAbs; n <= lastShown; n++) {
       const named = hasValidItemNames(task);
@@ -3729,7 +3747,7 @@ function openCompleteModal(task, plannedToAbs, anchorAbs, pastDateStr) {
       const tm = timed && durs[n - startNum - 1] != null ? fmtDailyAmount(task.type, durs[n - startNum - 1]) : '';
       rows += `<button type="button" class="cm-item ${n > plannedToAbs ? 'extra' : ''} ${n === plannedToAbs && n < lastShown ? 'plan-end' : ''}" data-n="${n}">
         <span class="box"></span>
-        <span class="nm">${part ? `<span class="grp">${escapeHtml(part)}</span>` : ''}${escapeHtml(nm)}</span>
+        <span class="nm">${part ? `<span class="grp">${escapeHtml(part)}</span>` : ''}${escapeHtml(nm)}${preD && glueOf(task, n - startNum - 1) ? ' <span class="rev-pill">＋복습</span>' : ''}</span>
         ${tm ? `<span class="tm">${escapeHtml(tm)}</span>` : ''}</button>`;
     }
     pickEl.innerHTML = `<div class="cm-pick-head"><span>들은 ${task.type === 'lecture' ? '강의' : '항목'}를 눌러 체크 · 점선까지가 ${dayWord} 계획</span>
@@ -3856,8 +3874,10 @@ function openPageCheckModal(task, item, pastDateStr) {
     if (ra) {
       const k = ra.rel + ':' + ra.list.map(x => x.id).join(',');
       if (k !== revKey) { revCb.checked = ra.list.some(x => planRev.has(x.id)); revKey = k; }
-      document.getElementById('cm-rev-txt').textContent = `복습(${revNames(ra.list)})도 했어요`;
+      const share = item.isPart && ra.rel >= task.total && item.from === snR + task.total && pg === item.pTo; // only part of it today
+      document.getElementById('cm-rev-txt').textContent = `${share ? '오늘 몫 ' : ''}복습(${revNames(ra.list)})도 했어요`;
       revBox.style.display = '';
+      if (share && revCb.checked) { helper.textContent = '계획대로 했어요 · 남은 복습은 다음에 이어서 해요'; return; }
     } else { revBox.style.display = 'none'; revKey = null; }
     helper.textContent = pageStateText(task, pg, a, cmRevChecked());
   };
@@ -3896,7 +3916,14 @@ function commitPageCheck(task) {
   // where that day started (today: before today's work; yesterday: today isn't checked yet)
   const anchor = past ? task.progress : Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
   const ps0 = anchor < task.total ? getPartState(task, sn + anchor + 1, dS) : { done: 0, frac: 0 };
-  const st = pageToState(task, pg, cmRevChecked());
+  const revBoxEl = document.getElementById('cm-rev');
+  const revShown = !!(revBoxEl && revBoxEl.style.display !== 'none'), revOn = cmRevChecked();
+  let st = pageToState(task, pg, revOn);
+  // a part day of the last chapter that also holds part of the last review: ticked + the planned
+  // page = that day's planned share (below), not the whole review
+  if (revOn && item && item.isPart && item.from === sn + task.total && pg === item.pTo && st.prog >= task.total)
+    st = { prog: task.total - 1, f: effFrac(task, task.total - 1, 1) };
+  const noSnap = revShown && !revOn; // said the review wasn't done: exactly where the pages are
   const more = st.prog > anchor || (st.prog === anchor && st.f > ps0.frac + 1e-9);
   if (!past) task.progress = anchor; // today's check is made again from where today began
   if (!more) {
@@ -3917,7 +3944,7 @@ function commitPageCheck(task) {
     // exactly the page the plan showed for a part day = that day's planned share (the shown
     // page is rounded; keeping the plan's own share keeps following the plan exactly on plan)
     let user = 1; // started/left off where you chose, not as a planned part day
-    if (item && item.isPart && item.from === sn + st.prog + 1 && pg === item.pTo) {
+    if (item && item.isPart && item.from === sn + st.prog + 1 && pg === item.pTo && !noSnap) {
       const fp = item.partF !== undefined ? item.partF : item.partN / item.partOf;
       if (fp > (st.prog === anchor ? ps0.frac : 0) && fp < 1) { f = fp; n = item.partN; of = item.partOf; user = 0; }
     }
@@ -4842,7 +4869,7 @@ function multiDayNoteHtml(task, plan) {
     task.itemDays.forEach((v, rel) => {
       const abs = startNum + rel + 1;
       if (!(v > 1) || abs < firstAbs) return;
-      let cap = chapterPages(task, rel) || 14; // never more days than pages: not "short"
+      let cap = pagesLeft(task, rel, 0) || 14; // never more days than pages: not "short"
       if (chapterPages(task, rel) > 0) { const ps = getPartState(task, abs, fmtDate(addDays(today(), 1))); if (ps.done > 0) cap = ps.done + pagesLeft(task, rel, ps.frac); }
       if ((days.get(abs) || 1) < Math.min(14, v, cap)) short++;
     });
@@ -6058,12 +6085,13 @@ function computeWeekGoal(task, weekStartStr, weekEndStr, onlyFromStr) {
   if (open.length) {
     const last = open[open.length - 1];
     g.part = { item: last.from, firstN: open[0].partN, n: last.partN, of: last.partOf };
-    if (last.pTo != null) { g.part.pFrom = open[0].pFrom; g.part.pTo = last.pTo; }
+    if (last.pTo != null) { const o0 = open.find(s => s.pFrom != null); g.part.pFrom = o0 ? o0.pFrom : last.pFrom; g.part.pTo = last.pTo; }
   }
   if (inWeek[0].pFrom != null && finished.length) { g.pFrom = inWeek[0].pFrom; g.pTo = finished[finished.length - 1].pTo; }
   else if (hasPages(task) && extraGlue(task) && finished.length) { // 따로 할 것: the week may start with a review-only day
     const f0 = inWeek.find(s => s.pFrom != null);
     if (f0 && !f0.isPart) g.pFrom = f0.pFrom;
+    else if (!f0) g.noPg = 1; // only reviews this week: no page to show
   }
   if (g.pFrom != null && g.pTo == null) { // …or end with one: the last chapter's own last page
     const P = task.itemPages, sn0 = task.startNum || 0;
@@ -6134,7 +6162,10 @@ function refreshWeekGoal(taskId, weekStartStr, why, taskObj) {
         const op = old.part && old.part.item === g.part.item ? old.part : null, fp = fut && fut.part && fut.part.item === g.part.item ? fut.part : null;
         const r = P[ix(g.part.item)], ps = getPartState(task, g.part.item, fmtDate(addDays(today(), 1)));
         g.part.pFrom = op && op.pFrom != null ? op.pFrom : fp && fp.pFrom != null ? fp.pFrom : r[0];
-        g.part.pTo = fp && fp.pTo != null ? fp.pTo : Math.max(g.part.pFrom, r[0] - 1 + Math.round(ps.frac * (r[1] - r[0] + 1) + 1e-7));
+        const cEnd = r[0] - 1 + Math.round(contentFrac(task, ix(g.part.item), ps.frac) * (r[1] - r[0] + 1) + 1e-7);
+        if (fp && fp.pTo != null) g.part.pTo = fp.pTo;
+        else if (extraGlue(task) && cEnd < g.part.pFrom) { delete g.part.pFrom; delete g.part.pTo; } // only its review so far: no page
+        else g.part.pTo = Math.max(g.part.pFrom, cEnd);
       }
     }
     if (!g.amount && !g.part) g = null;
@@ -6187,13 +6218,13 @@ function renderWeekGoals(weekStart, weekEnd) {
     if (!g) return;
     // pages (페이지로 양 계산); goals frozen before pages were set: the chapters' own pages
     let pFrom = g.pFrom, pTo = g.pTo;
-    if (hasPages(task) && g.to >= g.from && pFrom == null) {
+    if (hasPages(task) && g.to >= g.from && pFrom == null && !g.noPg) {
       const sn = task.startNum || 0, P = task.itemPages, ix = (a) => Math.max(0, Math.min(task.total - 1, a - sn - 1));
       pFrom = P[ix(g.from)][0]; pTo = P[ix(g.to)][1];
     }
     if (hasPages(task) && pFrom != null && pTo == null) pTo = task.itemPages[Math.max(0, Math.min(task.total - 1, g.to - (task.startNum || 0) - 1))][1];
     if (!hasPages(task)) pFrom = pTo = undefined;
-    goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live, fixed: frozen ? fixedLabel(g) : '', pFrom, pTo, rv: g.rv });
+    goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live, fixed: frozen ? fixedLabel(g) : '', pFrom, pTo, rv: g.rv, noPg: !!g.noPg });
   });
 
   if (goals.length === 0) { container.innerHTML = ''; return; }
@@ -6204,7 +6235,7 @@ function renderWeekGoals(weekStart, weekEnd) {
   const titleSuffix = isCurrentWeek ? muted('고정한 날 기준 · 새로고침해도 그대로, ↻ 누르면 오늘 계획으로 다시 고정')
     : isFutureWeek ? (allFrozen ? muted('📌 확정됨') : muted('미리보기 · 복사하거나 📌 누르면 고정돼요') + `<button class="week-goal-lock" data-action="lock-week-goals">📌 이 목표로 확정</button>`)
     : '';
-  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, part, frozen, live, fixed, pFrom, pTo, rv }) => {
+  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, part, frozen, live, fixed, pFrom, pTo, rv, noPg }) => {
     const ti = typeInfo(task.type);
     const color = getTaskColor(task);
     const hasRange = to >= from;
@@ -6215,9 +6246,9 @@ function renderWeekGoals(weekStart, weekEnd) {
     const pagePill = hasRange && pFrom != null ? ` <span class="page-pill">${pagesText(pFrom, pTo)}</span>` : '';
     const rangeDisplay = (hasRange ? formatRangeDisplay(task, from, to) + pagePill : '') + (part ? `${hasRange ? ' + ' : ''}<span class="part-pill">⏳ ${escapeHtml(partText)}</span>` : '')
       + (rv > 0 ? ` <span class="rev-pill">＋복습 ${rv}개</span>` : '');
-    const copyText = hasRange
+    const copyText = (hasRange
       ? buildCopyText(task, { from, to, pFrom, pTo }) + (part ? ` + ${partText}` : '')
-      : `${copyName(task)} ${partText}`;
+      : `${copyName(task)} ${partText}`) + (rv > 0 ? ` + 복습 ${rv}개` : '');
     const isFinal = hasRange && isFinalSession(task, { from, to });
     const finalPill = isFinal ? `<span class="week-goal-final-pill">🎉 ${getCompletionLabel(task.type)}</span>` : '';
     const refreshBtn = frozen
@@ -6236,7 +6267,7 @@ function renderWeekGoals(weekStart, weekEnd) {
         <div class="week-goal-icon">${ti.icon}</div>
         <div class="week-goal-info">
           <div class="week-goal-title">${escapeHtml(task.title)}${finalPill}</div>
-          <div class="week-goal-range">${rangeDisplay}${hasRange ? `<span class="amt">총 ${pFrom != null ? `${pagesIn(task, pFrom, pTo) + (part && part.pTo != null ? pagesIn(task, part.pFrom, part.pTo) : 0)}쪽` : `${amount}${ti.unit}`}</span>` : ''}</div>
+          <div class="week-goal-range">${rangeDisplay}${hasRange ? `<span class="amt">${noPg && pFrom == null ? '복습' : `총 ${pFrom != null ? `${pagesIn(task, pFrom, pTo) + (part && part.pTo != null ? pagesIn(task, part.pFrom, part.pTo) : 0)}쪽` : `${amount}${ti.unit}`}`}</span>` : ''}</div>
           ${fixed ? `<div class="week-goal-fixed">📌 ${escapeHtml(fixed)}</div>` : ''}
           ${hint}
         </div>
