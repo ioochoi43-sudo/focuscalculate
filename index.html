@@ -2006,7 +2006,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.9 · 최근 업데이트 2026-11-08</div>
+      <div class="build-badge" id="buildBadge">v4.9.1 · 최근 업데이트 2026-11-08</div>
     </div>
   </aside>
 
@@ -2581,7 +2581,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.9';
+const APP_VERSION = 'v4.9.1';
 const APP_BUILD_DATE = '2026-11-08';
 
 // ===== STATE =====
@@ -3565,13 +3565,25 @@ function firstOpenRel(task) {
   if (p >= task.total) return task.total;
   return getPartState(task, sn + p + 1, fmtDate(addDays(today(), 1))).frac > 0 ? p + 1 : p;
 }
+// 따로 할 것 (복습·건너뛰기) changed today: yesterday's plan was made with the old ones, so its
+// "어제 했어요" would be recorded against the wrong amounts — it closes (back open if undone today).
+function ydayLocked(task) {
+  const pe = task && task.preEdit;
+  if (!pe || pe.date !== fmtDate(today()) || !pe.fields) return false;
+  const j = (v) => JSON.stringify(Array.isArray(v) && v.length ? v.map(x => (x && typeof x === 'object' ? [x.id, x.w, x.at, x.sk] : x)) : null);
+  return j(pe.fields.extras) !== j(task.extras) || j(pe.fields.skipped) !== j(task.skipped);
+}
 // "어제 했어요" still open for this goal (yesterday's plan used the reviews as they were)
 function ydayPending(task) {
   const yStr = fmtDate(addDays(today(), -1));
-  if (task.progress >= task.total || completedMap.get(task.id + '|' + yStr) || todayWorkRec(task.id)) return false;
+  if (task.progress >= task.total || completedMap.get(task.id + '|' + yStr) || todayWorkRec(task.id) || ydayLocked(task)) return false;
   return !!yesterdayItem(task);
 }
-const YDAY_FIRST = '어제 체크 못 한 할 일이 있어요 · 어제 체크를 먼저 하거나, 오늘 것을 체크한 뒤에 해 주세요';
+// Before changing 따로 할 것 with yesterday still unchecked: ask (it closes yesterday's check)
+function ydayOk(task) {
+  if (!ydayPending(task)) return true;
+  return confirm('어제 체크 못 한 할 일이 있어요.\n어제 공부했다면 먼저 "어제 했어요"로 체크해 주세요.\n\n어제 안 했다면 그대로 진행하면 돼요.\n(지금 바꾸면 이 목표의 어제 체크는 닫혀요)');
+}
 // Can this (not done) extra be removed now? Not while its chapter is under way.
 function extraDeletable(task, x) {
   if (extraDone(task, x)) return false;
@@ -3661,7 +3673,7 @@ function deleteExtra(taskId, xId) {
   const x = task.extras.find(e => e.id === xId);
   if (!x) return;
   if (!extraDeletable(task, x)) { showToast('지금 하는 챕터에 붙은 복습이라 지울 수 없어요'); return; }
-  if (ydayPending(task)) { showToast(YDAY_FIRST); return; }
+  if (!ydayOk(task)) return;
   if (x.sk != null) { // 건너뛴 챕터: 안 하기 (the chapter stays out; 되살리기 brings it back)
     if (!confirm(`${x.t}을(를) 안 하기로 할까요?\n남은 날의 양이 그만큼 줄어요. (나중에 되살릴 수 있어요)`)) return;
     changeExtras(task, task.extras.filter(e => e.id !== xId));
@@ -3722,7 +3734,7 @@ function updateExtraPreview() {
 function openExtraModal(taskId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task || !isTimeBasedTask(task)) return;
-  if (ydayPending(task)) { showToast(YDAY_FIRST); return; }
+  if (!ydayOk(task)) return;
   extraModalTaskId = taskId;
   const u = extraUnit(task), k0 = firstOpenRel(task), sn = task.startNum || 0;
   document.getElementById('xm-name').value = '';
@@ -3767,7 +3779,6 @@ function setupExtraModal() {
     if (r.err) return showToast(r.err);
     if (r.x.at < task.total && r.x.at < firstOpenRel(task)) return showToast('이미 시작한 챕터 앞에는 넣을 수 없어요');
     if (r.x.at < task.total && isSkippedRel(task, r.x.at)) return showToast('건너뛴 챕터 앞에는 넣을 수 없어요');
-    if (ydayPending(task)) { close(); return showToast(YDAY_FIRST); }
     changeExtras(task, [...(task.extras || []), r.x]);
     close();
     showToast(`✓ "${r.x.t}" 복습을 넣었어요 · 오늘부터 새 계획으로 계산해요`);
@@ -3803,9 +3814,9 @@ function skipPreview() {
 function openSkipModal(taskId) {
   const task = tasks.find(t => t.id === taskId);
   if (!task || !isTimeBasedTask(task)) return;
-  if (ydayPending(task)) { showToast(YDAY_FIRST); return; }
   const rels = skippableRels(task), sn = task.startNum || 0;
   if (!rels.length) { showToast(task.progress >= task.total - 1 ? '마지막 챕터는 건너뛸 수 없어요' : '건너뛸 수 있는 챕터가 없어요'); return; }
+  if (!ydayOk(task)) return;
   skipModalTaskId = taskId;
   const sel = document.getElementById('sk-rel');
   sel.innerHTML = rels.map((k, i) => `<option value="${k}">${i === 0 ? '다음 챕터 · ' : ''}${escapeHtml(formatRangePlain(task, sn + k + 1, sn + k + 1))}</option>`).join('');
@@ -3826,7 +3837,7 @@ function canRestoreInPlace(task, k) {
 function unskipChapter(taskId, k) {
   const task = tasks.find(t => t.id === taskId);
   if (!task || !Array.isArray(task.skipped) || !task.skipped.includes(k)) return;
-  if (ydayPending(task)) { showToast(YDAY_FIRST); return; }
+  if (!ydayOk(task)) return;
   const sn = task.startNum || 0, nm = formatRangePlain(task, sn + k + 1, sn + k + 1);
   const X = Array.isArray(task.extras) ? task.extras : [];
   if (canRestoreInPlace(task, k)) { // back in its place
@@ -3849,7 +3860,6 @@ function setupSkipModal() {
     if (!task) return close();
     const k = parseInt(document.getElementById('sk-rel').value);
     if (!skippableRels(task).includes(k)) { close(); showToast('이 챕터는 지금 건너뛸 수 없어요'); rerender(); return; }
-    if (ydayPending(task)) { close(); return showToast(YDAY_FIRST); }
     const sn = task.startNum || 0, nm = formatRangePlain(task, sn + k + 1, sn + k + 1);
     const x = { id: 'x' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), t: nm, w: Math.max(0.01, Number(task.lectureDurations[k]) || 1), at: EXTRA_END, d: fmtDate(today()), sk: k };
     changeExtras(task, [...(task.extras || []), x], [...(task.skipped || []), k].sort((a, b) => a - b));
@@ -4239,6 +4249,7 @@ function renderYesterdayBox() {
     const tRec = todayWorkRec(task.id);
     if (yRec && !yRec.late) return;        // checked yesterday as usual
     if (!yRec && tRec) return;             // today already checked: leave yesterday alone
+    if (!yRec && ydayLocked(task)) return; // 따로 할 것 changed today: yesterday's plan no longer applies
     const item = yesterdayItem(task);
     if (!item && !yRec) return;
     const ti = typeInfo(task.type), color = getTaskColor(task);
@@ -4263,6 +4274,7 @@ function renderYesterdayBox() {
     <div class="yday-note">했는데 깜빡했다면 여기서 체크하세요 · 오늘 것을 체크하기 전에만 할 수 있어요</div><div class="agenda-list">${rows.join('')}</div></div>`;
   box.querySelectorAll('[data-action="yday-done"]').forEach(b => b.addEventListener('click', () => {
     const task = tasks.find(t => t.id === b.dataset.id); if (!task) return;
+    if (ydayLocked(task)) return rerender();
     const item = yesterdayItem(task); if (!item) return rerender();
     const yS = fmtDate(addDays(today(), -1));
     if (todayWorkRec(task.id)) { showToast('오늘 체크를 먼저 해제해 주세요'); return; }
