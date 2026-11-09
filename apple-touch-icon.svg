@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBF8F0"/>
+      <stop offset="1" stop-color="#F0EAD8"/>
+    </linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#563526" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+  <rect width="180" height="180" fill="url(#bg)"/>
+  <g transform="translate(-5 -4)">
+  <!-- calculator -->
+  <g filter="url(#sh)">
+    <rect x="50" y="44" width="66" height="90" rx="14" fill="#8A604B"/>
+    <rect x="58" y="53" width="50" height="22" rx="6" fill="#E8EDD3"/>
+    <rect x="86" y="62" width="16" height="4" rx="2" fill="#98AD57"/>
+    <rect x="76" y="62" width="6" height="4" rx="2" fill="#BCC990"/>
+    <!-- buttons 3x3 -->
+    <g>
+      <rect x="58" y="83" width="13" height="11" rx="3.5" fill="#F8F4E8"/>
+      <rect x="76.5" y="83" width="13" height="11" rx="3.5" fill="#F8F4E8"/>
+      <rect x="95" y="83" width="13" height="11" rx="3.5" fill="#D6E2EF"/>
+      <rect x="58" y="99" width="13" height="11" rx="3.5" fill="#F8F4E8"/>
+      <rect x="76.5" y="99" width="13" height="11" rx="3.5" fill="#F8F4E8"/>
+      <rect x="95" y="99" width="13" height="11" rx="3.5" fill="#D6E2EF"/>
+      <rect x="58" y="115" width="13" height="11" rx="3.5" fill="#F8F4E8"/>
+      <rect x="76.5" y="115" width="13" height="11" rx="3.5" fill="#F8F4E8"/>
+      <rect x="95" y="115" width="13" height="11" rx="3.5" fill="#98AD57"/>
+    </g>
+  </g>
+  <!-- pencil, leaning across the lower right -->
+  <g filter="url(#sh)" transform="translate(112 112) rotate(-42)">
+    <!-- body (centered on its length axis, tip pointing left/down after rotation) -->
+    <rect x="-34" y="-7.5" width="52" height="15" fill="#F3CB74"/>
+    <rect x="-34" y="-7.5" width="52" height="5" fill="#F7D98F"/>
+    <rect x="-34" y="2.5" width="52" height="5" fill="#E5B85E"/>
+    <!-- ferrule -->
+    <rect x="18" y="-7.5" width="7" height="15" fill="#CFC7B8"/>
+    <rect x="20.5" y="-7.5" width="1.6" height="15" fill="#B8AF9E"/>
+    <!-- eraser -->
+    <path d="M25 -7.5 h6 a5 5 0 0 1 5 5 v5 a5 5 0 0 1 -5 5 h-6 z" fill="#F2A9A2"/>
+    <!-- wood tip -->
+    <path d="M-34 -7.5 L-50 0 L-34 7.5 z" fill="#EDD3AE"/>
+    <!-- graphite -->
+    <path d="M-44.5 -2.6 L-50 0 L-44.5 2.6 z" fill="#563526"/>
+  </g>
+  </g>
+</svg>

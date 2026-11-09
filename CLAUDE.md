@@ -2,7 +2,7 @@
 
 공부 목표를 마감일까지 날짜별로 나눠 주는 한국어 공부 계획 웹앱이에요. 사용자는 아이패드 홈 화면 앱으로 매일 써요(GitHub Pages 배포). 사용자는 이 앱을 짧게 **"focus cal"**이라고 불러요.
 
-- 현재 버전: **v4.9.5** (2026-11-09, 따로 할 것 · 복습 추가 + 챕터 건너뛰기)
+- 현재 버전: **v4.9.6** (2026-11-09, 따로 할 것 · 복습 추가 + 챕터 건너뛰기)
 - 변경 기록: `HISTORY.md`
 
 ---
@@ -11,6 +11,8 @@
 
 - **한 파일짜리 앱:** HTML + CSS + vanilla JS가 한 파일에 다 들어 있어요. 빌드 단계, 프레임워크, 패키지는 없어요(외부 리소스는 Pretendard 폰트 CDN 하나).
 - `index.html` — 앱 파일 하나뿐이에요. GitHub Pages가 이 파일을 배포해요. 사본 파일은 두지 않아요(사용자 결정, 2026-11-08).
+- `apple-touch-icon.png` — 홈 화면 아이콘(180×180, v4.9.6). `index.html`의 `<link rel="apple-touch-icon">`가 가리켜요. 원본 그림은 `apple-touch-icon.svg`이고, 고치면 크로미움으로 180×180 PNG로 다시 뽑아요. iOS는 바탕이 투명하면 검게 칠하니 불투명 바탕을 써요.
+- 테스트 출력 같은 작업 파일은 저장소에 넣지 않아요(스크래치 폴더에서 작업).
 - 저장은 브라우저 localStorage만 써요(서버 없음).
 
 ## 2. 가장 중요한 원칙
@@ -32,9 +34,9 @@
 
 버전을 올릴 때 `index.html`에서 바꿀 곳은 세 군데예요.
 
-1. `const APP_VERSION = 'v4.9.5';`
+1. `const APP_VERSION = 'v4.9.6';`
 2. `const APP_BUILD_DATE = '2026-11-09';` (YYYY-MM-DD, 배포하는 날)
-3. `<div class="build-badge" id="buildBadge">v4.9.5 · 최근 업데이트 2026-11-09</div>`
+3. `<div class="build-badge" id="buildBadge">v4.9.6 · 최근 업데이트 2026-11-09</div>`
 
 그리고 `HISTORY.md`에 항목을 추가하세요.
 
