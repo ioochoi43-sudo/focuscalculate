@@ -2015,7 +2015,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.9.4 · 최근 업데이트 2026-11-08</div>
+      <div class="build-badge" id="buildBadge">v4.9.5 · 최근 업데이트 2026-11-09</div>
     </div>
   </aside>
 
@@ -2590,8 +2590,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.9.4';
-const APP_BUILD_DATE = '2026-11-08';
+const APP_VERSION = 'v4.9.5';
+const APP_BUILD_DATE = '2026-11-09';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -4004,7 +4004,7 @@ function openCompleteModal(task, plannedToAbs, anchorAbs, pastDateStr) {
       pickEl.querySelectorAll('.cm-item').forEach(b => {
         const n = parseInt(b.dataset.n), on = !isNaN(v) && n <= v;
         b.classList.toggle('on', on);
-        if (on) { cnt++; if (timed && durs[n - startNum - 1] != null) mins += durs[n - startNum - 1]; }
+        if (on && !isSkippedRel(task, n - startNum - 1)) { cnt++; if (timed && durs[n - startNum - 1] != null) mins += durs[n - startNum - 1]; }
       });
       document.getElementById('cm-pick-sum').textContent = cnt === 0
         ? `아직 아무것도 체크하지 않았어요 (저장하면 ${dayWord === '어제' ? '어제는' : '오늘은'} 안 한 걸로 돼요)`
@@ -5022,6 +5022,12 @@ function annotatePages(task, sched, anchor, startFrac, tdyStr) {
   sched.forEach(x => {
     if (!(x.from >= sn + 1) || x.from > sn + N) return;
     if (x.isReview || x.isPast) { x.pFrom = rg(x.from)[0]; x.pTo = rg(Math.max(x.from, x.to))[1]; return; }
+    if (x.skToday) { // today's part of a chapter skipped afterwards
+      const fA = getPartState(task, x.from, tdyStr).frac, fB = x.partF !== undefined ? x.partF : x.partN / x.partOf, end = rg(x.from)[1];
+      x.pFrom = Math.min(pageAt(x.from, fA) + 1, end); x.pTo = Math.min(end, Math.max(pageAt(x.from, fB), x.pFrom));
+      if (rec && rec.pg && rec.part && rec.part.item === x.from) x.pTo = Math.max(x.pFrom, Math.min(end, rec.pg));
+      return;
+    }
     const f0 = x.from === cur ? cf : 0;
     if (x.isPart) {
       const f1 = x.partF !== undefined ? x.partF : x.partN / x.partOf, end = rg(x.from)[1];
@@ -5064,6 +5070,8 @@ function annotateExtras(task, sched, anchor, startFrac, tdyStr) {
     if (x.isPast) {
       for (let a = x.from; a <= Math.max(x.from, x.to); a++) addStart(a, 0);
       if (x.to >= sn + N) hit.push(...endX);
+    } else if (x.skToday) {
+      // (today's part of a chapter skipped afterwards: no reviews here, the next row isn't affected)
     } else if (x.isPart) {
       const f0 = x.from === cur ? cf : 0, f1 = x.partF !== undefined ? x.partF : x.partN / x.partOf;
       addStart(x.from, f0);
@@ -5643,6 +5651,10 @@ function buildTimeBasedSchedule(task) {
         i0 = 1; pDone = r0.part.n; pFrac = Math.min(0.99, partRecFrac(r0.part));
         partOfPlanned = (r0.part.m !== undefined && r0.part.m !== getManualDays(task, cursorRel)) ? 0 : r0.part.of;
         partU = !!r0.part.u; if (partU) partOfPlanned = 0;
+      } else if (r0 && r0.part && !((r0.amount || 0) > 0) && isSkippedRel(task, r0.part.item - startNum - 1)) {
+        // today's work was on a chapter skipped afterwards: today stays that (checked); the rest from tomorrow
+        schedule.push({ date: remainingDates[0], from: r0.part.item, to: r0.part.item, amount: 0, isPast: false, isToday: true, isPart: true, partN: r0.part.n, partOf: r0.part.of, partF: partFOf(r0.part.f, r0.part.n, r0.part.of), skToday: true });
+        i0 = 1;
       }
     }
     // "이번 주 안에 채우기": this week's goal chapters must be done by Sunday (constraint
@@ -5688,6 +5700,12 @@ function buildTimeBasedSchedule(task) {
           isPart: true, partN: r0.part.n, partOf: r0.part.of, partF: partFOf(r0.part.f, r0.part.n, r0.part.of) });
         partDone = r0.part.n; partFrac = Math.min(0.99, partRecFrac(r0.part)); curPartOf = r0.part.of;
         partOfPlanned = (r0.part.m !== undefined && r0.part.m !== getManualDays(task, cursorRel)) ? 0 : r0.part.of;
+        return;
+      }
+      if (r0 && r0.part && !((r0.amount || 0) > 0) && isSkippedRel(task, r0.part.item - startNum - 1)) {
+        // today's work was on a chapter skipped afterwards: today stays that (checked); the rest from tomorrow
+        schedule.push({ date: d, from: r0.part.item, to: r0.part.item, amount: 0, isPast: false, isToday: true,
+          isPart: true, partN: r0.part.n, partOf: r0.part.of, partF: partFOf(r0.part.f, r0.part.n, r0.part.of), skToday: true });
         return;
       }
     }
@@ -6788,7 +6806,7 @@ function renderTasks() {
             <div class="today-check-label">오늘 할 일${isFinalToday ? ` <span class="today-final-pill">🎉 ${getCompletionLabel(task.type)}</span>` : ''}</div>
             <div class="today-check-range">${todayRangeText}${partPillHtml(todaysSession)}</div>
             <div class="today-check-amount">${todaysSession.isPart
-              ? (todayCompleted ? '오늘 몫 완료! 내일 이어서 해요' : '양이 많아 나눠서 하는 날 · 진도는 마지막 날 올라가요')
+              ? (todaysSession.skToday ? '오늘 몫 완료! 나머지는 따로 할 것 맨 뒤로 옮겼어요' : todayCompleted ? '오늘 몫 완료! 내일 이어서 해요' : '양이 많아 나눠서 하는 날 · 진도는 마지막 날 올라가요')
               : `${rowAmountText(todaysSession, ti, task)} ${todayCompleted ? '완료!' : (todaysSession.isCatchUp ? (todaysSession.isOverdue ? '· ⚠️ 기한 지남' : '· ⚠️ 남은 공부일 없음') : '진행 예정')}`}${(() => { const r = completedMap.get(task.id + '|' + todayStr); return r && r.pg ? ` · 오늘 p.${r.pg}까지 기록` : ''; })()}</div>
           </div>
           ${!todayCompleted && !todaysSession.isCatchUp && plan.remainingDates.length > 1 ? `<button class="today-check-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
@@ -7358,6 +7376,7 @@ function selfCheckTask(task) {
       if (skip.has(ds)) add(`미룬 날(${md})에 분량이 있어요`);
       if (ds > pe) add(`계획 끝(${pe.slice(5).replace('-', '/')}) 뒤인 ${md}에 일정이 있어요`);
     }
+    if (s.skToday) return; // today's part of a chapter skipped afterwards (outside the chain)
     if (s.isPart) {
       if ((s.from !== c + 1 && s.from !== nx(c)) || s.to !== s.from) add(`${md} 나눠 하는 날이 앞 일정과 이어지지 않아요`);
       if (partItem != null && partItem !== s.from) add(`${md} 나눠 하던 챕터가 끝나기 전에 바뀌어요`);
@@ -7814,8 +7833,15 @@ function attachTaskHandlers() {
       } else {
         // Uncheck: revert today's recorded amount
         const recordedAmount = getCompletedAmount(id, todayStr);
+        const rec0 = completedMap.get(completionKey(id, todayStr));
         task.progress = Math.max(0, task.progress - recordedAmount);
         setCompleted(id, todayStr, false);
+        // today's part of a chapter skipped afterwards: what's left of it (rf) grows back
+        const kS = rec0 && rec0.part ? rec0.part.item - startNum - 1 : -1;
+        if (kS >= 0 && isSkippedRel(task, kS) && Array.isArray(task.extras) && task.extras.some(x => x.sk === kS)) {
+          const rf = chapterLeftFrac(task, kS);
+          changeExtras(task, task.extras.map(x => { if (x.sk !== kS) return x; const y = Object.assign({}, x); if (rf < 1) y.rf = Math.round(rf * 10000) / 10000; else delete y.rf; return y; }));
+        }
         persistTasks();
         rerender();
       }
