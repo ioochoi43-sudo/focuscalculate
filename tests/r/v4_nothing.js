@@ -1,0 +1,13 @@
+const C = require('./common');
+const app = C.mk([C.S.pageTask('X')]);
+app.check('X'); app.setDay('2026-11-10'); app.check('X'); app.setDay('2026-11-11');
+C.skipCh(app, 'X', 1); app.setDay('2026-11-12');
+const r = C.row0(app, 'X');
+console.log('prog', app.task('X').progress, 'row', JSON.stringify(r));
+app.view('active'); app.doc.querySelector('[data-action="toggle-today-complete"][data-id="X"]').click();
+const inp = app.doc.getElementById('cm-input'); inp.value = String(r.pf - 1); inp.oninput();
+console.log('helper:', app.doc.getElementById('cm-helper').textContent);
+app.doc.getElementById('cm-save').click();
+app.view('active');
+console.log('after saving "nothing done": prog', app.task('X').progress, 'toast', app.doc.getElementById('toast').textContent, '다시 넣기 shown', !!app.doc.querySelector('[data-action="skip-back"][data-id="X"]'));
+app.close();

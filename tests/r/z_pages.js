@@ -1,0 +1,12 @@
+const C = require('./common');
+const withSkip = (t, rels) => { t.skipped = rels; t.extras = rels.map(k => ({ id: 'sk' + k, t: (k + 1) + '장', w: t.lectureDurations[k], at: 100000, sk: k })); return t; };
+const app = C.mk([withSkip(C.S.pageTask('A'), [3, 6])]);
+app.check('A'); app.setDay('2026-11-10');
+const info = () => app.ev(`(() => { const t = tasks[0]; const p = buildSchedule(t); const f = p.schedule.filter(s => !s.isPast && !s.isReview); return JSON.stringify({ pages: hasPages(t), status: p.status, sumLoads: Math.round([...dayLoadsOf(t, p).values()].reduce((a, b) => a + b, 0) * 10) / 10, remaining: Math.round((getDurationPrefix(t)[t.total] - getDurationPrefix(t)[t.progress]) * 10) / 10, skW: (t.extras || []).map(x => Math.round(extraW(t, x) * 100) / 100), first: f.slice(0, 2).map(s => fmtDate(s.date).slice(5) + ' ' + s.from + '-' + s.to + (s.pFrom != null ? ' p' + s.pFrom : '')), last: f.slice(-1).map(s => fmtDate(s.date).slice(5) + ' ' + s.from + '-' + s.to + ' ' + (s.revs || []).map(x => x.t).join('+')) }); })()`);
+const rows0 = C.futRows(app, 'A');
+console.log('before    ', info());
+const tog = () => { app.view('active'); app.doc.querySelector('[data-action="edit"][data-id="A"]').click(); app.doc.getElementById('e-pagesToggle').click(); app.doc.getElementById('e-save').click(); return app.doc.getElementById('toast').textContent; };
+console.log('pages off:', tog()); console.log('          ', info());
+console.log('pages on :', tog()); console.log('          ', info(), '| plan identical to before:', C.futRows(app, 'A') === rows0);
+console.log('errors', app.errors.slice(0, 2));
+app.close();

@@ -1,0 +1,8 @@
+{
+  "name": "focus-calculate-tests",
+  "private": true,
+  "description": "Tests for index.html (not part of the app). See README.md.",
+  "dependencies": {
+    "jsdom": "^24.1.3"
+  }
+}

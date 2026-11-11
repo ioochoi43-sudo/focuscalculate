@@ -1,0 +1,15 @@
+const C = require('./common');
+const app = C.mk([C.S.pageTask('X')]);
+app.check('X'); app.setDay('2026-11-10'); app.check('X'); app.setDay('2026-11-11');
+console.log('prog before skip', app.task('X').progress, 'skip 1 (2장):', JSON.stringify(C.skipCh(app, 'X', 1)));
+app.check('X');
+app.setDay('2026-11-12');
+const S = () => ({ prog: app.task('X').progress, rows: C.futRows(app, 'X'), status: app.snap('X').status, back: !!(app.view('active'), app.doc.querySelector('[data-action="skip-back"][data-id="X"]')), card: app.cardText('X').match(/계획대로 \d+ \/ \d+p/) + '' });
+const a = S();
+console.log('before check:', JSON.stringify({ prog: a.prog, status: a.status, 다시넣기: a.back, card: a.card }), 'row', JSON.stringify(C.row0(app, 'X')));
+app.check('X');
+console.log('record', JSON.stringify(C.st(app, 'X').rec), 'prog', app.task('X').progress);
+app.view('active'); app.doc.querySelector('[data-action="toggle-today-complete"][data-id="X"]').click();
+const b = S();
+console.log('after uncheck:', JSON.stringify({ prog: b.prog, status: b.status, 다시넣기: b.back, card: b.card }), 'rows same:', a.rows === b.rows);
+app.close();

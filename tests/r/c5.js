@@ -1,0 +1,10 @@
+const C = require('./common');
+const ex = [{ id: 'x0', t: 'R0', w: 22, at: 10, u: 'pg' }, { id: 'x1', t: 'R1', w: 8, at: 3, u: 'pg' }];
+const app = C.mk([C.S.pageTask('P', { extras: ex })]);
+const fmt = (rows) => rows.filter(r => !r[9]).map(r => [r[0].slice(5), r[1], r[3] ? r[4] + '/' + r[5] : '', r[7], r[8], r[11] || ''].join(' ')).join(' | ');
+const a = fmt(app.snap('P').rows);
+app.setDay('2026-11-09');
+const b = fmt(app.snap('P').rows);
+console.log(a === b ? 'same' : 'DIFF\n' + a.slice(-300) + '\n' + b.slice(-300));
+console.log(app.ev(`JSON.stringify(tasks[0].rebase)`), app.ev(`JSON.stringify([...weekGoalsMap.entries()])`).slice(0, 300));
+app.close();

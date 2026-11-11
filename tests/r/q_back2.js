@@ -1,0 +1,20 @@
+const C = require('./common');
+const kind = process.argv[2] || 'W';
+const t0 = kind === 'P' ? (() => { const t = C.S.pageTask('X'); t.itemDays = [0, 3, 0, 0, 0, 0, 0, 0, 0, 0]; return t; })() : C.S.weightTask('X');
+const app = C.mk([t0]);
+console.log('skip rel 0:', JSON.stringify(C.skipCh(app, 'X', 0)), 'row', JSON.stringify(C.row0(app, 'X')));
+app.check('X');
+const fr = () => app.ev(`(() => { const t = tasks[0]; const r = fwdRel(t, t.progress); return getPartState(t, (t.startNum||0) + r + 1, fmtDate(addDays(today(), 1))).frac; })()`);
+console.log('after day1: prog', app.task('X').progress, 'frac of ch2', fr(), 'reached', kind === 'P' ? app.ev('pageReachedNow(tasks[0])') : '-');
+app.setDay('2026-11-10');
+app.view('active');
+const b = app.doc.querySelector('[data-action="skip-back"][data-id="X"]');
+console.log('다시 넣기 shown?', !!b, b && b.textContent);
+if (b) b.click();
+const s = app.snap('X');
+console.log('after 다시 넣기: prog', app.task('X').progress, 'skipped', JSON.stringify(app.task('X').skipped), 'status', s.status, 'behind', s.behind, 'reached', kind === 'P' ? app.ev('pageReachedNow(tasks[0])') : '-');
+console.log('rows', s.rows.filter(r => r[0] >= '2026-11-10').slice(0, 6).map(r => r.slice(0, 9).join(' ')).join(' | '));
+app.check('X');
+console.log('after checking today: prog', app.task('X').progress, 'status', app.snap('X').status);
+for (const ds of C.days('2026-11-11', 4)) { app.setDay(ds); const sn = app.snap('X'); console.log(ds, 'status', sn.status, 'row', JSON.stringify(C.row0(app, 'X'))); app.check('X'); }
+app.close();
