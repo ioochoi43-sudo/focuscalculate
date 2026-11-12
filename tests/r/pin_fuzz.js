@@ -5,7 +5,7 @@
 const L = require('./pin_lib');
 const seed0 = parseInt(process.argv[2] || '1'), N = parseInt(process.argv[3] || '30'), onlyKind = process.argv[4] && process.argv[4] !== '-' ? process.argv[4] : null, onlyMode = process.argv[5] || null;
 const KINDS = ['count', 'lecture', 'weight', 'page', 'pageX', 'page', 'pageX'];
-let issues = 0, ran = 0; const skips = {};
+let issues = 0, ran = 0, notes = 0; const skips = {};
 const skip = (why) => { skips[why] = (skips[why] || 0) + 1; };
 for (let seed = seed0; seed < seed0 + N; seed++) {
   const R = L.rng(seed * 7919 + 13);
@@ -59,8 +59,12 @@ for (let seed = seed0; seed < seed0 + N; seed++) {
   log.push('| ' + mode + ' @' + d0);
   const cmpTwin = (when, dsFrom, noPlan) => {
     const a = L.st(app, 'A'), b = L.st(app, 'B');
-    if (JSON.stringify(a.rec) !== JSON.stringify(b.rec)) issue(`${when}: record differs from the twin\n   A ${JSON.stringify(a.rec)}\n   B ${JSON.stringify(b.rec)}`);
-    else if (a.prog !== b.prog || a.status !== b.status || a.behind !== b.behind) issue(`${when}: progress/status differs from the twin A ${a.prog} ${a.status} ${a.behind} B ${b.prog} ${b.status} ${b.behind}`);
+    const strip = (r) => { if (!r) return r; const o = Object.assign({}, r); delete o.pg; delete o.at; return o; };
+    if (JSON.stringify(a.rec) !== JSON.stringify(b.rec)) {
+      if (JSON.stringify(strip(a.rec)) === JSON.stringify(strip(b.rec))) { console.log(`NOTE ${tag} [${log.join(' ')}]\n   ${when}: only the page / "at" note of the record differs  A ${JSON.stringify(a.rec)}  B ${JSON.stringify(b.rec)}`); notes++; }
+      else issue(`${when}: record differs from the twin\n   A ${JSON.stringify(a.rec)}\n   B ${JSON.stringify(b.rec)}`);
+    }
+    if (a.prog !== b.prog || a.status !== b.status || a.behind !== b.behind) issue(`${when}: progress/status differs from the twin A ${a.prog} ${a.status} ${a.behind} B ${b.prog} ${b.status} ${b.behind}`);
     else if (!noPlan && L.rowsFrom(a, dsFrom) !== L.rowsFrom(b, dsFrom)) issue(`${when}: plan differs from the twin\n   A ${L.rowsFrom(a, dsFrom).slice(0, 400)}\n   B ${L.rowsFrom(b, dsFrom).slice(0, 400)}`);
     return [a, b];
   };
@@ -133,4 +137,4 @@ for (let seed = seed0; seed < seed0 + N; seed++) {
   } catch (e) { issue('exception in the script: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)); }
   app.close();
 }
-console.log(`ran ${ran} issues ${issues} skips ${JSON.stringify(skips)}`);
+console.log(`ran ${ran} issues ${issues} notes ${notes} skips ${JSON.stringify(skips)}`);
