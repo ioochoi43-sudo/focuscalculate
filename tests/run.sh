@@ -29,12 +29,22 @@ base v47-yearend-newrule t/baseline2.js "$HTML" new &
 wait
 
 # 2) Scenario suites (each prints "passes N fails M")
-for f in t/ext.js t/ext2.js t/ext3.js t/skip.js t/skip2.js t/skipcur.js t/skipcur2.js t/yday.js t/ydayno.js $(ls t/pin*.js 2>/dev/null); do
-  ( n=$(basename "$f" .js); timeout 1200 node "$f" > "out/$n.out" 2>&1; tail -n1 "out/$n.out" | sed "s/^/$n: /" ) &
+SUITES="t/ext.js t/ext2.js t/ext3.js t/skip.js t/skip2.js t/skipcur.js t/skipcur2.js t/yday.js t/ydayno.js t/pin.js t/pinui.js"
+for f in $SUITES; do
+  ( n=$(basename "$f" .js); timeout 1200 node "$f" > "out/suite-$n.out" 2>&1; tail -n1 "out/suite-$n.out" | sed "s/^/$n: /" ) &
 done
 wait
-grep -h "^FAIL" out/*.out | head -20
-grep -L "fails 0" $(ls out/ext*.out out/skip*.out out/yday*.out out/pin*.out 2>/dev/null) | sed 's/^/SUITE FAILED: /'
+for f in $SUITES; do
+  n=$(basename "$f" .js)
+  grep -h "^FAIL" "out/suite-$n.out" | head -5
+  grep -q "fails 0" "out/suite-$n.out" || { echo "SUITE FAILED: $n"; fail=1; }
+done
+
+# 2b) 양 정하기: the review's random checks (pin + check as shown == no pin checked there; follow to the end)
+( timeout 1200 node r/pin_fuzz.js 1 16 > out/fuzz-pins.out 2>&1; echo "fuzz pins: $(tail -n1 out/fuzz-pins.out | cut -c1-40)" ) &
+( timeout 1200 node r/pin_fuzz2.js 1 12 > out/fuzz-pins2.out 2>&1; echo "fuzz pins after changes: $(tail -n1 out/fuzz-pins2.out | cut -c1-40)" ) &
+( timeout 1200 node r/pin_follow.js 1 6 > out/follow-pins.out 2>&1; echo "follow with pins: $(tail -n1 out/follow-pins.out | cut -c1-60)" ) &
+wait
 
 # 3) Fuzz (follow the plan with random reviews / skips) and twin checks
 for a in "1 plain" "2 w"; do
