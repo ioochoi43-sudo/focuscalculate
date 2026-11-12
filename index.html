@@ -565,6 +565,12 @@
     white-space: nowrap;
     vertical-align: 1px;
   }
+  @media (max-width: 520px) {
+    /* phone: the row's buttons (복사 · 양 정하기 · 미루기) go on a line of their own, so the text keeps its width */
+    #todayList .agenda-item, #tomorrowList .agenda-item { flex-wrap: wrap; row-gap: 8px; }
+    #todayList .agenda-item .agenda-info, #tomorrowList .agenda-item .agenda-info { flex: 1 1 calc(100% - 90px); }
+    #todayList .agenda-item .agenda-copy, #tomorrowList .agenda-item .agenda-copy { margin-left: auto; }
+  }
   .pn-days { display: flex; gap: 6px; margin-bottom: 12px; }
   .pn-days .chip { padding: 6px 16px; }
   .pn-days .chip:disabled { opacity: 0.4; cursor: default; }
