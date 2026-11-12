@@ -24,6 +24,7 @@ for (let seed = seed0; seed < seed0 + N; seed++) {
     app.setDay(ds);
     const a = R(), dl = page ? L.ri(R, -6, 10) || 3 : L.ri(R, -2, 3) || 1;
     let act = a < 0.66 ? 'c' : a < 0.80 ? 'd' + dl : a < 0.88 ? '-' : a < 0.94 ? 'pd' : 'pw';
+    if (process.env.PW && i >= warm - 2 && R() < 0.6) act = 'pw'; // (review: 이번 주 안에 채우기 set just before the pinned days)
     for (const id of ['A', 'B']) {
       if (act === 'c') app.check(id);
       else if (act[0] === 'd') { const r = L.rowOf(L.st(app, id), ds); if (r) { const v = (page && r[8] != null ? r[8] : r[2]) + dl; if (page && r[8] == null) app.check(id); else L.checkAt(app, id, v); } }
