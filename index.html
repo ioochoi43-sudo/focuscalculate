@@ -565,12 +565,14 @@
     white-space: nowrap;
     vertical-align: 1px;
   }
-  @media (max-width: 520px) {
-    /* phone: the row's buttons (복사 · 양 정하기 · 미루기) go on a line of their own, so the text keeps its width */
+  @media (max-width: 640px) {
+    /* phone / narrow split view: the row's buttons (복사 · 양 정하기 · 미루기) go on a line of their own, so the text keeps its width */
     #todayList .agenda-item, #tomorrowList .agenda-item { flex-wrap: wrap; row-gap: 8px; }
     #todayList .agenda-item .agenda-info, #tomorrowList .agenda-item .agenda-info { flex: 1 1 calc(100% - 90px); }
     #todayList .agenda-item .agenda-copy, #tomorrowList .agenda-item .agenda-copy { margin-left: auto; }
   }
+  #pinModal .modal-actions { flex-wrap: wrap; }
+  #pinModal .modal-actions .btn { white-space: nowrap; }
   .pn-days { display: flex; gap: 6px; margin-bottom: 12px; }
   .pn-days .chip { padding: 6px 16px; }
   .pn-days .chip:disabled { opacity: 0.4; cursor: default; }
@@ -2041,7 +2043,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.9.7 · 최근 업데이트 2026-11-09</div>
+      <div class="build-badge" id="buildBadge">v4.10 · 최근 업데이트 2026-11-12</div>
     </div>
   </aside>
 
@@ -2636,8 +2638,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.9.7';
-const APP_BUILD_DATE = '2026-11-09';
+const APP_VERSION = 'v4.10';
+const APP_BUILD_DATE = '2026-11-12';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -3876,6 +3878,7 @@ function canPinDay(task, plan, dS) {
   if (dS !== tStr && dS !== fmtDate(addDays(today(), 1))) return false;
   if (!plan.remainingDates.some(d => fmtDate(d) === dS) || !plan.remainingDates.some(d => fmtDate(d) > dS)) return false; // a study day with one after it
   if (dS === tStr && todayWorkRec(task.id)) return false;
+  if (dS !== tStr) { const r = completedMap.get(task.id + '|' + dS); if (r && (r.amount > 0 || r.part)) return false; } // tomorrow ticked ahead
   return true;
 }
 // Everything the "양 정하기" window needs for day dS: the plan without that day's pin, its row, the range to type
@@ -3884,8 +3887,12 @@ function pinDayCtx(task, dS) {
   const tStr = fmtDate(today()), mStr = fmtDate(addDays(today(), 1));
   if (dS !== tStr && dS !== mStr) return null;
   if (dS === tStr && todayWorkRec(task.id)) return null;
+  if (dS === mStr) { const r = completedMap.get(task.id + '|' + dS); if (r && (r.amount > 0 || r.part)) return null; } // tomorrow ticked ahead
   const pins = Object.assign({}, task.dayPins || {});
   const cur = pins[dS];
+  // is the stored pin really in force? (one the plan has passed or that equals the plan isn't)
+  let applied = false;
+  if (cur) { const lr = buildSchedule(Object.assign({}, task, { _preview: 'pinL' })).schedule.find(x => !x.isPast && !x.isReview && fmtDate(x.date) === dS); applied = !!(lr && lr.pin); }
   delete pins[dS];
   const t0 = Object.assign({}, task, { dayPins: pins, _preview: 'pin0' });
   const plan0 = buildSchedule(t0);
@@ -3895,7 +3902,7 @@ function pinDayCtx(task, dS) {
   const sn = task.startNum || 0, page = hasPages(task);
   if (page && row.pFrom == null) return null; // a review-only day: no page to point at
   const planned = page ? row.pTo : row.to;
-  const curVal = cur ? (page ? cur.pg : (cur.to > 0 ? sn + cur.to : null)) : null;
+  const curVal = cur && applied ? (page ? pinPageCanon(task, cur.pg) : (cur.to > 0 ? sn + cur.to : null)) : null;
   return { t0, plan0, row, page, sn, min: page ? row.pFrom : row.from, max: page ? task.itemPages[task.total - 1][1] : sn + task.total,
     planned, value: curVal > 0 ? curVal : planned, pinned: curVal > 0 };
 }
@@ -3907,7 +3914,8 @@ function pinEval(task, dS, v) {
   if (isNaN(v)) return { ctx, err: '숫자를 넣어 주세요' };
   if (v < ctx.min) return { ctx, err: `${pinPointText(task, ctx, ctx.min)}부터 정할 수 있어요 · 아예 안 하려면 미루기를 눌러요` };
   v = Math.min(v, ctx.max);
-  if (v === ctx.planned) return { ctx, same: true, v };
+  if (ctx.page) v = pinPageCanon(task, v); // (a page inside a skipped chapter = up to the page before it)
+  if (v === ctx.planned || v < ctx.min) return { ctx, same: true, v: ctx.planned };
   const pin = ctx.page ? { pg: v } : { to: v - ctx.sn };
   const t1 = Object.assign({}, task, { dayPins: Object.assign({}, ctx.t0.dayPins, { [dS]: pin }), _preview: 'pin1' });
   const p1 = buildSchedule(t1);
@@ -3962,6 +3970,10 @@ function openPinModal(taskId, dS) {
   const tStr = fmtDate(today()), mStr = fmtDate(addDays(today(), 1));
   if (!pinDayCtx(task, tStr) && !pinDayCtx(task, mStr)) {
     showToast(!pinnable(task) ? '하루 가능 시간 기준 목표는 [수정]에서 하루 양을 바꿔요' : '지금은 양을 정할 수 있는 날이 없어요 (이미 체크했거나, 마지막 공부일이에요)');
+    return;
+  }
+  if (dS && !pinDayCtx(task, dS)) { // asked for one day: never open the other one instead
+    showToast(`${dS === tStr ? '오늘' : '내일'}은 양을 정할 수 없어요 (이미 체크했거나, 복습만 하는 날이에요)`);
     return;
   }
   pinModalTaskId = taskId; pinModalDate = dS || null;
@@ -5075,18 +5087,34 @@ function plannedRecord(task, row, dS) {
   const prog = Math.max(a0, Math.min(task.total, row.to - sn));
   return prog > a0 ? { prog, rec: { amount: prog - a0 } } : null;
 }
+// A page inside a chapter taken out (건너뛰기) means "up to the last page before it" — nothing is done there.
+function pinPageCanon(task, pg) {
+  const z = hasPages(task) ? skippedSet(task) : null;
+  if (!z) return pg;
+  const P = task.itemPages;
+  for (let guard = 0; guard < 200; guard++) {
+    let hit = -1;
+    z.forEach(k => { const q = P[k]; if (q && pg >= q[0] && pg <= q[1]) hit = k; });
+    if (hit < 0) break;
+    pg = P[hit][0] - 1;
+  }
+  return pg;
+}
 // What checking that day at the pinned point records (baseRow = the plan's own row of that day)
 function pinRecord(task, pin, dS, baseRow) {
   const a0 = dayAnchorRaw(task);
   if (!pin) return null;
   if (hasPages(task)) {
     if (!(pin.pg > 0)) return null;
-    const box = pageRevBox(task, pin.pg, baseRow, dS, fwdRel(task, a0));
-    const R = pageCheckResult(task, pin.pg, dS, a0, baseRow, { revShown: !!box, revOn: !!(box && box.on) });
+    const pg = pinPageCanon(task, pin.pg);
+    if (baseRow && baseRow.pTo != null && pg === baseRow.pTo) return null; // the same as the plan: not a pin
+    const box = pageRevBox(task, pg, baseRow, dS, fwdRel(task, a0));
+    const R = pageCheckResult(task, pg, dS, a0, baseRow, { revShown: !!box, revOn: !!(box && box.on) });
     return R.more ? { prog: R.prog, rec: Object.assign({ amount: R.amount }, R.extra) } : null;
   }
   if (!(pin.to > 0)) return null;
   const prog = Math.min(task.total, Math.floor(pin.to));
+  if (baseRow && !baseRow.isPart && prog === baseRow.to - (task.startNum || 0)) return null; // the same as the plan: not a pin
   return prog > a0 && prog > fwdRel(task, a0) ? { prog, rec: { amount: prog - a0 } } : null;
 }
 function withDayPins(task, plan) {
@@ -5103,6 +5131,14 @@ function withDayPins(task, plan) {
   const put = (ds, v) => { saved.push([key + ds, completedMap.has(key + ds), completedMap.get(key + ds)]); completedMap.set(key + ds, v); };
   const undo = (n) => { while (saved.length > n) { const [k, had, v] = saved.pop(); if (had) completedMap.set(k, v); else completedMap.delete(k); } };
   const setLoads = (t, pl) => { rowLoadsOf(t, pl).forEach((v, x) => { x._ld = v; }); };
+  // 따로 할 것 that a pinned day gets through (done after its virtual check, not before): they belong on that row
+  const X = Array.isArray(task.extras) && isTimeBasedTask(task) ? task.extras : [];
+  const doneIds = (t) => new Set(X.filter(x => extraW(t, x) > 0 && extraDone(t, x)).map(x => x.id));
+  const addRevs = (row, before, after) => {
+    const have = new Set((row.revs || []).map(x => x.id));
+    const more = X.filter(x => after.has(x.id) && !before.has(x.id) && !have.has(x.id));
+    if (more.length) row.revs = (row.revs || []).concat(more);
+  };
   const prevOverride = _todayOverride;
   try {
     setLoads(task, plan); // (real state: before any virtual record)
@@ -5112,32 +5148,36 @@ function withDayPins(task, plan) {
     if (pT && rowT && !rowT.isCatchUp && !checkedT) {
       const r = pinRecord(task, pT, tStr, rowT);
       if (r && enough(r, tStr)) {
-        const mark = saved.length;
+        const mark = saved.length, d0 = X.length ? doneIds(task) : null;
         put(tStr, r.rec);
         const tA = Object.assign({}, task, { progress: r.prog, _noPins: true, _preview: tag + 'pinA' });
         const pA = buildScheduleCore(tA), xA = rowOn(pA, tStr);
-        if (xA) { xA.pin = pT; xA.pinBase = rowT; setLoads(tA, pA); base = pA; endTask = tA; pinnedT = true; }
+        if (xA) { xA.pin = pT; xA.pinBase = rowT; if (d0) addRevs(xA, d0, doneIds(tA)); setLoads(tA, pA); base = pA; endTask = tA; pinnedT = true; }
         else undo(mark);
       }
     }
     // --- tomorrow pinned: as if today went as shown and tomorrow were checked there ---
     let pB = null;
-    if (pM && plan.remainingDates.some(d => fmtDate(d) === mStr)) {
+    const recM = completedMap.get(key + mStr), workM = !!(recM && (recM.amount > 0 || recM.part)); // tomorrow ticked ahead with real work: no pin
+    if (pM && !workM && plan.remainingDates.some(d => fmtDate(d) === mStr)) {
       const curT = rowOn(base, tStr), baseM = rowOn(base, mStr);
       if (baseM && !baseM.isCatchUp) {
         const mark = saved.length;
-        if (!pinnedT && !checkedT && curT && !curT.isCatchUp) { // today exactly as planned
-          const r0 = plannedRecord(task, curT, tStr);
-          if (r0) { put(tStr, r0.rec); endTask = Object.assign({}, task, { progress: r0.prog, _noPins: true }); }
-        }
-        _todayOverride = mStr;
-        const r = pinRecord(endTask, pM, mStr, baseM);
-        if (r && enough(r, mStr)) {
-          put(mStr, r.rec);
-          const tB = Object.assign({}, endTask, { progress: r.prog, _noPins: true, _preview: tag + 'pinB' });
-          const p2 = buildScheduleCore(tB), xB = rowOn(p2, mStr);
-          if (xB) { xB.pin = pM; xB.pinBase = baseM; setLoads(tB, p2); pB = p2; }
-        }
+        try {
+          if (!pinnedT && !checkedT && curT && !curT.isCatchUp) { // today exactly as planned
+            const r0 = plannedRecord(task, curT, tStr);
+            if (r0) { put(tStr, r0.rec); endTask = Object.assign({}, task, { progress: r0.prog, _noPins: true }); }
+          }
+          _todayOverride = mStr;
+          const r = pinRecord(endTask, pM, mStr, baseM);
+          if (r && enough(r, mStr)) {
+            const d0 = X.length ? doneIds(endTask) : null;
+            put(mStr, r.rec);
+            const tB = Object.assign({}, endTask, { progress: r.prog, _noPins: true, _preview: tag + 'pinB' });
+            const p2 = buildScheduleCore(tB), xB = rowOn(p2, mStr);
+            if (xB) { xB.pin = pM; xB.pinBase = baseM; if (d0) addRevs(xB, d0, doneIds(tB)); setLoads(tB, p2); pB = p2; }
+          }
+        } catch (e) { pB = null; try { console.error(e); } catch (e2) {} } // (tomorrow's pin failing must not drop today's)
         _todayOverride = prevOverride;
         if (!pB) undo(mark);
       }
@@ -5146,7 +5186,7 @@ function withDayPins(task, plan) {
     let sched = base.schedule;
     if (pB) sched = base.schedule.filter(x => fmtDate(x.date) <= tStr)
       .concat(pB.schedule.filter(x => fmtDate(x.date) > tStr).map(x => { x.isToday = false; x.isPast = false; return x; }));
-    return Object.assign({}, plan, { schedule: sched, _pinned: true });
+    return Object.assign({}, plan, { schedule: sched, _pinned: true, _base: plan });
   } finally {
     _todayOverride = prevOverride;
     undo(0);
@@ -6544,7 +6584,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
           </div>
         </div>
         <button class="agenda-copy" data-action="copy-item" data-copy="${escapeAttr(copyText)}" title="복사: ${escapeAttr(copyText)}">⧉</button>
-        ${!isReview && !item.isCatchUp && !(isToday && completed) && canPinDay(task, plan, dateStr) ? `<button class="agenda-postpone agenda-pin" data-action="pin-day" data-id="${escapeAttr(task.id)}" data-date="${dateStr}" title="${isToday ? '오늘' : '내일'} 할 양을 직접 정해요 · 남은 날에 다시 나눠요">양 정하기</button>` : ''}
+        ${!isReview && !item.isCatchUp && !(isToday && completed) && !(item.pFrom == null && hasPages(task)) && canPinDay(task, plan, dateStr) ? `<button class="agenda-postpone agenda-pin" data-action="pin-day" data-id="${escapeAttr(task.id)}" data-date="${dateStr}" title="${isToday ? '오늘' : '내일'} 할 양을 직접 정해요 · 남은 날에 다시 나눠요">양 정하기</button>` : ''}
         ${isToday && !completed && !isReview && !item.isCatchUp && plan && plan.remainingDates.length > 1 ? `<button class="agenda-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
       </div>
     `;
@@ -7595,6 +7635,7 @@ function paceHtml(task, plan) {
 // Behind by at least a day's work? (today's load, or the next study day's)
 function behindADay(task, plan) {
   if (!plan || plan.status !== 'behind') return false;
+  if (plan._base) plan = plan._base; // (직접 정한 양은 밀림 판단에 안 써요)
   const loads = dayLoadsOf(task, plan), tStr = fmtDate(today());
   let ref = loads.get(tStr) || 0;
   if (!(ref > 0)) { const k = [...loads.keys()].filter(x => x >= tStr && loads.get(x) > 0).sort()[0]; ref = k ? loads.get(k) : 0; }
@@ -7907,7 +7948,8 @@ function mixedShares(task, plan) {
   const fut = plan.schedule.filter(x => !x.isPast && !x.isReview);
   const tRow = fut.find(x => fmtDate(x.date) === tStr), rows = fut.filter(x => x.from === it && fmtDate(x.date) > tStr);
   const shares = new Map(), add = new Map();
-  if (tRow) add.set(tRow, wi * f);
+  if (tRow && tRow.isPart && tRow.from === it) shares.set(tRow, wi * Math.max(0, f - getPartState(task, it, tStr).frac)); // (only skipped chapters before it: today is just this chapter's share)
+  else if (tRow) add.set(tRow, wi * f);
   rows.forEach(x => shares.set(x, wi * (1 - f) / rows.length));
   return { shares, add };
 }
