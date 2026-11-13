@@ -5380,7 +5380,8 @@ function getPartState(task, itemAbs, beforeStr) {
 function partStateNow(task, itemAbs) { return getPartState(task, itemAbs, fmtDate(addDays(today(), 1))); }
 // The day count a chapter under way keeps (the split it was planned with) — 0 = its rest is planned
 // freely: its 일수 was changed since it was started, or (freeIfByPage) it was left off by page.
-// p = a part record, or getPartState's result ({of, m, u}).
+// p = a part record, or getPartState's result ({of, m, u}). (p.of || 0: getPartState gives of 0 for "no part
+// days yet"; a record always has of > 1 — sanitizeCompleted drops a part without it — so this changes nothing there.)
 function keptPartOf(task, rel, p, freeIfByPage) {
   if (freeIfByPage && p.u) return 0;
   return p.m !== undefined && p.m !== getManualDays(task, rel) ? 0 : (p.of || 0);
@@ -5869,9 +5870,8 @@ function expectedCapacity(C, inclToday) {
   }
   // days made 쉬는 날 only after this goal was checked off that day were studied as planned
   const rvS = new Set(task.reviewDays || []), tS = fmtDate(tdy);
-  const studiedThen = (x) => studiedBeforeOff(task.id, x);
   const offStudied = _offSet.size ? getActiveDates(task.start, planEndStr(task), { type: task.pace, value: task.paceValue })
-    .map(fmtDate).filter(x => _offSet.has(x) && !rvS.has(parseDate(x).getDay()) && !skipSet.has(x) && studiedThen(x)) : [];
+    .map(fmtDate).filter(x => _offSet.has(x) && !rvS.has(parseDate(x).getDay()) && !skipSet.has(x) && studiedBeforeOff(task.id, x)) : [];
   const steps = replayPassedCount + offStudied.filter(x => x < tS && !(rbase && x < rbase.date)).length
     + (inclToday && (todayIsPlanDay || offStudied.includes(tS)) ? 1 : 0);
   if (pageEv.size && steps > 0) {
@@ -6019,7 +6019,8 @@ function timePastRows(schedule, F, prefix, anchor) {
 
 // --- 오늘부터의 행: 양·난이도, 마감일 기준 ---
 // S = where today starts: cursorRel, the chapter under way (partDone, partFrac, partOfPlanned, partU),
-// today's date and progress, and this week's hold. Rows are added to schedule; S.cursorRel moves on.
+// today's date and progress, and this week's hold. Rows are added to schedule; S.cursorRel moves on
+// (S is read, not shared: only what a later piece reads is written back at the end).
 function chapterRowsToDeadline(task, F, TM, S, schedule) {
   const { allDates, startNum, remainingDates } = F;
   const { prefix } = TM;
@@ -6082,7 +6083,7 @@ function chapterRowsToDeadline(task, F, TM, S, schedule) {
     });
     cursorRel = task.total;
   }
-  S.cursorRel = cursorRel; S.partOfPlanned = partOfPlanned; S.partU = partU;
+  S.cursorRel = cursorRel; // (nothing else of S is read after this in 마감일 기준)
 }
 
 // --- 오늘부터의 행: 강의 (마감일 기준) · 하루 가능 시간 기준 (강의, 양·난이도) ---
@@ -6188,7 +6189,7 @@ function timeRowsByDay(task, F, TM, S, schedule) {
       }
     }
   });
-  S.cursorRel = cursorRel; S.partDone = partDone; S.partFrac = partFrac; S.partOfPlanned = partOfPlanned; S.curPartOf = curPartOf;
+  S.cursorRel = cursorRel; S.partDone = partDone; S.partFrac = partFrac; S.curPartOf = curPartOf; // read by capacityOutlook
 }
 
 // --- 밀림 / 앞섬 ---
@@ -6354,11 +6355,6 @@ function buildTimeBasedSchedule(task) {
   });
 }
 
-// For capacity mode, when the fixed daily budget can't complete everything within the
-// stated deadline, keep generating future session dates (same pace/custom-days/review
-// pattern) beyond `task.end` until all lectures are covered, and return that date.
-// Capped at ~3 years out as a safety bound against pathological inputs (e.g. 0-minute
-// budget) so this can never hang the UI.
 // Smallest daily amount (minutes, or 양 for 양·난이도) that still finishes items
 // fromRel+1..end within D study days, following the plan's own day rule:
 //  • whole items (lectures): no day may exceed it, so it's at least the longest lecture
@@ -6440,6 +6436,11 @@ function capacityStep(st, task, prefix, daily, split) {
   else st.pos = advanceByTimeBudget(prefix, st.pos, daily + (fr != null ? w * fr : set > 1 ? w * (set - 1) / set : 0));
 }
 
+// For capacity mode, when the fixed daily budget can't complete everything within the
+// stated deadline, keep generating future session dates (same pace/custom-days/review
+// pattern) beyond `task.end` until all lectures are covered, and return that date.
+// Capped at ~3 years out as a safety bound against pathological inputs (e.g. 0-minute
+// budget) so this can never hang the UI.
 function estimateCapacityFinishDate(task, prefix, startCursorRel, tdy, carry) {
   const dailyMinutes = Math.max(1, task.dailyMinutes || 1);
   const paceCfg = { type: task.pace, value: task.paceValue };

@@ -46,7 +46,7 @@ const DUMP = `(() => {
     safe('skippable', () => (isTimeBasedTask(t) ? skippableRels(t) : null));
     safe('pp', () => { if (t.archived || t.paused || t.progress >= t.total) return null;
       return ['deadline', 'week'].map(m => { const q = previewPostpone(t, m); return { goal: q.goal, wl: q.weekDaysLeft, al: q.anyDaysLeft, status: q.plan.status, rows: q.plan.schedule.filter(x => !x.isPast).map(row) }; }); });
-    out[t.id] = JSON.stringify(o);
+    out[t.id] = JSON.stringify(o, (k, v) => (v === undefined ? '(undefined)' : v)); // (a key that is there but undefined is recorded too)
   });
   return JSON.stringify(out);
 })()`;
