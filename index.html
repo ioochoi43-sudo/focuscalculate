@@ -2994,7 +2994,7 @@ function pageReachedNow(task) {
   const P = task.itemPages, sn = task.startNum || 0;
   const pr = fwdRel(task, task.progress); // (chapters taken out right after: passed)
   if (pr >= task.total) return P[task.total - 1][1];
-  const r = P[pr], ps = getPartState(task, sn + pr + 1, fmtDate(addDays(today(), 1)));
+  const r = P[pr], ps = partStateNow(task, sn + pr + 1);
   const base = pr > 0 ? P[pr - 1][1] : r[0] - 1;
   const cf = contentFrac(task, pr, ps.frac);
   return cf > 0 ? Math.max(base, r[0] - 1 + Math.round(cf * (r[1] - r[0] + 1) + 1e-7)) : base;
@@ -3633,7 +3633,7 @@ function extraPosText(task, a) {
 function firstOpenRel(task) {
   const sn = task.startNum || 0, p = fwdRel(task, task.progress);
   if (p >= task.total) return task.total;
-  return getPartState(task, sn + p + 1, fmtDate(addDays(today(), 1))).frac > 0 ? p + 1 : p;
+  return partStateNow(task, sn + p + 1).frac > 0 ? p + 1 : p;
 }
 // 따로 할 것 (복습·건너뛰기) changed today: yesterday's plan was made with the old ones, so its
 // "어제 했어요" would be recorded against the wrong amounts — it closes (back open if undone today).
@@ -3660,7 +3660,7 @@ function extraDeletable(task, x) {
   const a = extraPos(task, x), sn = task.startNum || 0, N = task.total;
   const rel = Math.min(a, N - 1);
   if (fwdRel(task, task.progress) !== rel) return true;
-  const fr = getPartState(task, sn + rel + 1, fmtDate(addDays(today(), 1))).frac;
+  const fr = partStateNow(task, sn + rel + 1).frac;
   if (!(fr > 0)) return true;
   if (a < N) return false; // review before a chapter you've started (can't happen normally)
   const q = glueOf(task, rel); // the last review: fine while it isn't started (still in the chapter itself)
@@ -3675,7 +3675,7 @@ function chapterAmtText(task, k, rf) {
 }
 // Share of chapter k still to do (1 = not started) — what skipping it moves to the end
 function chapterLeftFrac(task, k) {
-  const fr = getPartState(task, (task.startNum || 0) + k + 1, fmtDate(addDays(today(), 1))).frac;
+  const fr = partStateNow(task, (task.startNum || 0) + k + 1).frac;
   return fr > 0 ? Math.max(0.01, 1 - fr) : 1;
 }
 function skipExtraFor(task, k) {
@@ -3733,7 +3733,7 @@ function changeExtras(task, newList, newSkipped) {
   const preFields = {}; PLAN_FIELDS.forEach(k => { preFields[k] = task[k] === undefined ? undefined : JSON.parse(JSON.stringify(task[k])); });
   const sigBefore = planSig(task);
   // the last chapter under way: its done amount stays the same
-  const lastOn = task.progress === last && getPartState(task, sn + last + 1, fmtDate(addDays(today(), 1))).frac > 0;
+  const lastOn = task.progress === last && partStateNow(task, sn + last + 1).frac > 0;
   const wOld = lastOn ? getDurationPrefix(task)[last + 1] - getDurationPrefix(task)[last] : 0;
   task.extras = newList.length ? newList : undefined;
   if (newSkipped !== undefined) task.skipped = newSkipped.length ? newSkipped : undefined;
@@ -4382,7 +4382,7 @@ function openPageCheckModal(task, item, pastDateStr) {
   input.value = b; input.min = a - 1; input.max = lastPg;
   const revBox = document.getElementById('cm-rev'), revCb = document.getElementById('cm-rev-cb');
   const snR = task.startNum || 0;
-  const anchorR = fwdRel(task, pastDateStr ? task.progress : Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress))));
+  const anchorR = fwdRel(task, pastDateStr ? task.progress : dayAnchorRaw(task));
   // (a day with a 직접 정한 양: the review default follows the plan's own row, as the plan shown does)
   const boxItem = item.pin ? Object.assign({ pFrom: a }, item.pinBase ? { revs: item.pinBase.revs } : {}) : item;
   const planRev = new Set(((boxItem && boxItem.revs) || []).map(x => x.id));
@@ -4437,7 +4437,7 @@ function commitPageCheck(task) {
   let pg = parseInt(document.getElementById('cm-input').value);
   if (isNaN(pg)) { showToast('페이지 숫자를 입력해 주세요'); return; }
   // where that day started (today: before today's work; yesterday: today isn't checked yet)
-  const anchorRaw = past ? task.progress : Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
+  const anchorRaw = past ? task.progress : dayAnchorRaw(task);
   const revBoxEl = document.getElementById('cm-rev');
   const revShown = !!(revBoxEl && revBoxEl.style.display !== 'none'), revOn = cmRevChecked();
   // (a day with a 직접 정한 양 is recorded as the same check on the plan's own row — see withDayPins)
@@ -4482,7 +4482,7 @@ function yesterdayItem(task) {
   if ((task.skipDates || []).includes(yStr)) return null;
   const tStr = fmtDate(today());
   // the goal as it stood yesterday: today's postpone / week-mode hold not made yet
-  const base = task.preEdit && task.preEdit.date === tStr ? withPlanFields(task, task.preEdit.fields) : task;
+  const base = preEditTask(task);
   const ws = {}; Object.keys(base.weekSkips || {}).forEach(d => { if (d < tStr) ws[d] = base.weekSkips[d]; });
   const clone = Object.assign({}, base, { _preview: 'yday',
     skipDates: (task.skipDates || []).filter(d => d < tStr),
@@ -4572,7 +4572,7 @@ function renderYesterdayBox() {
     if (todayWorkRec(task.id)) { showToast('오늘 체크를 먼저 해제해 주세요'); return; }
     if (hasPages(task) && item.pFrom != null) { openPageCheckModal(task, item, yS); return; }
     if (item.isPart) {
-      const baseY = task.preEdit && task.preEdit.date === fmtDate(today()) ? withPlanFields(task, task.preEdit.fields) : task;
+      const baseY = preEditTask(task);
       setCompleted(task.id, yS, true, 0, { part: withManualDays(baseY, Object.assign({ item: item.from, n: item.partN, of: item.partOf }, item.partF !== undefined ? { f: item.partF } : {})), late: true });
       refreshRebaseToday(task); persistTasks();
       refreezeAutoGoal(task.id);
@@ -4702,7 +4702,7 @@ function commitCompleteModal() {
   const newProgress = val - startNum; // relative
 
   const todayStr = fmtDate(today());
-  const anchor = Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
+  const anchor = dayAnchorRaw(task);
 
   // "오늘 어디까지 했나요" can't go below where today started — a smaller number just
   // means "nothing done today", never a silent rollback of earlier days' progress.
@@ -4907,7 +4907,7 @@ function setRebase(task) {
     const ps = getPartState(task, sn + pos + 1, from);
     if (ps.done > 0) {
       rb.pDone = ps.done; rb.pFrac = ps.frac;
-      rb.pOf = ps.u || (ps.m !== undefined && ps.m !== getManualDays(task, pos)) ? 0 : ps.of;
+      rb.pOf = keptPartOf(task, pos, ps, true);
       if (ps.u) rb.pU = 1;
     }
   }
@@ -4923,6 +4923,8 @@ const PLAN_FIELDS = ['start', 'end', 'total', 'startNum', 'pace', 'paceValue', '
   'dailyMinutes', 'lectureDurations', 'itemDays', 'rebase', 'weekHold', 'weekSkips', 'ppUndo', 'extras', 'skipped'];
 // a snapshot's keys that were undefined are gone after JSON (reload/export) — set every plan field
 function withPlanFields(task, fields) { const o = Object.assign({}, task); PLAN_FIELDS.forEach(k => { o[k] = fields[k]; }); return o; }
+// The goal with the plan it had before today's first edit (the goal itself when it wasn't edited today)
+function preEditTask(task) { return task.preEdit && task.preEdit.date === fmtDate(today()) ? withPlanFields(task, task.preEdit.fields) : task; }
 function holdTracker(holds) {
   const arr = holds ? [...holds.entries()].map(([ds, t]) => {
     const d = parseDate(ds);
@@ -4947,6 +4949,18 @@ function holdTracker(holds) {
 //     (that day's work was done under the old plan).
 // Without such changes (the usual case) this is exactly the plain replay.
 function wUniform(arr) { return arr.every(x => x === arr[0]); }
+// A day made 쉬는 날 only after this goal was already checked off that same day: it was studied as planned
+function studiedBeforeOff(taskId, ds) {
+  return ((settings.offLog || {})[ds] || []).some(e => e.r === null && e.a === ds && Array.isArray(e.ad) && e.ad.includes(taskId));
+}
+// Study days left in a hold's week from replay day i on, as the plan saw them that day: how many,
+// and the sum of their weights (요일별 분량)
+function replayWeekLeft(ctx, i, weekEnd) {
+  const D = ctx.dates, N = D.length;
+  let left = 0, wl = 0;
+  for (let j = i; j < N && D[j] <= weekEnd; j++) { const x = ctx.w(i, j); if (x > 0) { left++; wl += x; } }
+  return { left, wl };
+}
 function replayCtx(task, allDates) {
   const tid = task.id, startStr = task.start, endStr = planEndStr(task);
   const nextDay = (x) => (x ? fmtDate(addDays(parseDate(x), 1)) : x);
@@ -4997,8 +5011,7 @@ function replayCtx(task, allDates) {
   // reached: an off date now (marked later = like a postponed day) or one that was off on that
   // day — except a day made off only after this goal was already checked off that same day
   // (it was studied as planned)
-  const studiedThen = (x) => (log[x] || []).some(e => e.r === null && e.a === x && Array.isArray(e.ad) && e.ad.includes(tid));
-  const late = ds.map((x, i) => isSp[i] && (offOn(x, x) || (_offSet.has(x) && !studiedThen(x))));
+  const late = ds.map((x, i) => isSp[i] && (offOn(x, x) || (_offSet.has(x) && !studiedBeforeOff(tid, x))));
   const groups = new Map(); // sig → {suf (weights), cnt (days), all (forward sum)}
   const grp = (i) => {
     let g = groups.get(sigOf[i]);
@@ -5027,8 +5040,7 @@ function replayExpected(ctx, isSkipped, tdy, total, exact, holds, rb) {
     let share;
     const w = ctx.w(i, i);
     if (hold) {
-      let left = 0, wl = 0;
-      for (let j = i; j < N && allDates[j] <= hold.weekEnd; j++) { const x = ctx.w(i, j); if (x > 0) { left++; wl += x; } }
+      const { left, wl } = replayWeekLeft(ctx, i, hold.weekEnd);
       const tgt = left === ctx.count(i) ? total : Math.min(total, hold.target);
       share = pos < tgt ? (tgt - pos) * w / wl : 0;
     } else share = (total - pos) * w / ctx.W(i);
@@ -5054,6 +5066,41 @@ function getReplayHolds(task) {
   const pause = new Set(task.pauseDays || []);
   skips.forEach(ds => { if (!map.has(ds) && !pause.has(ds)) map.set(ds, null); });
   return map;
+}
+
+// ===== 계획 계산의 공통 부분 (개수 기준 · 시간/양 기준이 같이 써요) =====
+// What every kind of plan starts from: the study days (allDates), today, the days still to come
+// (remainingDates) and the days already passed (passedDates), and the last re-plan (수정).
+//  · Postponed days are left out of both lists: a postponed day to come gives its amount to the
+//    other days; a postponed past day never gets a reconstructed "past" range.
+//  · originalPerSession = the average session of the plan in force (after a re-plan: of the new plan).
+function planFrame(task) {
+  const allDates = getContentDates(task);
+  const tdy = today();
+  const startNum = task.startNum || 0;
+  const skipSet = new Set(task.skipDates || []);
+  const isSkipped = (d) => skipSet.has(fmtDate(d));
+  const remainingDates = allDates.filter(d => d >= tdy && !isSkipped(d));
+  const passedDates = allDates.filter(d => d < tdy && !isSkipped(d));
+  const rbase = rebaseOf(task);
+  const originalPerSession = rbase ? (task.total - rbase.pos) / Math.max(1, allDates.filter(d => d >= rbase.d).length)
+    : allDates.length > 0 ? task.total / allDates.length : 0;
+  return { allDates, tdy, startNum, totalEnd: startNum + task.total, skipSet, remainingDates, passedDates, rbase, originalPerSession };
+}
+// 완료 → 마감 지남 → 밀림 → 앞섬 → 계획대로 (behind/ahead: what the plan's own rule says)
+function planStatus(task, daysToEnd, behind, ahead) {
+  if (task.progress >= task.total) return 'done';
+  if (daysToEnd < 0) return 'overdue';
+  return behind ? 'behind' : ahead ? 'ahead' : 'active';
+}
+// The part of a plan's result that every kind of plan has
+function planOut(task, F, schedule, perSession, expectedProgress, status, daysToEnd, behind) {
+  return {
+    allDates: F.allDates, remainingDates: F.remainingDates, schedule, perSession, expectedProgress, status,
+    pct: task.total > 0 ? Math.min(100, Math.round((task.progress / task.total) * 100)) : 0,
+    expectedPct: task.total > 0 ? Math.min(100, Math.round((expectedProgress / task.total) * 100)) : 0,
+    daysToEnd, behind,
+  };
 }
 
 function buildSchedule(task) {
@@ -5195,30 +5242,14 @@ function withDayPins(task, plan) {
 function buildScheduleCore(task) {
   if (isTimeBasedTask(task)) return buildTimeBasedSchedule(task);
 
-  const allDates = getContentDates(task);
-  const tdy = today();
-  const startNum = task.startNum || 0;
-  const totalEnd = startNum + task.total;
-
-  // Skipped dates: days the user explicitly postponed. They're removed from the
-  // remaining session days so the leftover amount auto-redistributes to other days.
-  const skipSet = new Set(task.skipDates || []);
-  const isSkipped = (d) => skipSet.has(fmtDate(d));
-
-  const remainingDates = allDates.filter(d => d >= tdy && !isSkipped(d));
-  // Postponed past days are excluded: they never get a reconstructed "past" range and
-  // don't count toward "밀림" — postponing is an intentional re-plan, not falling behind.
-  const passedDates = allDates.filter(d => d < tdy && !isSkipped(d));
-  const rb0 = rebaseOf(task); // after a re-plan, the average of the new plan
-  const originalPerSession = rb0 ? (task.total - rb0.pos) / Math.max(1, allDates.filter(d => d >= rb0.d).length)
-    : allDates.length > 0 ? task.total / allDates.length : 0;
+  const F = planFrame(task);
+  const { allDates, tdy, startNum, totalEnd, remainingDates, passedDates, rbase, originalPerSession } = F;
   // Where the plan expects you to be today: replay the plan day by day as you lived it —
   // a postponed/paused day's share moves to the days after it, exactly like the real plan.
   // (Dividing by ALL days instead made every postpone permanently lower the target.)
   const replayHolds = getReplayHolds(task);
   const rctx = replayCtx(task, allDates);
   const rSkip = replaySkipper(task);
-  const rbase = rebaseOf(task);
   const expectedProgress = replayExpected(rctx, rSkip, tdy, task.total, false, replayHolds, rbase);
   const expectedProgressEnd = replayExpected(rctx, rSkip, addDays(tdy, 1), task.total, false, replayHolds, rbase); // incl. today's share
 
@@ -5309,20 +5340,12 @@ function buildScheduleCore(task) {
   appendCatchUpSession(task, schedule, anchor, tdy, remainingDates);
   const scheduleWithReviews = appendReviewEntries(task, schedule, tdy);
 
-  let status = 'active';
   const daysToEnd = daysBetween(tdy, parseDate(task.end));
-  if (task.progress >= task.total) status = 'done';
-  else if (daysToEnd < 0) status = 'overdue';
-  else if (task.progress < expectedProgress - 0.5) status = 'behind';
-  else if (task.progress > expectedProgressEnd + originalPerSession * 0.5) status = 'ahead';
+  const status = planStatus(task, daysToEnd, task.progress < expectedProgress - 0.5,
+    task.progress > expectedProgressEnd + originalPerSession * 0.5);
 
-  return {
-    allDates, remainingDates, schedule: scheduleWithReviews, perSession, expectedProgress, status,
-    pct: task.total > 0 ? Math.min(100, Math.round((task.progress / task.total) * 100)) : 0,
-    expectedPct: task.total > 0 ? Math.min(100, Math.round((expectedProgress / task.total) * 100)) : 0,
-    daysToEnd,
-    behind: Math.max(0, expectedProgress - task.progress),
-  };
+  return planOut(task, F, scheduleWithReviews, perSession, expectedProgress, status, daysToEnd,
+    Math.max(0, expectedProgress - task.progress));
 }
 
 // ===== TIME-BASED SCHEDULE (lecture tasks with per-lecture durations) =====
@@ -5352,6 +5375,34 @@ function getPartState(task, itemAbs, beforeStr) {
   });
   if (!best || !(best.of > 0)) return { done: 0, frac: 0, of: 0 };
   return { done: best.n, frac: Math.min(0.99, Math.max(0, partRecFrac(best))), of: best.of, m: best.m, u: !!best.u };
+}
+// The same, counting today's record too (where the chapter stands right now)
+function partStateNow(task, itemAbs) { return getPartState(task, itemAbs, fmtDate(addDays(today(), 1))); }
+// The day count a chapter under way keeps (the split it was planned with) — 0 = its rest is planned
+// freely: its 일수 was changed since it was started, or (freeIfByPage) it was left off by page.
+// p = a part record, or getPartState's result ({of, m, u}).
+function keptPartOf(task, rel, p, freeIfByPage) {
+  if (freeIfByPage && p.u) return 0;
+  return p.m !== undefined && p.m !== getManualDays(task, rel) ? 0 : (p.of || 0);
+}
+// A part record as the planner's state of the chapter under way (rel = that chapter)
+function partRecState(task, rel, pt, freeIfByPage) {
+  return { done: pt.n, frac: Math.min(0.99, partRecFrac(pt)), u: !!pt.u, of: keptPartOf(task, rel, pt, freeIfByPage) };
+}
+// Today's own record, when it is a part day that stays today's row as checked (the plan goes on from
+// tomorrow): 'on' = of the chapter the plan stands on, with more days of it to come;
+// 'sk' = of a chapter skipped afterwards (건너뛰기). Otherwise null.
+function todayPartKind(task, rec, cursorRel) {
+  if (!rec || !rec.part) return null;
+  const sn = task.startNum || 0;
+  if (rec.part.item === sn + cursorRel + 1 && rec.part.of > rec.part.n) return 'on';
+  if (!((rec.amount || 0) > 0) && isSkippedRel(task, rec.part.item - sn - 1)) return 'sk';
+  return null;
+}
+function checkedPartRow(date, pt, skToday) {
+  const row = { date, from: pt.item, to: pt.item, amount: 0, isPast: false, isToday: true, isPart: true, partN: pt.n, partOf: pt.of, partF: partFOf(pt.f, pt.n, pt.of) };
+  if (skToday) row.skToday = true;
+  return row;
 }
 // How much of the chapter a part record means is done. Normally n/of; after the chapter was
 // re-planned midway (일수·하루 양 changed) the plan's days aren't equal slices any more, so
@@ -5478,7 +5529,7 @@ function extraDone(task, x) {
   if (pF < a) return false;
   const q = glueOf(task, a);
   if (!q || !(q.s > 0)) return false;
-  return getPartState(task, sn + a + 1, fmtDate(addDays(today(), 1))).frac >= q.s / q.W - 1e-9;
+  return partStateNow(task, sn + a + 1).frac >= q.s / q.W - 1e-9;
 }
 // Busiest future day of a built plan, in minutes/양 (part days count w/of of the chapter).
 function planMaxDayLoad(task, plan) {
@@ -5542,7 +5593,7 @@ function multiDayNoteHtml(task, plan) {
       const abs = startNum + rel + 1;
       if (!(v > 1) || abs < firstAbs) return;
       let cap = pagesLeft(task, rel, 0) || 14; // never more days than pages: not "short"
-      if (chapterPages(task, rel) > 0) { const ps = getPartState(task, abs, fmtDate(addDays(today(), 1))); if (ps.done > 0) cap = ps.done + pagesLeft(task, rel, ps.frac); }
+      if (chapterPages(task, rel) > 0) { const ps = partStateNow(task, abs); if (ps.done > 0) cap = ps.done + pagesLeft(task, rel, ps.frac); }
       if ((days.get(abs) || 1) < Math.min(14, v, cap)) short++;
     });
   }
@@ -5732,41 +5783,31 @@ function planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit
   return out;
 }
 
-function buildTimeBasedSchedule(task) {
-  const allDates = getContentDates(task);
-  const tdy = today();
-  const startNum = task.startNum || 0;
-  const totalEnd = startNum + task.total;
-  const prefix = getDurationPrefix(task);
-  const totalTime = prefix[task.total];
-  // Weekday ratios for the chapter planner: per-day weights and a fixed rate (time per
-  // unit of weight over the whole plan), so re-planning tomorrow keeps the same layout.
-  const uniW = weightsUniform();
-  const allW = allDates.map(effW), sumAllW = allW.reduce((a, b) => a + b, 0) || 1;
-  const wRate = totalTime / sumAllW;
+// ===== 시간·양 기준 계획 =====
+// buildTimeBasedSchedule puts these pieces together (each plan kind has its own, by name):
+//   timeExpected            where the plan expects you to be today (for 밀림/앞섬): the plan replayed over
+//                           the days already passed —
+//     expectedCapacity        하루 가능 시간 기준
+//     expectedLectures        강의, 마감일 기준
+//     expectedChapters        양·난이도, 마감일 기준
+//   timePastRows            the rows of the days already passed
+//   chapterRowsToDeadline   the days from today on — 양·난이도, 마감일 기준
+//   timeRowsByDay           the days from today on — 강의 (마감일 기준) and 하루 가능 시간 기준
+//   timeStatus              밀림 / 앞섬
+//   capacityOutlook, timeDailyNeed   끝나는 날 · 하루에 필요한 양 (카드 안내)
 
-  const skipSet = new Set(task.skipDates || []);
-  const isSkipped = (d) => skipSet.has(fmtDate(d));
-
-  const remainingDates = allDates.filter(d => d >= tdy && !isSkipped(d));
-  // Postponed past days are excluded: they never get a reconstructed "past" range and
-  // don't count toward "밀림" — postponing is an intentional re-plan, not falling behind.
-  const passedDates = allDates.filter(d => d < tdy && !isSkipped(d));
-
-  const isCapacity = task.timeMode === 'capacity';
-  const dailyMinutes = Math.max(1, task.dailyMinutes || 1);
-
-  // "밀림/앞섬" status needs a TIME-AWARE expected position — a naive average-count
-  // estimate would mislead when lecture lengths vary a lot (e.g. long lectures early,
-  // short ones late). Simulate the IDEAL plan from day 1 through today:
-  //   capacity mode: fixed daily budget applied sequentially across all passed days.
-  //   deadline mode: proportional interpolation over the full deadline's total time.
-  let expectedProgress, expectedFrac = null;
-  // Expected position by the start of today (e0, for 밀림) and by the end of today (e1, for
-  // 앞섬 — so finishing today's plan doesn't read as "앞서가는 중").
+// --- 계획대로였다면 지금 어디? ---
+// "밀림/앞섬" status needs a TIME-AWARE expected position — a naive average-count
+// estimate would mislead when lecture lengths vary a lot (e.g. long lectures early,
+// short ones late). Replay the plan itself from day 1 (or the last re-plan) through today.
+// Returns {e0, e1}: the expected position by the start of today (e0, for 밀림) and by the end
+// of today (e1, for 앞섬 — so finishing today's plan doesn't read as "앞서가는 중"); each is
+// {p (chapters done), f (the same with the share of the chapter under way)}.
+function timeExpected(task, F, TM) {
+  const { allDates, tdy, startNum, rbase } = F;
+  const { prefix, totalTime, isCapacity } = TM;
   const rSkip = replaySkipper(task);
   const todayIsPlanDay = allDates.some(d => fmtDate(d) === fmtDate(tdy)) && !rSkip(tdy);
-  const rbase = rebaseOf(task);
   const replayPassedCount = allDates.filter(d => d < tdy && !rSkip(d) && !(rbase && d < rbase.d)).length;
   const splitSim = isSplitTask(task);
   // Days you left a chapter off by page (not a planned part day's share): the replay continues
@@ -5774,10 +5815,9 @@ function buildTimeBasedSchedule(task) {
   // (or ahead) carries over as 밀림 (앞섬): spread over the days left in deadline mode (as the plan
   // spreads it), kept in capacity mode. So following the plan after it never adds 밀림.
   const pageEv = new Map(); // date → {pos (chapters done), n, f}
-  const snE0 = task.startNum || 0;
   if (splitSim) completedMap.forEach((v, k) => {
     if (!v || !k.startsWith(task.id + '|')) return;
-    if (v.part && v.part.u) pageEv.set(k.slice(task.id.length + 1), { pos: v.part.item - snE0 - 1, n: v.part.n, f: Math.min(0.99, partRecFrac(v.part)), sig: v.part.item + ':' + v.part.n + ':' + v.part.f });
+    if (v.part && v.part.u) pageEv.set(k.slice(task.id.length + 1), { pos: v.part.item - startNum - 1, n: v.part.n, f: Math.min(0.99, partRecFrac(v.part)), sig: v.part.item + ':' + v.part.n + ':' + v.part.f });
     else if (!v.part && typeof v.at === 'number') pageEv.set(k.slice(task.id.length + 1), { pos: v.at, n: 0, f: 0, sig: 'at' + v.at });
   });
   const timeOf = (p, f) => prefix[Math.min(task.total, p)] + (p < task.total ? (prefix[p + 1] - prefix[p]) * f : 0);
@@ -5788,143 +5828,9 @@ function buildTimeBasedSchedule(task) {
     const w = prefix[k + 1] - prefix[k];
     return { p: k, f: k + (w > 0 ? Math.min(0.999, (T - prefix[k]) / w) : 0), t: prefix[k] };
   };
-  const snE = task.startNum || 0;
   const replayHolds = isCapacity ? new Map() : getReplayHolds(task);
-  const expAt = (inclToday) => {
-    if (isCapacity) {
-      // Same day-by-day rule as the plan (incl. multi-day chapters)
-      const st = { pos: rbase ? rbase.pos : 0, left: 0, set: 0 };
-      let f0 = null;
-      if (rbase && rbase.pDone > 0 && st.pos < task.total) { // same rule as the capacity plan loop
-        const w = prefix[st.pos + 1] - prefix[st.pos], m = getManualDays(task, st.pos), fr = Math.min(0.99, rbase.pFrac);
-        const pl = pagesLeft(task, st.pos, fr);
-        const k = Math.min(m > 0 ? Math.max(1, m - rbase.pDone) : Math.max(1, Math.round(w * (1 - fr) / dailyMinutes)), pl > 0 ? pl : Infinity);
-        st.left = k; st.set = rbase.pDone + k; st.fr = fr; f0 = fr;
-      }
-      // days made 쉬는 날 only after this goal was checked off that day were studied as planned
-      const oLog = settings.offLog || {}, rvS = new Set(task.reviewDays || []), tS = fmtDate(tdy);
-      const studiedThen = (x) => (oLog[x] || []).some(e => e.r === null && e.a === x && Array.isArray(e.ad) && e.ad.includes(task.id));
-      const offStudied = _offSet.size ? getActiveDates(task.start, planEndStr(task), { type: task.pace, value: task.paceValue })
-        .map(fmtDate).filter(x => _offSet.has(x) && !rvS.has(parseDate(x).getDay()) && !skipSet.has(x) && studiedThen(x)) : [];
-      const steps = replayPassedCount + offStudied.filter(x => x < tS && !(rbase && x < rbase.date)).length
-        + (inclToday && (todayIsPlanDay || offStudied.includes(tS)) ? 1 : 0);
-      if (pageEv.size && steps > 0) {
-        const stepDays = [...allDates.filter(d => d < tdy && !rSkip(d) && !(rbase && d < rbase.d)).map(fmtDate),
-          ...offStudied.filter(x => x < tS && !(rbase && x < rbase.date))].sort();
-        if (inclToday && (todayIsPlanDay || offStudied.includes(tS))) stepDays.push(tS);
-        const fr = () => st.set > 1 && st.left > 0 && st.pos < task.total ? (st.fr != null ? st.fr : (st.set - st.left) / st.set) : 0;
-        let lag = 0;
-        stepDays.forEach(ds => {
-          capacityStep(st, task, prefix, dailyMinutes, splitSim);
-          const ev = pageEv.get(ds), apos = ev ? ev.pos : -1;
-          if (!ev || apos < 0 || apos > task.total || (ev.n > 0 && apos >= task.total)) return;
-          const repT = timeOf(Math.min(task.total, st.pos), fr()), af = ev.f;
-          lag += repT - timeOf(apos, af);
-          if (ev.n === 0) { st.pos = apos; st.left = 0; st.set = 0; st.fr = null; return; } // at a chapter end
-          // the plan's own rule for a chapter under way (as when it re-plans from there)
-          const w = prefix[apos + 1] - prefix[apos], m = getManualDays(task, apos), pl = pagesLeft(task, apos, af);
-          const k = Math.min(m > 0 ? Math.max(1, m - ev.n) : Math.max(1, Math.round(w * (1 - af) / dailyMinutes)), pl > 0 ? pl : Infinity);
-          st.pos = apos; st.left = k; st.set = ev.n + k; st.fr = af;
-        });
-        return atTime(timeOf(Math.min(task.total, st.pos), fr()) + lag);
-      }
-      for (let k = 0; k < steps; k++) capacityStep(st, task, prefix, dailyMinutes, splitSim);
-      if (steps === 0 && f0 != null) { const p0 = Math.min(task.total, st.pos); return { p: p0, f: p0 + f0 }; }
-      const p = Math.min(task.total, st.pos);
-      return { p, f: p + (st.set > 1 && st.left > 0 && p < task.total ? (st.fr != null ? st.fr : (st.set - st.left) / st.set) : 0) };
-    }
-    if (!splitSim) {
-      // Replay the deadline plan itself (whole lectures, daily target recomputed each day)
-      // over the passed days — exactly where you'd be if you had followed it.
-      const bound = inclToday ? addDays(tdy, 1) : tdy;
-      const rc = replayCtx(task, allDates), RD = rc.dates;
-      const N = RD.length;
-      let pos = rbase ? rbase.pos : 0;
-      const holdAt = holdTracker(replayHolds);
-      for (let i = 0; i < N && RD[i] < bound; i++) {
-        const d = RD[i];
-        if (rbase && d < rbase.d) continue;
-        if (rSkip(d) || rc.isLate(i)) continue;
-        const hold = holdAt(d);
-        if (pos >= task.total) continue;
-        if (hold) {
-          let left = 0, wl = 0;
-          for (let j = i; j < N && RD[j] <= hold.weekEnd; j++) { const x = rc.w(i, j); if (x > 0) { left++; wl += x; } }
-          const tgt = left === rc.count(i) ? task.total : Math.max(0, Math.min(task.total, hold.target));
-          if (pos >= tgt) continue; // week goal reached: rest of the week stays free
-          if (left <= 1) { pos = tgt; continue; }
-          pos = Math.min(tgt, advSk(task, prefix, pos, Math.round((prefix[tgt] - prefix[pos]) * rc.w(i, i) / wl)));
-          continue;
-        }
-        const left = rc.count(i);
-        if (left <= 1) { pos = task.total; continue; }
-        pos = advSk(task, prefix, pos, Math.round((totalTime - prefix[pos]) * rc.w(i, i) / rc.W(i)));
-      }
-      pos = Math.min(task.total, pos);
-      return { p: pos, f: pos, t: prefix[pos] };
-    }
-    // Multi-day chapters: replay the whole-plan layout (planChapterDays) over the passed
-    // days, re-planning at each postponed day — where you'd be if you had followed it.
-    const bound = inclToday ? addDays(tdy, 1) : tdy;
-    const rc = replayCtx(task, allDates), RD = rc.dates;
-    const N = RD.length;
-    let pos = rbase ? rbase.pos : 0, pDone = rbase ? rbase.pDone : 0, pOf = rbase ? rbase.pOf : 0, lay = [], layPos = null, replan = true, lastHold = null, lastSig = null;
-    let pF = rbase && rbase.pDone > 0 ? rbase.pFrac : null; // done share of the chapter under way
-    let pUser = !!(rbase && rbase.pDone > 0 && rbase.pU); // left off by page at the re-plan
-    const evLags = [];
-    const holdAt = holdTracker(replayHolds);
-    for (let i = 0; i < N && RD[i] < bound && pos < task.total; i++) {
-      if (rbase && RD[i] < rbase.d) continue;
-      if (rSkip(RD[i]) || rc.isLate(i)) { replan = true; continue; }
-      const hold = holdAt(RD[i]);
-      if (replan || hold !== lastHold || rc.sig(i) !== lastSig) {
-        // (Re)lay out the rest from here — after a postponed day, when a week-mode hold
-        // starts/ends, or when a setting changed — with that week's goal as a constraint.
-        const idxs = [];
-        for (let j = i; j < N; j++) if (rc.w(i, j) > 0) idxs.push(j);
-        layPos = new Map(idxs.map((j, q) => [j, q]));
-        const nAll = rc.countAll(i);
-        const unit = totalTime / Math.max(1, nAll);
-        const kCap = Math.max(14, Math.ceil(3 * nAll / Math.max(1, task.total)));
-        let holdArg = null;
-        if (hold) {
-          let days = 0;
-          for (const j of idxs) { if (RD[j] <= hold.weekEnd) days++; else break; }
-          const tgt = days === idxs.length ? task.total : Math.max(0, Math.min(task.total, hold.target));
-          if (days > 0 && tgt >= pos) holdArg = { n: tgt - pos, days };
-        }
-        if (!(pDone > 0)) pos = fwdRel(task, pos);
-        lay = planChapterDays(task, prefix, pos, task.total, idxs.length, pDone, pDone > 0 ? (pF != null ? pF : Math.min(0.99, pDone / pOf)) : 0, unit, kCap, holdArg, pDone > 0 && pUser,
-          rc.uniform(i) ? null : idxs.map(j => rc.w(i, j)), totalTime / rc.sumAllW(i), pDone > 0 && pOf > pDone ? pOf - pDone : 0);
-        replan = false; lastHold = hold; lastSig = rc.sig(i);
-      }
-      const e = lay[layPos.get(i)];
-      if (e) {
-        if (e.part) { pDone = e.n; pOf = e.of; pF = e.f !== undefined ? e.f : null; }
-        else { pos = e.toRel; pDone = 0; pOf = 0; pF = null; }
-        pUser = false; // from here on, the planned split
-      }
-      const ev = pageEv.get(fmtDate(RD[i])), apos = ev ? ev.pos : -1;
-      if (ev && apos >= 0 && (apos < task.total || ev.n === 0) && apos <= task.total) { // left off by page this day: carry on from there
-        const repT = timeOf(Math.min(task.total, pos), pDone > 0 && pos < task.total ? (pF != null ? Math.min(0.99, pF) : pOf > 0 ? Math.min(0.99, pDone / pOf) : 0) : 0);
-        evLags.push({ lag: repT - timeOf(apos, ev.f), i });
-        if (ev.n > 0) { pos = apos; pDone = ev.n; pOf = 0; pF = ev.f; pUser = true; }
-        else { pos = apos; pDone = 0; pOf = 0; pF = null; pUser = false; }
-        replan = true;
-      }
-    }
-    pos = Math.min(task.total, pos);
-    const f = pos + (pDone > 0 && pos < task.total ? (pF != null ? Math.min(0.99, pF) : pOf > 0 ? Math.min(0.99, pDone / pOf) : 0) : 0);
-    if (evLags.length) {
-      // what you were short then is spread over the days left after it (as the plan does)
-      const days = (i, from) => { let c = 0; for (let j = from; j < N; j++) if (!rSkip(RD[j]) && rc.w(i, j) > 0) c++; return c; };
-      let j0 = 0; while (j0 < N && RD[j0] < bound) j0++;
-      let T = timeOf(pos, f - pos);
-      evLags.forEach(L => { const nd = days(L.i, L.i + 1), nt = days(L.i, j0); T += L.lag * (nd > 0 ? Math.min(1, nt / nd) : 1); });
-      return atTime(T);
-    }
-    return { p: pos, f, t: prefix[pos] };
-  };
+  const C = Object.assign({ task, rSkip, todayIsPlanDay, replayPassedCount, splitSim, pageEv, timeOf, atTime, replayHolds }, F, TM);
+  const expAt = (inclToday) => (isCapacity ? expectedCapacity(C, inclToday) : !splitSim ? expectedLectures(C, inclToday) : expectedChapters(C, inclToday));
   // The replay can be costly (multi-day-chapter plans re-plan at every postponed day):
   // cache it per task for today and the exact inputs it depends on.
   const expKey = JSON.stringify([fmtDate(tdy), task.type, task.total, task.startNum || 0, task.start, task.end, task.pace, task.paceValue,
@@ -5937,21 +5843,149 @@ function buildTimeBasedSchedule(task) {
     expPair = { key: expKey, e0: expAt(false), e1: expAt(true) };
     _expCache.set(expSlot, expPair);
   }
-  const e0 = expPair.e0, e1 = expPair.e1;
-  // 건너뛴 챕터 weigh nothing: standing just before one is the same as just after it
-  const zSk = skippedSet(task);
-  const fwdSk = (f) => { if (!zSk || Math.abs(f - Math.round(f)) > 1e-9) return f; let k = Math.round(f); while (k < task.total && zSk.has(k)) k++; return k; };
-  expectedProgress = fwdSk(e0.p); expectedFrac = fwdSk(e0.f);
-  const expectedFracEnd = Math.max(fwdSk(e1.f), fwdSk(e0.f));
-  // Kept for return-value shape parity with buildSchedule (unused in status calc below,
-  // which now compares against the time-aware expectedProgress directly).
-  const originalPerSession = rbase ? (task.total - rbase.pos) / Math.max(1, allDates.filter(d => d >= rbase.d).length)
-    : allDates.length > 0 ? task.total / allDates.length : 0;
+  return expPair;
+}
+// 하루 가능 시간 기준: the fixed daily amount applied day by day over the passed days
+function expectedCapacity(C, inclToday) {
+  const { task, allDates, tdy, skipSet, rbase, prefix, dailyMinutes, rSkip, todayIsPlanDay, replayPassedCount, splitSim, pageEv, timeOf, atTime } = C;
+  // Same day-by-day rule as the plan (incl. multi-day chapters)
+  const st = { pos: rbase ? rbase.pos : 0, left: 0, set: 0 };
+  let f0 = null;
+  if (rbase && rbase.pDone > 0 && st.pos < task.total) { // same rule as the capacity plan loop
+    const fr = Math.min(0.99, rbase.pFrac), k = capacityDaysFor(task, prefix, st.pos, dailyMinutes, rbase.pDone, fr);
+    st.left = k; st.set = rbase.pDone + k; st.fr = fr; f0 = fr;
+  }
+  // days made 쉬는 날 only after this goal was checked off that day were studied as planned
+  const rvS = new Set(task.reviewDays || []), tS = fmtDate(tdy);
+  const studiedThen = (x) => studiedBeforeOff(task.id, x);
+  const offStudied = _offSet.size ? getActiveDates(task.start, planEndStr(task), { type: task.pace, value: task.paceValue })
+    .map(fmtDate).filter(x => _offSet.has(x) && !rvS.has(parseDate(x).getDay()) && !skipSet.has(x) && studiedThen(x)) : [];
+  const steps = replayPassedCount + offStudied.filter(x => x < tS && !(rbase && x < rbase.date)).length
+    + (inclToday && (todayIsPlanDay || offStudied.includes(tS)) ? 1 : 0);
+  if (pageEv.size && steps > 0) {
+    const stepDays = [...allDates.filter(d => d < tdy && !rSkip(d) && !(rbase && d < rbase.d)).map(fmtDate),
+      ...offStudied.filter(x => x < tS && !(rbase && x < rbase.date))].sort();
+    if (inclToday && (todayIsPlanDay || offStudied.includes(tS))) stepDays.push(tS);
+    const fr = () => capFrac(st, task.total);
+    let lag = 0;
+    stepDays.forEach(ds => {
+      capacityStep(st, task, prefix, dailyMinutes, splitSim);
+      const ev = pageEv.get(ds), apos = ev ? ev.pos : -1;
+      if (!ev || apos < 0 || apos > task.total || (ev.n > 0 && apos >= task.total)) return;
+      const repT = timeOf(Math.min(task.total, st.pos), fr()), af = ev.f;
+      lag += repT - timeOf(apos, af);
+      if (ev.n === 0) { st.pos = apos; st.left = 0; st.set = 0; st.fr = null; return; } // at a chapter end
+      // the plan's own rule for a chapter under way (as when it re-plans from there)
+      const k = capacityDaysFor(task, prefix, apos, dailyMinutes, ev.n, af);
+      st.pos = apos; st.left = k; st.set = ev.n + k; st.fr = af;
+    });
+    return atTime(timeOf(Math.min(task.total, st.pos), fr()) + lag);
+  }
+  for (let k = 0; k < steps; k++) capacityStep(st, task, prefix, dailyMinutes, splitSim);
+  if (steps === 0 && f0 != null) { const p0 = Math.min(task.total, st.pos); return { p: p0, f: p0 + f0 }; }
+  const p = Math.min(task.total, st.pos);
+  return { p, f: p + capFrac(st, task.total) };
+}
+// 강의, 마감일 기준
+function expectedLectures(C, inclToday) {
+  const { task, allDates, tdy, rbase, prefix, totalTime, rSkip, replayHolds } = C;
+  // Replay the deadline plan itself (whole lectures, daily target recomputed each day)
+  // over the passed days — exactly where you'd be if you had followed it.
+  const bound = inclToday ? addDays(tdy, 1) : tdy;
+  const rc = replayCtx(task, allDates), RD = rc.dates;
+  const N = RD.length;
+  let pos = rbase ? rbase.pos : 0;
+  const holdAt = holdTracker(replayHolds);
+  for (let i = 0; i < N && RD[i] < bound; i++) {
+    const d = RD[i];
+    if (rbase && d < rbase.d) continue;
+    if (rSkip(d) || rc.isLate(i)) continue;
+    const hold = holdAt(d);
+    if (pos >= task.total) continue;
+    if (hold) {
+      const { left, wl } = replayWeekLeft(rc, i, hold.weekEnd);
+      const tgt = left === rc.count(i) ? task.total : Math.max(0, Math.min(task.total, hold.target));
+      if (pos >= tgt) continue; // week goal reached: rest of the week stays free
+      if (left <= 1) { pos = tgt; continue; }
+      pos = Math.min(tgt, advSk(task, prefix, pos, Math.round((prefix[tgt] - prefix[pos]) * rc.w(i, i) / wl)));
+      continue;
+    }
+    const left = rc.count(i);
+    if (left <= 1) { pos = task.total; continue; }
+    pos = advSk(task, prefix, pos, Math.round((totalTime - prefix[pos]) * rc.w(i, i) / rc.W(i)));
+  }
+  pos = Math.min(task.total, pos);
+  return { p: pos, f: pos, t: prefix[pos] };
+}
+// 양·난이도, 마감일 기준
+function expectedChapters(C, inclToday) {
+  const { task, allDates, tdy, rbase, prefix, totalTime, rSkip, pageEv, timeOf, atTime, replayHolds } = C;
+  // Multi-day chapters: replay the whole-plan layout (planChapterDays) over the passed
+  // days, re-planning at each postponed day — where you'd be if you had followed it.
+  const bound = inclToday ? addDays(tdy, 1) : tdy;
+  const rc = replayCtx(task, allDates), RD = rc.dates;
+  const N = RD.length;
+  let pos = rbase ? rbase.pos : 0, pDone = rbase ? rbase.pDone : 0, pOf = rbase ? rbase.pOf : 0, lay = [], layPos = null, replan = true, lastHold = null, lastSig = null;
+  let pF = rbase && rbase.pDone > 0 ? rbase.pFrac : null; // done share of the chapter under way
+  let pUser = !!(rbase && rbase.pDone > 0 && rbase.pU); // left off by page at the re-plan
+  const evLags = [];
+  const doneFrac = () => (pDone > 0 && pos < task.total ? (pF != null ? Math.min(0.99, pF) : pOf > 0 ? Math.min(0.99, pDone / pOf) : 0) : 0);
+  const holdAt = holdTracker(replayHolds);
+  for (let i = 0; i < N && RD[i] < bound && pos < task.total; i++) {
+    if (rbase && RD[i] < rbase.d) continue;
+    if (rSkip(RD[i]) || rc.isLate(i)) { replan = true; continue; }
+    const hold = holdAt(RD[i]);
+    if (replan || hold !== lastHold || rc.sig(i) !== lastSig) {
+      // (Re)lay out the rest from here — after a postponed day, when a week-mode hold
+      // starts/ends, or when a setting changed — with that week's goal as a constraint.
+      const idxs = [];
+      for (let j = i; j < N; j++) if (rc.w(i, j) > 0) idxs.push(j);
+      layPos = new Map(idxs.map((j, q) => [j, q]));
+      const nAll = rc.countAll(i);
+      const unit = totalTime / Math.max(1, nAll);
+      const kCap = Math.max(14, Math.ceil(3 * nAll / Math.max(1, task.total)));
+      let holdArg = null;
+      if (hold) {
+        const days = replayWeekLeft(rc, i, hold.weekEnd).left;
+        const tgt = days === idxs.length ? task.total : Math.max(0, Math.min(task.total, hold.target));
+        if (days > 0 && tgt >= pos) holdArg = { n: tgt - pos, days };
+      }
+      if (!(pDone > 0)) pos = fwdRel(task, pos);
+      lay = planChapterDays(task, prefix, pos, task.total, idxs.length, pDone, pDone > 0 ? (pF != null ? pF : Math.min(0.99, pDone / pOf)) : 0, unit, kCap, holdArg, pDone > 0 && pUser,
+        rc.uniform(i) ? null : idxs.map(j => rc.w(i, j)), totalTime / rc.sumAllW(i), pDone > 0 && pOf > pDone ? pOf - pDone : 0);
+      replan = false; lastHold = hold; lastSig = rc.sig(i);
+    }
+    const e = lay[layPos.get(i)];
+    if (e) {
+      if (e.part) { pDone = e.n; pOf = e.of; pF = e.f !== undefined ? e.f : null; }
+      else { pos = e.toRel; pDone = 0; pOf = 0; pF = null; }
+      pUser = false; // from here on, the planned split
+    }
+    const ev = pageEv.get(fmtDate(RD[i])), apos = ev ? ev.pos : -1;
+    if (ev && apos >= 0 && (apos < task.total || ev.n === 0) && apos <= task.total) { // left off by page this day: carry on from there
+      const repT = timeOf(Math.min(task.total, pos), doneFrac());
+      evLags.push({ lag: repT - timeOf(apos, ev.f), i });
+      if (ev.n > 0) { pos = apos; pDone = ev.n; pOf = 0; pF = ev.f; pUser = true; }
+      else { pos = apos; pDone = 0; pOf = 0; pF = null; pUser = false; }
+      replan = true;
+    }
+  }
+  pos = Math.min(task.total, pos);
+  const f = pos + doneFrac();
+  if (evLags.length) {
+    // what you were short then is spread over the days left after it (as the plan does)
+    const days = (i, from) => { let c = 0; for (let j = from; j < N; j++) if (!rSkip(RD[j]) && rc.w(i, j) > 0) c++; return c; };
+    let j0 = 0; while (j0 < N && RD[j0] < bound) j0++;
+    let T = timeOf(pos, f - pos);
+    evLags.forEach(L => { const nd = days(L.i, L.i + 1), nt = days(L.i, j0); T += L.lag * (nd > 0 ? Math.min(1, nt / nd) : 1); });
+    return atTime(T);
+  }
+  return { p: pos, f, t: prefix[pos] };
+}
 
-  const anchor = getTodayAnchor(task); // relative lecture count, same semantics as count-based tasks
-
-  const schedule = [];
-
+// --- 지난 날의 행 ---
+function timePastRows(schedule, F, prefix, anchor) {
+  const { startNum, passedDates } = F;
   // === Past dates: smooth interpolation ending exactly at the anchor, using TIME to
   // decide how much of the anchor's content "should" have been reached by each past
   // day. Mode-agnostic (both capacity and deadline modes just need a coherent history
@@ -5971,120 +6005,102 @@ function buildTimeBasedSchedule(task) {
     });
     pastCursorRel = newCursorRel;
   });
+}
 
-  // === Future dates ===
-  let cursorRel = fwdRel(task, anchor); // (past chapters taken out: work continues after them)
-  const progF = fwdRel(task, task.progress);
-  const tdyStr = fmtDate(tdy);
-  const progressAbs = startNum + task.progress;
-  const hold = isCapacity ? null : getWeekHold(task, tdy);
-  const inWeekCount = hold ? remainingDates.filter(d => d <= hold.weekEnd).length : 0;
-  const holdRel = hold ? (inWeekCount === remainingDates.length ? task.total
-    : Math.max(0, Math.min(task.total, hold.endAbs - startNum))) : null;
-  const holdActive = hold && cursorRel <= holdRel; // see buildSchedule
-
-  // Multi-day chapter state: how far into the chapter at cursorRel we already are.
-  const splitOn = isSplitTask(task);
-  let partDone = 0, partFrac = 0, partOfPlanned = 0, partU = false; // partU: left off by page (not a planned split)
-  if (splitOn && cursorRel < task.total) {
-    // A part day already checked today counts as done when today is no longer a plan day
-    // (e.g. made a 쉬는 날 after checking) — otherwise only days before today count.
-    const todayInPlan = remainingDates.length > 0 && fmtDate(remainingDates[0]) === tdyStr;
-    const ps = getPartState(task, startNum + cursorRel + 1, todayInPlan ? tdyStr : fmtDate(addDays(tdy, 1)));
-    partDone = ps.done; partFrac = ps.frac; partOfPlanned = ps.of || 0; partU = !!ps.u;
-    // 일수 changed since this chapter was started → plan it with the new 일수
-    if (ps.m !== undefined && ps.m !== getManualDays(task, cursorRel)) partOfPlanned = 0;
-    if (partU) partOfPlanned = 0; // left off by page: its rest is planned freely (may share a day)
-  }
-  const partFracStart = partFrac;
+// --- 오늘부터의 행: 양·난이도, 마감일 기준 ---
+// S = where today starts: cursorRel, the chapter under way (partDone, partFrac, partOfPlanned, partU),
+// today's date and progress, and this week's hold. Rows are added to schedule; S.cursorRel moves on.
+function chapterRowsToDeadline(task, F, TM, S, schedule) {
+  const { allDates, startNum, remainingDates } = F;
+  const { prefix, totalTime } = TM;
+  const { tdyStr, progressAbs, hold, inWeekCount, holdRel, partDone } = S;
+  let { cursorRel, partOfPlanned, partU } = S;
+  const partFrac = S.partFrac;
+  // Weekday ratios for the chapter planner: per-day weights and a fixed rate (time per
+  // unit of weight over the whole plan), so re-planning tomorrow keeps the same layout.
+  const uniW = weightsUniform();
+  const allW = allDates.map(effW), sumAllW = allW.reduce((a, b) => a + b, 0) || 1;
+  const wRate = totalTime / sumAllW;
   const splitKCap = Math.max(14, Math.ceil(3 * allDates.length / Math.max(1, task.total)));
+  // Deadline mode with 양·난이도: plan the remaining chapters over the remaining days as
+  // a whole (see planChapterDays). Same rules as below for today's real progress and
+  // the "이번 주 안에 채우기" hold (segment A = this week up to holdRel, B = the rest).
+  let i0 = 0, pDone = partDone, pFrac = partFrac;
+  if (remainingDates.length && fmtDate(remainingDates[0]) === tdyStr && progressAbs > startNum + cursorRel) {
+    const tSess = { date: remainingDates[0], from: startNum + cursorRel + 1, to: startNum + task.progress,
+      amount: task.progress - cursorRel, isPast: false, isToday: true };
+    if (partDone > 0) { tSess.partN = partDone + 1; tSess.partOf = Math.max(partDone + 1, partOfPlanned); } // chapter's last day
+    schedule.push(tSess);
+    cursorRel = fwdRel(task, task.progress); i0 = 1; pDone = 0; pFrac = 0;
+    // checked by page past those chapters: the next one is already started → its rest first
+    const r1 = completedMap.get(task.id + '|' + tdyStr);
+    partU = false;
+    if (r1 && r1.part && cursorRel < task.total && r1.part.item === startNum + cursorRel + 1) {
+      const q = partRecState(task, cursorRel, r1.part, true);
+      pDone = q.done; pFrac = q.frac; partU = q.u; partOfPlanned = q.of;
+    }
+  } else if (remainingDates.length > 1 && fmtDate(remainingDates[0]) === tdyStr) {
+    // today's part day already checked: keep it, plan from tomorrow (as tomorrow will)
+    // (or today's work was on a chapter skipped afterwards: today stays that, checked; the rest from tomorrow)
+    const r0 = completedMap.get(task.id + '|' + tdyStr), kind = todayPartKind(task, r0, cursorRel);
+    if (kind) { schedule.push(checkedPartRow(remainingDates[0], r0.part, kind === 'sk')); i0 = 1; }
+    if (kind === 'on') { const q = partRecState(task, cursorRel, r0.part, true); pDone = q.done; pFrac = q.frac; partU = q.u; partOfPlanned = q.of; }
+  }
+  // "이번 주 안에 채우기": this week's goal chapters must be done by Sunday (constraint
+  // inside the planner, so the week's spare days can already start the next chapter).
+  let holdArg = null;
+  // (also once the week's goal is reached: the rest of the week keeps the same rule —
+  // free or part days only — exactly as planned when the goal was set)
+  if (hold && cursorRel <= holdRel) {
+    const aEnd = Math.max(0, Math.min(inWeekCount, remainingDates.length) - i0);
+    if (aEnd > 0) holdArg = { n: holdRel - cursorRel, days: aEnd };
+  }
+  const nDays = remainingDates.length - i0;
+  if (nDays > 0 && cursorRel < task.total) {
+    planChapterDays(task, prefix, cursorRel, task.total, nDays, pDone, pFrac,
+      totalTime / Math.max(1, allDates.length), splitKCap, holdArg, pDone > 0 && partU,
+      uniW ? null : remainingDates.slice(i0).map(effW), wRate,
+      pDone > 0 && partOfPlanned > pDone ? partOfPlanned - pDone : 0).forEach((p, k) => {
+      if (!p) return;
+      const d = remainingDates[i0 + k];
+      const isThisToday = fmtDate(d) === tdyStr;
+      if (p.part) {
+        schedule.push({ date: d, from: startNum + p.item, to: startNum + p.item, amount: 0, isPast: false,
+          isToday: isThisToday, isPart: true, partN: p.n, partOf: p.of, partF: p.f });
+      } else {
+        const sess = { date: d, from: startNum + p.fromRel + 1, to: startNum + p.toRel,
+          amount: p.toRel - p.fromRel, isPast: false, isToday: isThisToday };
+        if (p.lastOf > 0) { sess.partN = p.lastOf; sess.partOf = p.lastOf; }
+        schedule.push(sess);
+      }
+    });
+    cursorRel = task.total;
+  }
+  S.cursorRel = cursorRel; S.partOfPlanned = partOfPlanned; S.partU = partU;
+}
+
+// --- 오늘부터의 행: 강의 (마감일 기준) · 하루 가능 시간 기준 (강의, 양·난이도) ---
+// Day by day: each day takes its share (마감일 기준: of what's left; 하루 가능 시간 기준: the fixed
+// daily amount). S as above; afterwards S holds where the plan stopped (cursorRel) and the chapter
+// then under way (partDone, partFrac, curPartOf) — the 하루 가능 시간 finish estimate goes on from there.
+function timeRowsByDay(task, F, TM, S, schedule) {
+  const { startNum, totalEnd, remainingDates } = F;
+  const { prefix, isCapacity, dailyMinutes, splitOn } = TM;
+  const { tdyStr, progF, progressAbs, holdActive, inWeekCount, holdRel } = S;
+  let { cursorRel, partDone, partFrac, partOfPlanned } = S;
   let remW = null;
   let curPartOf = 0; // capacity loop: planned day count of the chapter currently in parts
-
-  if (splitOn && !isCapacity) {
-    // Deadline mode with 양·난이도: plan the remaining chapters over the remaining days as
-    // a whole (see planChapterDays). Same rules as below for today's real progress and
-    // the "이번 주 안에 채우기" hold (segment A = this week up to holdRel, B = the rest).
-    let i0 = 0, pDone = partDone, pFrac = partFrac;
-    if (remainingDates.length && fmtDate(remainingDates[0]) === tdyStr && progressAbs > startNum + cursorRel) {
-      const tSess = { date: remainingDates[0], from: startNum + cursorRel + 1, to: startNum + task.progress,
-        amount: task.progress - cursorRel, isPast: false, isToday: true };
-      if (partDone > 0) { tSess.partN = partDone + 1; tSess.partOf = Math.max(partDone + 1, partOfPlanned); } // chapter's last day
-      schedule.push(tSess);
-      cursorRel = fwdRel(task, task.progress); i0 = 1; pDone = 0; pFrac = 0;
-      // checked by page past those chapters: the next one is already started → its rest first
-      const r1 = completedMap.get(task.id + '|' + tdyStr);
-      partU = false;
-      if (r1 && r1.part && cursorRel < task.total && r1.part.item === startNum + cursorRel + 1) {
-        pDone = r1.part.n; pFrac = Math.min(0.99, partRecFrac(r1.part));
-        partOfPlanned = (r1.part.m !== undefined && r1.part.m !== getManualDays(task, cursorRel)) ? 0 : r1.part.of;
-        partU = !!r1.part.u; if (partU) partOfPlanned = 0;
-      }
-    } else if (remainingDates.length > 1 && fmtDate(remainingDates[0]) === tdyStr) {
-      // today's part day already checked: keep it, plan from tomorrow (as tomorrow will)
-      const r0 = completedMap.get(task.id + '|' + tdyStr);
-      if (r0 && r0.part && r0.part.item === startNum + cursorRel + 1 && r0.part.of > r0.part.n) {
-        schedule.push({ date: remainingDates[0], from: r0.part.item, to: r0.part.item, amount: 0, isPast: false, isToday: true, isPart: true, partN: r0.part.n, partOf: r0.part.of, partF: partFOf(r0.part.f, r0.part.n, r0.part.of) });
-        i0 = 1; pDone = r0.part.n; pFrac = Math.min(0.99, partRecFrac(r0.part));
-        partOfPlanned = (r0.part.m !== undefined && r0.part.m !== getManualDays(task, cursorRel)) ? 0 : r0.part.of;
-        partU = !!r0.part.u; if (partU) partOfPlanned = 0;
-      } else if (r0 && r0.part && !((r0.amount || 0) > 0) && isSkippedRel(task, r0.part.item - startNum - 1)) {
-        // today's work was on a chapter skipped afterwards: today stays that (checked); the rest from tomorrow
-        schedule.push({ date: remainingDates[0], from: r0.part.item, to: r0.part.item, amount: 0, isPast: false, isToday: true, isPart: true, partN: r0.part.n, partOf: r0.part.of, partF: partFOf(r0.part.f, r0.part.n, r0.part.of), skToday: true });
-        i0 = 1;
-      }
-    }
-    // "이번 주 안에 채우기": this week's goal chapters must be done by Sunday (constraint
-    // inside the planner, so the week's spare days can already start the next chapter).
-    let holdArg = null;
-    // (also once the week's goal is reached: the rest of the week keeps the same rule —
-    // free or part days only — exactly as planned when the goal was set)
-    if (hold && cursorRel <= holdRel) {
-      const aEnd = Math.max(0, Math.min(inWeekCount, remainingDates.length) - i0);
-      if (aEnd > 0) holdArg = { n: holdRel - cursorRel, days: aEnd };
-    }
-    const nDays = remainingDates.length - i0;
-    if (nDays > 0 && cursorRel < task.total) {
-      planChapterDays(task, prefix, cursorRel, task.total, nDays, pDone, pFrac,
-        totalTime / Math.max(1, allDates.length), splitKCap, holdArg, pDone > 0 && partU,
-        uniW ? null : remainingDates.slice(i0).map(effW), wRate,
-        pDone > 0 && partOfPlanned > pDone ? partOfPlanned - pDone : 0).forEach((p, k) => {
-        if (!p) return;
-        const d = remainingDates[i0 + k];
-        const isThisToday = fmtDate(d) === tdyStr;
-        if (p.part) {
-          schedule.push({ date: d, from: startNum + p.item, to: startNum + p.item, amount: 0, isPast: false,
-            isToday: isThisToday, isPart: true, partN: p.n, partOf: p.of, partF: p.f });
-        } else {
-          const sess = { date: d, from: startNum + p.fromRel + 1, to: startNum + p.toRel,
-            amount: p.toRel - p.fromRel, isPast: false, isToday: isThisToday };
-          if (p.lastOf > 0) { sess.partN = p.lastOf; sess.partOf = p.lastOf; }
-          schedule.push(sess);
-        }
-      });
-      cursorRel = task.total;
-    }
-  } else remainingDates.forEach((d, idx) => {
+  remainingDates.forEach((d, idx) => {
     if (idx === 0) remW = weightSuffix(remainingDates);
     if (startNum + cursorRel >= totalEnd) return;
     if (!(partDone > 0) && !(partFrac > 0)) cursorRel = fwdRel(task, cursorRel);
     const isThisToday = fmtDate(d) === tdyStr;
     if (isThisToday && idx === 0 && splitOn && remainingDates.length > 1 && progF === cursorRel) {
       // today's part day already checked: keep it as checked, plan from tomorrow (as tomorrow will)
-      const r0 = completedMap.get(task.id + '|' + tdyStr);
-      if (r0 && r0.part && r0.part.item === startNum + cursorRel + 1 && r0.part.of > r0.part.n) {
-        schedule.push({ date: d, from: r0.part.item, to: r0.part.item, amount: 0, isPast: false, isToday: true,
-          isPart: true, partN: r0.part.n, partOf: r0.part.of, partF: partFOf(r0.part.f, r0.part.n, r0.part.of) });
-        partDone = r0.part.n; partFrac = Math.min(0.99, partRecFrac(r0.part)); curPartOf = r0.part.of;
-        partOfPlanned = (r0.part.m !== undefined && r0.part.m !== getManualDays(task, cursorRel)) ? 0 : r0.part.of;
-        return;
-      }
-      if (r0 && r0.part && !((r0.amount || 0) > 0) && isSkippedRel(task, r0.part.item - startNum - 1)) {
-        // today's work was on a chapter skipped afterwards: today stays that (checked); the rest from tomorrow
-        schedule.push({ date: d, from: r0.part.item, to: r0.part.item, amount: 0, isPast: false, isToday: true,
-          isPart: true, partN: r0.part.n, partOf: r0.part.of, partF: partFOf(r0.part.f, r0.part.n, r0.part.of), skToday: true });
-        return;
-      }
+      // (or today's work was on a chapter skipped afterwards: today stays that, checked; the rest from tomorrow)
+      const r0 = completedMap.get(task.id + '|' + tdyStr), kind = todayPartKind(task, r0, cursorRel);
+      if (kind === 'on') { const q = partRecState(task, cursorRel, r0.part, false); partDone = q.done; partFrac = q.frac; partOfPlanned = q.of; curPartOf = r0.part.of; }
+      if (kind) { schedule.push(checkedPartRow(d, r0.part, kind === 'sk')); return; }
     }
     let newCursorRel;
     let part = null;
@@ -6161,15 +6177,21 @@ function buildTimeBasedSchedule(task) {
       // checked by page past those chapters: the next one is already started
       const r1 = completedMap.get(task.id + '|' + tdyStr);
       if (r1 && r1.part && (r1.amount || 0) > 0 && r1.part.item === startNum + cursorRel + 1) {
-        partDone = r1.part.n; partFrac = Math.min(0.99, partRecFrac(r1.part)); curPartOf = r1.part.of;
-        partOfPlanned = (r1.part.m !== undefined && r1.part.m !== getManualDays(task, cursorRel)) ? 0 : r1.part.of;
+        const q = partRecState(task, cursorRel, r1.part, false);
+        partDone = q.done; partFrac = q.frac; partOfPlanned = q.of; curPartOf = r1.part.of;
       }
     }
   });
+  S.cursorRel = cursorRel; S.partDone = partDone; S.partFrac = partFrac; S.partOfPlanned = partOfPlanned; S.curPartOf = curPartOf;
+}
 
-  appendCatchUpSession(task, schedule, anchor, tdy, remainingDates);
-  const scheduleWithReviews = appendReviewEntries(task, schedule, tdy);
-
+// --- 밀림 / 앞섬 ---
+// E = timeExpected's result as positions (expectedFrac, expectedFracEnd, fwdSk). → {status, daysToEnd, missingTimeAll}
+function timeStatus(task, F, TM, E, S, anchor) {
+  const { allDates, tdy, startNum, rbase, originalPerSession } = F;
+  const { prefix, totalTime, isCapacity, splitOn } = TM;
+  const { expectedFrac, expectedFracEnd, fwdSk } = E;
+  const { tdyStr, progF, partFracStart } = S;
   // A chapter you're partway through (part days done) counts partly toward 밀림/앞섬.
   let effProgress = progF;
   if (splitOn && progF < task.total) {
@@ -6189,13 +6211,17 @@ function buildTimeBasedSchedule(task) {
       / Math.max(1, allDates.filter(d => d >= rbase.d).length)
     : 0.5 * totalTime / Math.max(1, allDates.length);
 
-  let status = 'active';
   const daysToEnd = daysBetween(tdy, parseDate(task.end));
-  if (task.progress >= task.total) status = 'done';
-  else if (daysToEnd < 0) status = 'overdue';
-  else if (effProgress < expectedFrac - 0.5 - 1e-9 || missingTime > halfDay + 1e-9) status = 'behind';
-  else if (effProgress > expectedFracEnd + originalPerSession * 0.5) status = 'ahead';
+  const status = planStatus(task, daysToEnd, effProgress < expectedFrac - 0.5 - 1e-9 || missingTime > halfDay + 1e-9,
+    effProgress > expectedFracEnd + originalPerSession * 0.5);
+  return { status, daysToEnd, missingTimeAll };
+}
 
+// --- 하루 가능 시간 기준: 마감일 안에 끝나는지, 언제 끝나는지 ---
+function capacityOutlook(task, F, TM, S, schedule) {
+  const { tdy, startNum, remainingDates } = F;
+  const { prefix, isCapacity, splitOn } = TM;
+  const { cursorRel, partDone, partFrac, curPartOf } = S;
   // Capacity mode: if the fixed daily budget can't fit everything by the deadline,
   // remainingDates will run out before cursorRel reaches task.total. Estimate the
   // actual finish date by continuing the same pace/skip pattern beyond the deadline,
@@ -6206,15 +6232,27 @@ function buildTimeBasedSchedule(task) {
   if (isCapacity && cursorRel < task.total) {
     capacityInsufficient = true;
     // Carry a chapter that's mid-way (part days planned or already done) into the estimate.
-    let carry = null;
-    if (splitOn && partDone > 0 && curPartOf > partDone) carry = { left: curPartOf - partDone, set: curPartOf, fr: partFrac };
-    else if (splitOn && remainingDates.length === 0) {
+    let carry = splitOn ? capCarry(partDone, curPartOf, partFrac) : null;
+    if (!carry && splitOn && remainingDates.length === 0) {
       const ps = getPartState(task, startNum + cursorRel + 1, fmtDate(addDays(tdy, 1)));
-      if (ps.done > 0 && ps.of > ps.done) carry = { left: ps.of - ps.done, set: ps.of, fr: ps.frac };
+      carry = capCarry(ps.done, ps.of, ps.frac);
     }
     capacityFinishDate = estimateCapacityFinishDate(task, prefix, cursorRel, tdy, carry);
   }
 
+  let capacityLastDate = null;
+  if (isCapacity && !capacityInsufficient) {
+    const fut = schedule.filter(x => !x.isPast && !x.isReview);
+    if (fut.length) capacityLastDate = fut[fut.length - 1].date;
+  }
+
+  return { capacityFinishDate, capacityInsufficient, capacityLastDate };
+}
+
+// --- 하루에 필요한 양 (카드 안내) ---
+function timeDailyNeed(task, F, TM, anchor, tdyStr, capacityInsufficient) {
+  const { startNum, remainingDates } = F;
+  const { prefix, isCapacity, dailyMinutes, splitOn } = TM;
   // "하루에 얼마나 해야 마감일까지 끝나나": from where today started, over the study days
   // left (incl. today). Shown on the card in both modes.
   let dailyNeed = null;
@@ -6222,7 +6260,7 @@ function buildTimeBasedSchedule(task) {
     let carry0 = null;
     if (splitOn) {
       const ps = getPartState(task, startNum + fwdRel(task, anchor) + 1, tdyStr);
-      if (ps.done > 0 && ps.of > ps.done) carry0 = { left: ps.of - ps.done, set: ps.of, fr: ps.frac };
+      carry0 = capCarry(ps.done, ps.of, ps.frac);
     }
     dailyNeed = minDailyNeeded(task, prefix, fwdRel(task, anchor), remainingDates.length, splitOn, carry0);
     if (dailyNeed && !dailyNeed.impossible) {
@@ -6233,20 +6271,73 @@ function buildTimeBasedSchedule(task) {
       if (isCapacity) dailyNeed.okNow = dailyMinutes >= dailyNeed.need || !capacityInsufficient;
     }
   }
-  let capacityLastDate = null;
-  if (isCapacity && !capacityInsufficient) {
-    const fut = schedule.filter(x => !x.isPast && !x.isReview);
-    if (fut.length) capacityLastDate = fut[fut.length - 1].date;
+  return dailyNeed;
+}
+
+function buildTimeBasedSchedule(task) {
+  const F = planFrame(task);
+  const { tdy, startNum, remainingDates } = F;
+  const prefix = getDurationPrefix(task);
+  const totalTime = prefix[task.total];
+  const isCapacity = task.timeMode === 'capacity';
+  const dailyMinutes = Math.max(1, task.dailyMinutes || 1);
+  const splitOn = isSplitTask(task);
+  const TM = { prefix, totalTime, isCapacity, dailyMinutes, splitOn };
+
+  const expPair = timeExpected(task, F, TM);
+  const e0 = expPair.e0, e1 = expPair.e1;
+  // 건너뛴 챕터 weigh nothing: standing just before one is the same as just after it
+  const zSk = skippedSet(task);
+  const fwdSk = (f) => { if (!zSk || Math.abs(f - Math.round(f)) > 1e-9) return f; let k = Math.round(f); while (k < task.total && zSk.has(k)) k++; return k; };
+  const expectedProgress = fwdSk(e0.p), expectedFrac = fwdSk(e0.f);
+  const expectedFracEnd = Math.max(fwdSk(e1.f), fwdSk(e0.f));
+  const E = { expectedFrac, expectedFracEnd, fwdSk };
+
+  const anchor = getTodayAnchor(task); // relative lecture count, same semantics as count-based tasks
+
+  const schedule = [];
+  timePastRows(schedule, F, prefix, anchor);
+
+  // === Future dates ===
+  const cursorRel = fwdRel(task, anchor); // (past chapters taken out: work continues after them)
+  const progF = fwdRel(task, task.progress);
+  const tdyStr = fmtDate(tdy);
+  const progressAbs = startNum + task.progress;
+  const hold = isCapacity ? null : getWeekHold(task, tdy);
+  const inWeekCount = hold ? remainingDates.filter(d => d <= hold.weekEnd).length : 0;
+  const holdRel = hold ? (inWeekCount === remainingDates.length ? task.total
+    : Math.max(0, Math.min(task.total, hold.endAbs - startNum))) : null;
+  const holdActive = hold && cursorRel <= holdRel; // see buildSchedule
+
+  // Multi-day chapter state: how far into the chapter at cursorRel we already are.
+  let partDone = 0, partFrac = 0, partOfPlanned = 0, partU = false; // partU: left off by page (not a planned split)
+  if (splitOn && cursorRel < task.total) {
+    // A part day already checked today counts as done when today is no longer a plan day
+    // (e.g. made a 쉬는 날 after checking) — otherwise only days before today count.
+    const todayInPlan = remainingDates.length > 0 && fmtDate(remainingDates[0]) === tdyStr;
+    const ps = getPartState(task, startNum + cursorRel + 1, todayInPlan ? tdyStr : fmtDate(addDays(tdy, 1)));
+    partDone = ps.done; partFrac = ps.frac; partU = !!ps.u;
+    // 일수 changed since this chapter was started → plan it with the new 일수;
+    // left off by page → its rest is planned freely (may share a day)
+    partOfPlanned = keptPartOf(task, cursorRel, ps, true);
   }
+  const partFracStart = partFrac;
+
+  const S = { cursorRel, progF, tdyStr, progressAbs, hold, inWeekCount, holdRel, holdActive, partDone, partFrac, partOfPlanned, partU, partFracStart, curPartOf: 0 };
+  if (splitOn && !isCapacity) chapterRowsToDeadline(task, F, TM, S, schedule);
+  else timeRowsByDay(task, F, TM, S, schedule);
+
+  appendCatchUpSession(task, schedule, anchor, tdy, remainingDates);
+  const scheduleWithReviews = appendReviewEntries(task, schedule, tdy);
+
+  const { status, daysToEnd, missingTimeAll } = timeStatus(task, F, TM, E, S, anchor);
+  const { capacityFinishDate, capacityInsufficient, capacityLastDate } = capacityOutlook(task, F, TM, S, schedule);
+  const dailyNeed = timeDailyNeed(task, F, TM, anchor, tdyStr, capacityInsufficient);
 
   if (splitOn && hasPages(task)) annotatePages(task, scheduleWithReviews, fwdRel(task, anchor), partFracStart, tdyStr);
   annotateExtras(task, scheduleWithReviews, fwdRel(task, anchor), splitOn ? partFracStart : 0, tdyStr);
-  return {
-    allDates, remainingDates, schedule: scheduleWithReviews, perSession: 0, expectedProgress, status,
-    pct: task.total > 0 ? Math.min(100, Math.round((task.progress / task.total) * 100)) : 0,
-    expectedPct: task.total > 0 ? Math.min(100, Math.round((expectedProgress / task.total) * 100)) : 0,
-    daysToEnd,
-    behind: Math.max(0, expectedProgress - fwdSk(task.progress)),
+  return Object.assign(planOut(task, F, scheduleWithReviews, 0, expectedProgress, status, daysToEnd,
+    Math.max(0, expectedProgress - fwdSk(task.progress))), {
     isTimeBased: true,
     totalTime,
     capacityFinishDate,
@@ -6254,7 +6345,7 @@ function buildTimeBasedSchedule(task) {
     missingTime: missingTimeAll,
     capacityLastDate,
     dailyNeed,
-  };
+  });
 }
 
 // For capacity mode, when the fixed daily budget can't complete everything within the
@@ -6274,18 +6365,8 @@ function minDailyNeeded(task, prefix, fromRel, D, split, carry) {
   const sum = prefix[total] - prefix[fromRel];
   let maxItem = 0;
   for (let i = fromRel; i < total; i++) maxItem = Math.max(maxItem, prefix[i + 1] - prefix[i]);
-  const daysWith = (B) => {
-    if (!split) {
-      if (maxItem > B) return Infinity;
-      let days = 0, pos = fromRel;
-      while (pos < total && days <= D) { pos = advSk(task, prefix, pos, B); days++; }
-      return pos >= total ? days : Infinity;
-    }
-    const st = { pos: fromRel, left: carry ? carry.left : 0, set: carry ? carry.set : 0, fr: carry ? carry.fr : undefined };
-    let k = 0;
-    for (; k < D && st.pos < total; k++) capacityStep(st, task, prefix, B, true);
-    return st.pos >= total ? k : Infinity;
-  };
+  // (whole items: no day may exceed B; one day more than D is tried so "D + 1 days" reads as too many)
+  const daysWith = (B) => (!split && maxItem > B ? Infinity : daysForDaily(task, prefix, fromRel, B, split, carry, split ? D : D + 1));
   let lo = split ? 1 : Math.max(1, Math.ceil(maxItem), Math.ceil(sum / D));
   let hi = Math.max(lo, Math.ceil(sum), Math.ceil(maxItem));
   if (daysWith(hi) > D) return { impossible: true, maxItem };
@@ -6304,7 +6385,7 @@ function daysForDaily(task, prefix, fromRel, B, split, carry, cap) {
     while (pos < total && days < cap) { pos = advSk(task, prefix, pos, B); days++; }
     return pos >= total ? days : Infinity;
   }
-  const st = { pos: fromRel, left: carry ? carry.left : 0, set: carry ? carry.set : 0, fr: carry ? carry.fr : undefined };
+  const st = capState(fromRel, carry);
   let k = 0;
   for (; k < cap && st.pos < total; k++) capacityStep(st, task, prefix, B, true);
   return st.pos >= total ? k : Infinity;
@@ -6323,6 +6404,19 @@ function fmtDailyAmount(type, v) {
   return isWeightUnitType(type) ? `양 ${Math.round(v)}` : formatDuration(v);
 }
 
+// 하루 가능 시간 기준: how many (more) days the chapter at rel takes — the user's 일수, or what the
+// daily amount gives — and never more days than it has pages left. done / frac = the part days /
+// the share of it already done (0, 0 for a chapter not started).
+function capacityDaysFor(task, prefix, rel, daily, done, frac) {
+  const w = prefix[rel + 1] - prefix[rel], m = getManualDays(task, rel), pl = pagesLeft(task, rel, frac);
+  return Math.min(m > 0 ? Math.max(1, m - done) : Math.max(1, Math.round(w * (1 - frac) / daily)), pl > 0 ? pl : Infinity);
+}
+// The state capacityStep walks: pos = chapters done; left / set = days remaining / planned for the
+// chapter under way (carry = one already started: {left, set, fr}); fr = its share done.
+function capState(pos, carry) { return { pos, left: carry ? carry.left : 0, set: carry ? carry.set : 0, fr: carry ? carry.fr : undefined }; }
+function capCarry(done, of, frac) { return done > 0 && of > done ? { left: of - done, set: of, fr: frac } : null; }
+// The share done of the chapter under way in that state (0 when none is)
+function capFrac(st, total) { return st.set > 1 && st.left > 0 && st.pos < total ? (st.fr != null ? st.fr : (st.set - st.left) / st.set) : 0; }
 // One study day in capacity mode (fixed daily budget) — shared by the 밀림 calculation and
 // the finish-date estimate. st = {pos, left, set}: left/set = days remaining / planned for
 // a multi-day chapter in progress.
@@ -6332,7 +6426,7 @@ function capacityStep(st, task, prefix, daily, split) {
   if (st.left === 0) st.pos = fwdRel(task, st.pos);
   const w = prefix[st.pos + 1] - prefix[st.pos];
   const manual = getManualDays(task, st.pos);
-  if (st.left === 0) { const pl = pagesLeft(task, st.pos, 0); st.set = st.left = Math.min(manual > 0 ? manual : Math.max(1, Math.round(w / daily)), pl > 0 ? pl : Infinity); }
+  if (st.left === 0) st.set = st.left = capacityDaysFor(task, prefix, st.pos, daily, 0, 0);
   if (st.left > 1) { if (st.fr != null) st.fr += (1 - st.fr) / st.left; st.left--; return; } // a part day
   const set = st.set, fr = st.fr;
   st.left = 0; st.set = 0; st.fr = null;
@@ -6345,7 +6439,7 @@ function estimateCapacityFinishDate(task, prefix, startCursorRel, tdy, carry) {
   const paceCfg = { type: task.pace, value: task.paceValue };
   const reviewSet = new Set(task.reviewDays || []);
   const skipSet = new Set(task.skipDates || []);
-  const st = { pos: startCursorRel, left: carry ? carry.left : 0, set: carry ? carry.set : 0, fr: carry ? carry.fr : undefined };
+  const st = capState(startCursorRel, carry);
   const split = isSplitTask(task);
   let d = addDays(parseDate(planEndStr(task)), 1);
   if (d < tdy) d = addDays(tdy, 0); // overdue: the estimate starts from today, never the past
@@ -6620,7 +6714,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
       } else if (isTodayItem) {
         if (!wasCompleted) {
           // Ask how far they actually got
-          const anchor = Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
+          const anchor = dayAnchorRaw(task);
           openCompleteModal(task, startNum + target, startNum + anchor);
           return; // modal handles persist + rerender
         } else {
@@ -6874,7 +6968,7 @@ function refreshWeekGoal(taskId, weekStartStr, why, taskObj) {
       }
       if (g.part) {
         const op = old.part && old.part.item === g.part.item ? old.part : null, fp = fut && fut.part && fut.part.item === g.part.item ? fut.part : null;
-        const r = P[ix(g.part.item)], ps = getPartState(task, g.part.item, fmtDate(addDays(today(), 1)));
+        const r = P[ix(g.part.item)], ps = partStateNow(task, g.part.item);
         g.part.pFrom = op && op.pFrom != null ? op.pFrom : fp && fp.pFrom != null ? fp.pFrom : r[0];
         const cEnd = r[0] - 1 + Math.round(contentFrac(task, ix(g.part.item), ps.frac) * (r[1] - r[0] + 1) + 1e-7);
         if (fp && fp.pTo != null) g.part.pTo = fp.pTo;
@@ -8220,7 +8314,7 @@ function attachTaskHandlers() {
         rerender();
       } else if (!wasCompleted) {
         // Ask how far they actually got
-        const anchor = Math.max(0, Math.min(task.total, Math.min(getTodayAnchor(task), task.progress)));
+        const anchor = dayAnchorRaw(task);
         openCompleteModal(task, startNum + target, startNum + anchor);
       } else {
         // Uncheck: revert today's recorded amount
@@ -8684,7 +8778,7 @@ function updateDailyNeed(prefix) {
   let carry = null;
   if (editTask && split) {
     const ps = getPartState(editTask, (editTask.startNum || 0) + fromRel + 1, fmtDate(tdy));
-    if (ps.done > 0 && ps.of > ps.done) carry = { left: ps.of - ps.done, set: ps.of, fr: ps.frac };
+    carry = capCarry(ps.done, ps.of, ps.frac);
   }
   const n = minDailyNeeded(stub, prefixArr, fromRel, D, split, carry);
   if (!n) { el.innerHTML = ''; return; }
