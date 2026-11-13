@@ -1,7 +1,7 @@
 // Test harness: load the app in jsdom with a fake clock.
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
-function makeApp(htmlPath, startDate, seed) {
+function makeApp(htmlPath, startDate, seed, opt) {
   let now = new Date(startDate + 'T09:00:00').getTime();
   const html = fs.readFileSync(htmlPath, 'utf8');
   const errors = [];
@@ -14,6 +14,7 @@ function makeApp(htmlPath, startDate, seed) {
       win.scrollTo = () => {};
       win.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
       Object.defineProperty(win.navigator, 'clipboard', { value: { writeText: async () => {} } });
+      if (opt && opt.random) win.Math.random = opt.random; // repeatable ids (t/trace.js)
       win.console.log = () => {};
       win.console.error = (...a) => errors.push(a.map(String).join(' '));
       if (seed) Object.keys(seed).forEach(k => win.localStorage.setItem(k, typeof seed[k] === 'string' ? seed[k] : JSON.stringify(seed[k])));
@@ -25,6 +26,7 @@ function makeApp(htmlPath, startDate, seed) {
     win, doc, errors,
     ev: (code) => win.eval(code),
     setDay(ds) { now = new Date(ds + 'T09:00:00').getTime(); win.eval('checkDayRollover(); rerender();'); },
+    tick(ms) { now += ms; }, // let the clock move a little within the day
     today() { return win.eval('fmtDate(today())'); },
     view(v) { doc.querySelector(`.nav-item[data-view="${v}"]`).click(); },
     modalOpen() { return doc.getElementById('completeModal').classList.contains('show'); },

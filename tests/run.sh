@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs everything: syntax, "same as v4.7" baselines, scenario suites, fuzz + twin checks.
-# Usage: cd tests && npm install && ./run.sh        (about 10 minutes; uses several cores)
+# Usage: cd tests && npm install && ./run.sh        (about 15 minutes; uses several cores)
 cd "$(dirname "$0")" || exit 1
 HTML="${FC_HTML:-$(pwd)/../index.html}"
 export FC_HTML="$HTML"
@@ -53,5 +53,9 @@ for a in "1 plain" "2 w"; do
 done
 ( timeout 1200 node r/o_twins.js plain > out/twins-plain.out 2>&1; timeout 1200 node r/yd_twins.js > out/twins-yday.out 2>&1; echo "twins done (see out/twins-*.out)" ) &
 wait
+
+# 4) 계산 정리: everything the app computes over many random days must equal the record made before the cleanup
+#    (half of the scenarios here; ./same.sh alone runs all 80)
+./same.sh 40 || fail=1
 echo "done — details in tests/out/"
 exit $fail
