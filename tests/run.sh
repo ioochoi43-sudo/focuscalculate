@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs everything: syntax, "same as v4.7" baselines, scenario suites, fuzz + twin checks.
-# Usage: cd tests && npm install && ./run.sh        (about 15 minutes; uses several cores)
+# Usage: cd tests && npm install && ./run.sh        (about 20 minutes; uses several cores)
 cd "$(dirname "$0")" || exit 1
 HTML="${FC_HTML:-$(pwd)/../index.html}"
 export FC_HTML="$HTML"

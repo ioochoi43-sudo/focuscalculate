@@ -8,7 +8,7 @@
 ```bash
 cd tests
 npm install        # jsdom 설치 (처음 한 번)
-./run.sh           # 전부 돌리기 (15분쯤). 결과 자세한 내용은 tests/out/
+./run.sh           # 전부 돌리기 (20분쯤). 결과 자세한 내용은 tests/out/
 ./syn.sh           # 문법 검사만
 node t/skip.js     # 묶음 하나만
 ./same.sh          # 계산 정리용: 정리 전(v4.10)과 결과가 100% 같은지 (9분쯤, 아래 참고)
