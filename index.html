@@ -2043,7 +2043,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.10 · 최근 업데이트 2026-11-12</div>
+      <div class="build-badge" id="buildBadge">v4.10.1 · 최근 업데이트 2026-11-13</div>
     </div>
   </aside>
 
@@ -2638,8 +2638,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.10';
-const APP_BUILD_DATE = '2026-11-12';
+const APP_VERSION = 'v4.10.1';
+const APP_BUILD_DATE = '2026-11-13';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -5782,6 +5782,18 @@ function planChapterDays(task, prefix, fromRel, toRel, nDays, pDone, pFrac, unit
   _chapterPlanCache.set(key, out);
   return out;
 }
+// One way to call the chapter planner — for the plan (chapterRowsToDeadline) and for its replay
+// (expectedChapters). The plan's own measures (the average day, the most days one chapter may take,
+// the rate per weight) always come from ALL of the plan's study days, so a later re-plan keeps the layout.
+//   pos, nDays: lay out the chapters from pos on over nDays days;  dayW: those days' weights (null = even)
+//   part: the chapter under way at pos — {done (part days), frac (share done), of (planned days, 0 = free), byPage}
+//   nAllDays, sumAllW: number and weight sum of all the plan's study days
+function layoutChapters(task, prefix, pos, nDays, part, holdArg, dayW, nAllDays, sumAllW) {
+  const totalTime = prefix[task.total];
+  return planChapterDays(task, prefix, pos, task.total, nDays, part.done, part.frac,
+    totalTime / Math.max(1, nAllDays), Math.max(14, Math.ceil(3 * nAllDays / Math.max(1, task.total))), holdArg, part.done > 0 && part.byPage,
+    dayW, totalTime / sumAllW, part.done > 0 && part.of > part.done ? part.of - part.done : 0);
+}
 
 // ===== 시간·양 기준 계획 =====
 // buildTimeBasedSchedule puts these pieces together (each plan kind has its own, by name):
@@ -5919,7 +5931,7 @@ function expectedLectures(C, inclToday) {
 }
 // 양·난이도, 마감일 기준
 function expectedChapters(C, inclToday) {
-  const { task, allDates, tdy, rbase, prefix, totalTime, rSkip, pageEv, timeOf, atTime, replayHolds } = C;
+  const { task, allDates, tdy, rbase, prefix, rSkip, pageEv, timeOf, atTime, replayHolds } = C;
   // Multi-day chapters: replay the whole-plan layout (planChapterDays) over the passed
   // days, re-planning at each postponed day — where you'd be if you had followed it.
   const bound = inclToday ? addDays(tdy, 1) : tdy;
@@ -5941,9 +5953,6 @@ function expectedChapters(C, inclToday) {
       const idxs = [];
       for (let j = i; j < N; j++) if (rc.w(i, j) > 0) idxs.push(j);
       layPos = new Map(idxs.map((j, q) => [j, q]));
-      const nAll = rc.countAll(i);
-      const unit = totalTime / Math.max(1, nAll);
-      const kCap = Math.max(14, Math.ceil(3 * nAll / Math.max(1, task.total)));
       let holdArg = null;
       if (hold) {
         const days = replayWeekLeft(rc, i, hold.weekEnd).left;
@@ -5951,8 +5960,9 @@ function expectedChapters(C, inclToday) {
         if (days > 0 && tgt >= pos) holdArg = { n: tgt - pos, days };
       }
       if (!(pDone > 0)) pos = fwdRel(task, pos);
-      lay = planChapterDays(task, prefix, pos, task.total, idxs.length, pDone, pDone > 0 ? (pF != null ? pF : Math.min(0.99, pDone / pOf)) : 0, unit, kCap, holdArg, pDone > 0 && pUser,
-        rc.uniform(i) ? null : idxs.map(j => rc.w(i, j)), totalTime / rc.sumAllW(i), pDone > 0 && pOf > pDone ? pOf - pDone : 0);
+      lay = layoutChapters(task, prefix, pos, idxs.length,
+        { done: pDone, frac: pDone > 0 ? (pF != null ? pF : Math.min(0.99, pDone / pOf)) : 0, of: pOf, byPage: pUser }, holdArg,
+        rc.uniform(i) ? null : idxs.map(j => rc.w(i, j)), rc.countAll(i), rc.sumAllW(i));
       replan = false; lastHold = hold; lastSig = rc.sig(i);
     }
     const e = lay[layPos.get(i)];
@@ -6012,7 +6022,7 @@ function timePastRows(schedule, F, prefix, anchor) {
 // today's date and progress, and this week's hold. Rows are added to schedule; S.cursorRel moves on.
 function chapterRowsToDeadline(task, F, TM, S, schedule) {
   const { allDates, startNum, remainingDates } = F;
-  const { prefix, totalTime } = TM;
+  const { prefix } = TM;
   const { tdyStr, progressAbs, hold, inWeekCount, holdRel, partDone } = S;
   let { cursorRel, partOfPlanned, partU } = S;
   const partFrac = S.partFrac;
@@ -6020,8 +6030,6 @@ function chapterRowsToDeadline(task, F, TM, S, schedule) {
   // unit of weight over the whole plan), so re-planning tomorrow keeps the same layout.
   const uniW = weightsUniform();
   const allW = allDates.map(effW), sumAllW = allW.reduce((a, b) => a + b, 0) || 1;
-  const wRate = totalTime / sumAllW;
-  const splitKCap = Math.max(14, Math.ceil(3 * allDates.length / Math.max(1, task.total)));
   // Deadline mode with 양·난이도: plan the remaining chapters over the remaining days as
   // a whole (see planChapterDays). Same rules as below for today's real progress and
   // the "이번 주 안에 채우기" hold (segment A = this week up to holdRel, B = the rest).
@@ -6057,10 +6065,8 @@ function chapterRowsToDeadline(task, F, TM, S, schedule) {
   }
   const nDays = remainingDates.length - i0;
   if (nDays > 0 && cursorRel < task.total) {
-    planChapterDays(task, prefix, cursorRel, task.total, nDays, pDone, pFrac,
-      totalTime / Math.max(1, allDates.length), splitKCap, holdArg, pDone > 0 && partU,
-      uniW ? null : remainingDates.slice(i0).map(effW), wRate,
-      pDone > 0 && partOfPlanned > pDone ? partOfPlanned - pDone : 0).forEach((p, k) => {
+    layoutChapters(task, prefix, cursorRel, nDays, { done: pDone, frac: pFrac, of: partOfPlanned, byPage: partU }, holdArg,
+      uniW ? null : remainingDates.slice(i0).map(effW), allDates.length, sumAllW).forEach((p, k) => {
       if (!p) return;
       const d = remainingDates[i0 + k];
       const isThisToday = fmtDate(d) === tdyStr;
