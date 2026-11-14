@@ -17,7 +17,7 @@ base() { # name script args...
     const zlib = require("zlib"), fs = require("fs");
     const a = JSON.parse(zlib.gunzipSync(fs.readFileSync("baseline/" + process.argv[1] + ".json.gz")));
     const b = JSON.parse(fs.readFileSync("out/" + process.argv[1] + ".json"));
-    const norm = (v) => JSON.stringify(v).replace(/＋복습\s*/g, "").replace(/↷건너뛰기\s*/g, "").replace(/양 정하기\s*/g, "").replace(/\([^()]{1,30} 반영\)/g, "(반영)").replace(/v4\.[\d.]+ · 최근 업데이트 \d{4}-\d\d-\d\d/g, "V");
+    const norm = (v) => JSON.stringify(v).replace(/＋복습\s*/g, "").replace(/↷건너뛰기\s*/g, "").replace(/양 정하기\s*/g, "").replace(/나눠 복사\s*/g, "").replace(/\([^()]{1,30} 반영\)/g, "(반영)").replace(/v4\.[\d.]+ · 최근 업데이트 \d{4}-\d\d-\d\d/g, "V");
     const ks = Object.keys(a).filter(k => !k.endsWith(" today") && norm(a[k]) !== norm(b[k]));
     console.log("baseline " + process.argv[1] + ": " + Object.keys(a).length + " keys, " + ks.length + " diffs" + (b.errors ? " ERRORS " + JSON.stringify(b.errors).slice(0, 200) : ""), ks.slice(0, 5).join(", "));
     process.exit(ks.length || b.errors ? 1 : 0);
@@ -29,7 +29,7 @@ base v47-yearend-newrule t/baseline2.js "$HTML" new &
 wait
 
 # 2) Scenario suites (each prints "passes N fails M")
-SUITES="t/ext.js t/ext2.js t/ext3.js t/skip.js t/skip2.js t/skipcur.js t/skipcur2.js t/yday.js t/ydayno.js t/pin.js t/pinui.js t/small.js"
+SUITES="t/ext.js t/ext2.js t/ext3.js t/skip.js t/skip2.js t/skipcur.js t/skipcur2.js t/yday.js t/ydayno.js t/pin.js t/pinui.js t/small.js t/split.js"
 for f in $SUITES; do
   ( n=$(basename "$f" .js); timeout 1200 node "$f" > "out/suite-$n.out" 2>&1; tail -n1 "out/suite-$n.out" | sed "s/^/$n: /" ) &
 done
@@ -45,6 +45,15 @@ done
 ( timeout 1200 node r/pin_fuzz2.js 1 12 > out/fuzz-pins2.out 2>&1; echo "fuzz pins after changes: $(tail -n1 out/fuzz-pins2.out | cut -c1-40)" ) &
 ( timeout 1200 node r/pin_follow.js 1 6 > out/follow-pins.out 2>&1; echo "follow with pins: $(tail -n1 out/follow-pins.out | cut -c1-60)" ) &
 wait
+
+# 2c) 나눠서 복사: every row of every plan split in every way, while the app is used at random (the 기록기's scenarios)
+( timeout 1200 node r/split_sweep.js 1 3 > out/sweep-split-1.out 2>&1 ) &
+( timeout 1200 node r/split_sweep.js 4 3 > out/sweep-split-2.out 2>&1 ) &
+wait
+for f in out/sweep-split-1.out out/sweep-split-2.out; do
+  echo "$(tail -n1 "$f" | cut -c1-60)"
+  grep -q "seeds, 0 problems" "$f" || { echo "SPLIT SWEEP FAILED: $f"; grep -h "^seed\|^   " "$f" | head -6; fail=1; }
+done
 
 # 3) Fuzz (follow the plan with random reviews / skips) and twin checks
 for a in "1 plain" "2 w"; do

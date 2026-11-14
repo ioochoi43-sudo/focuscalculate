@@ -572,6 +572,18 @@
     #todayList .agenda-item .agenda-info, #tomorrowList .agenda-item .agenda-info { flex: 1 1 calc(100% - 90px); }
     #todayList .agenda-item .agenda-copy, #tomorrowList .agenda-item .agenda-copy { margin-left: auto; }
   }
+  /* 나눠서 복사 (v4.11) */
+  .agenda-postpone.agenda-split:hover { background: #E1F0E4; color: #3f7a4b; border-color: #c4e0ca; }
+  .sp-modes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .sp-modes .chip { padding: 6px 14px; white-space: nowrap; }
+  .sp-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; }
+  .sp-line { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.5; transition: all 0.12s; }
+  .sp-line:hover { border-color: var(--cocoa-soft); background: var(--cream-light); }
+  .sp-line .sp-text { flex: 1; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
+  .sp-line .sp-ic { flex-shrink: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-soft); font-size: 13px; }
+  .sp-line .sp-ic svg { width: 100%; height: 100%; display: block; }
+  .sp-line.copied { background: #F4FAF5; border-color: #c4e0ca; color: var(--text-soft); }
+  .sp-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; line-height: 1.6; word-break: keep-all; }
   #pinModal .modal-actions { flex-wrap: wrap; }
   #pinModal .modal-actions .btn { white-space: nowrap; }
   .pn-days { display: flex; gap: 6px; margin-bottom: 12px; }
@@ -2044,7 +2056,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.10.2 · 최근 업데이트 2026-11-14</div>
+      <div class="build-badge" id="buildBadge">v4.11 · 최근 업데이트 2026-11-14</div>
     </div>
   </aside>
 
@@ -2618,6 +2630,19 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="splitModal">
+  <div class="modal" style="max-width: 440px;">
+    <div class="modal-title">나눠서 복사</div>
+    <p class="xm-sub" id="sp-sub"></p>
+    <div class="sp-modes" id="sp-modes"></div>
+    <div class="sp-list" id="sp-list"></div>
+    <div class="sp-note">줄을 누르면 그 줄만 복사돼요 · 붙여 넣고 돌아와서 다음 줄을 누르면 돼요</div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="sp-close">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="skipModal">
   <div class="modal" style="max-width: 420px;">
     <div class="modal-title">챕터 건너뛰기</div>
@@ -2639,7 +2664,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.10.2';
+const APP_VERSION = 'v4.11';
 const APP_BUILD_DATE = '2026-11-14';
 
 // ===== STATE =====
@@ -3311,8 +3336,129 @@ function buildCopyText(task, item) {
   { const R = (item.revs || []).filter(x => x.sk == null), K = (item.revs || []).filter(x => x.sk != null);
     if (R.length) text += ` + 복습(${R.map(x => x.t).join(', ')})`;
     if (K.length) text += ` + 건너뛴 ${K.map(skName).join(', ')}`; }
-  if (isFinalSession(task, item)) text += ` (${getCompletionLabel(task.type)})`;
+  if (item._fin != null ? item._fin : isFinalSession(task, item)) text += ` (${getCompletionLabel(task.type)})`; // (_fin: a piece of a row — 나눠서 복사)
   return text;
+}
+
+// ===== 나눠서 복사 (v4.11) =====
+// One day's row as several copy lines — to paste a day's share into a planner piece by piece.
+// Display only: nothing is saved and no plan is touched.
+//  · The content is cut at chapter / lecture / number boundaries. A row that is one chapter with pages
+//    (or one day of it), and a book counted in pages, is cut by pages — into even pieces, never page by page.
+//  · 따로 할 것 in the row (reviews, 건너뛴 챕터 put back) always get lines of their own.
+//  · The "완강" label goes on the last line.
+// Returns null when there's nothing to split, else { modes: [{k, label}], def, rows(k), lines(k) → [text…] }
+// (k: 'all' = the row as ⧉ copies it · 2 / 3 / 4 = that many even pieces · 'each' = every unit;
+//  rows(k) = [{ t: text, it: the piece as a small row | x: the 따로 할 것 }]).
+const SPLIT_EACH_MAX = 15; // no "각각" beyond this many units
+function copySplitInfo(task, item) {
+  if (!task || !item || !(item.to >= item.from)) return null;
+  const sn = task.startNum || 0, pg = hasPages(task), P = task.itemPages;
+  const name = copyName(task), fin = isFinalSession(task, item), zAll = pg ? skippedSet(task) : null;
+  const revs = item.revs || [];
+  const bare = pg && item.pFrom == null; // 복습만 하는 날 (no new page): only its 따로 할 것 are lines
+  // units: the row's numbers, without chapters taken out (건너뛰기)
+  const skipsIn = new Set(item.skips || []);
+  let units = null; // (null: every number from..to)
+  if (skipsIn.size || zAll) { units = []; for (let a = item.from; a <= item.to; a++) if (!skipsIn.has(a) && !(zAll && zAll.has(a - sn - 1))) units.push(a); }
+  const nU = units ? units.length : item.to - item.from + 1;
+  const unit = (i) => (units ? units[i] : item.from + i);
+  let pages = null; // one chapter with pages: its pages are the units
+  if (pg && !bare && nU <= 1) {
+    pages = [];
+    const zr = zAll ? [...zAll].map(k => P[k]).filter(Array.isArray) : [];
+    for (let p = item.pFrom; p <= item.pTo && pages.length < 5000; p++) if (!zr.some(q => p >= q[0] && p <= q[1])) pages.push(p);
+    if (!pages.length) pages = null;
+  }
+  const nC = bare ? 0 : pages ? pages.length : Math.max(1, nU); // units of the content (a row always has one line of its own)
+  const byPage = !!pages || (!pg && task.type === 'book' && !isTimeBasedTask(task)); // the units are pages
+  const nEach = byPage ? Math.min(1, nC) : nC; // content lines of "각각" (pages: the content stays whole)
+  const revLine = (x) => (x.sk != null ? `${name} 건너뛴 ${skName(x)}` : `${name} 복습(${x.t})`);
+  const revAt = (x) => { const a = extraPos(task, x); return a >= task.total ? Infinity : sn + a + 1; }; // the chapter it comes before (∞: after everything)
+  const chunks = (n) => { const out = [], base = Math.floor(nC / n), more = nC % n; let i = 0; for (let j = 0; j < n; j++) { const len = base + (j < more ? 1 : 0); out.push([i, i + len - 1]); i += len; } return out; };
+  const piece = (i0, i1, first, last) => {
+    if (pages) { const u = nU ? unit(0) : item.from; return { from: u, to: u, isReview: item.isReview, pFrom: pages[i0], pTo: pages[i1], _fin: false }; }
+    const a = unit(i0), b = unit(i1), sub = { from: a, to: b, isReview: item.isReview, _fin: false };
+    const sk = [...skipsIn].filter(v => v > a && v < b).sort((x, y) => x - y);
+    if (sk.length) { sub.skips = sk; sub.skipTxt = sk.map(v => formatRangePlain(task, v, v)).join(', '); }
+    if (!pg && first && item.partOf > 1) { sub.partN = item.partN; sub.partOf = item.partOf; } // the row's first chapter is one day of several: its "(n/m)" stays with it (pages say it themselves)
+    if (pg) { // its chapters' pages, inside the row's own range (the first one may be under way)
+      const rg = (abs) => P[Math.max(0, Math.min(task.total - 1, abs - sn - 1))];
+      const pf = first ? item.pFrom : Math.max(item.pFrom, rg(a)[0]), pt = last ? item.pTo : Math.min(item.pTo, rg(b)[1]);
+      if (pf <= pt) { sub.pFrom = pf; sub.pTo = pt; }
+    }
+    return sub;
+  };
+  const rows = (k) => {
+    const out = [], add = (it) => out.push({ t: buildCopyText(task, it), it }), addRev = (x) => out.push({ t: revLine(x), x });
+    if (k === 'all') { add(item); return out; }
+    const n = k === 'each' ? nEach : Math.min(k, nC);
+    const front = revs.filter(x => revAt(x) !== Infinity), end = revs.filter(x => revAt(x) === Infinity);
+    if (n > 1) {
+      chunks(n).forEach(([i0, i1], j, all) => {
+        const lastAbs = pages ? Infinity : unit(i1);
+        for (let q = 0; q < front.length;) { if (revAt(front[q]) <= lastAbs) addRev(front.splice(q, 1)[0]); else q++; } // a review: right before the piece that holds its chapter
+        add(piece(i0, i1, j === 0, j === all.length - 1));
+      });
+    }
+    front.forEach(addRev);
+    if (n === 1) add(Object.assign({}, item, { revs: null, _fin: false })); // the row without its 따로 할 것
+    end.forEach(addRev);
+    if (fin && out.length) out[out.length - 1].t += ` (${getCompletionLabel(task.type)})`;
+    return out;
+  };
+  const lines = (k) => rows(k).map(r => r.t);
+  const eachN = nEach + revs.length, eachOk = eachN >= 2 && nEach <= SPLIT_EACH_MAX;
+  const modes = [{ k: 'all', label: '전체' }];
+  [2, 3, 4].forEach(n => { if (n <= nC && !(eachOk && !byPage && n === nC)) modes.push({ k: n, label: `${n}조각` }); }); // (not the same as 각각)
+  if (eachOk) modes.push({ k: 'each', label: '각각' });
+  if (modes.length < 2) return null;
+  return { modes, def: eachOk && eachN <= 6 ? 'each' : modes[1].k, rows, lines, n: nC, byPage, nEach };
+}
+// (never lets a slip here break the 오늘·내일 list: no button instead)
+function copySplit(task, item) { try { return copySplitInfo(task, item); } catch (e) { console.error(e); return null; } }
+let splitModalCtx = null; // { taskId, dS, mode, done: lines copied so far, lines }
+function splitModalRender() {
+  const c = splitModalCtx, m = document.getElementById('splitModal');
+  let r = null;
+  try {
+    const task = c && tasks.find(t => t.id === c.taskId);
+    const item = task && buildSchedule(task).schedule.find(s => fmtDate(s.date) === c.dS);
+    const info = item ? copySplitInfo(task, item) : null;
+    if (info) { const mode = info.modes.some(x => x.k === c.mode) ? c.mode : info.def; r = { task, info, mode, lines: info.lines(mode) }; }
+  } catch (e) { console.error(e); r = null; }
+  if (!r) { m.classList.remove('show'); splitModalCtx = null; return false; }
+  c.mode = r.mode; c.lines = r.lines;
+  const dayWord = c.dS === fmtDate(today()) ? '오늘' : c.dS === fmtDate(addDays(today(), 1)) ? '내일' : c.dS;
+  document.getElementById('sp-sub').innerHTML = `<strong>${escapeHtml(r.task.title)}</strong> · ${dayWord} 할 일`;
+  document.getElementById('sp-modes').innerHTML = r.info.modes.map(x => `<button class="chip${x.k === c.mode ? ' active' : ''}" data-mode="${x.k}">${x.label}</button>`).join('');
+  document.getElementById('sp-list').innerHTML = c.lines.map((t, i) => `<button class="sp-line${c.done.has(t) ? ' copied' : ''}" data-i="${i}"><span class="sp-text">${escapeHtml(t)}</span><span class="sp-ic">${c.done.has(t) ? flatIcon('ok') : '⧉'}</span></button>`).join('');
+  return true;
+}
+function openSplitModal(taskId, dS) {
+  splitModalCtx = { taskId, dS, mode: null, done: new Set(), lines: [] };
+  if (!splitModalRender()) { showToast('지금은 나눠서 복사할 수 없어요'); rerender(); return; }
+  document.getElementById('splitModal').classList.add('show');
+}
+function setupSplitModal() {
+  const m = document.getElementById('splitModal');
+  if (!m) return;
+  document.getElementById('sp-close').addEventListener('click', () => { m.classList.remove('show'); splitModalCtx = null; });
+  document.getElementById('sp-modes').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mode]');
+    if (!b || !splitModalCtx) return;
+    splitModalCtx.mode = /^\d+$/.test(b.dataset.mode) ? parseInt(b.dataset.mode) : b.dataset.mode;
+    splitModalRender();
+  });
+  document.getElementById('sp-list').addEventListener('click', async (e) => {
+    const b = e.target.closest('.sp-line'), c = splitModalCtx;
+    const text = b && c ? c.lines[parseInt(b.dataset.i)] : null;
+    if (text == null) return;
+    const ok = await copyToClipboard(text, null);
+    if (!ok || splitModalCtx !== c) return;
+    c.done.add(text); // stays ticked while the window is open (also after switching 전체 / 조각 / 각각)
+    if (b.isConnected) { b.classList.add('copied'); b.querySelector('.sp-ic').innerHTML = flatIcon('ok'); }
+  });
 }
 
 async function copyToClipboard(text, btnEl) {
@@ -3339,8 +3485,10 @@ async function copyToClipboard(text, btnEl) {
       }, 1200);
     }
     showToast(`📋 복사됨: ${text}`);
+    return true;
   } catch (e) {
     showToast('복사 실패');
+    return false;
   }
 }
 
@@ -6703,6 +6851,7 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
           </div>
         </div>
         <button class="agenda-copy" data-action="copy-item" data-copy="${escapeAttr(copyText)}" title="복사: ${escapeAttr(copyText)}">⧉</button>
+        ${copySplit(task, item) ? `<button class="agenda-postpone agenda-split" data-action="split-copy" data-id="${escapeAttr(task.id)}" data-date="${dateStr}" title="${isToday ? '오늘' : '내일'} 할 일을 여러 줄로 나눠서 복사해요">나눠 복사</button>` : ''}
         ${!isReview && !item.isCatchUp && !(isToday && completed) && !(item.pFrom == null && hasPages(task)) && canPinDay(task, plan, dateStr) ? `<button class="agenda-postpone agenda-pin" data-action="pin-day" data-id="${escapeAttr(task.id)}" data-date="${dateStr}" title="${isToday ? '오늘' : '내일'} 할 양을 직접 정해요 · 남은 날에 다시 나눠요">양 정하기</button>` : ''}
         ${isToday && !completed && !isReview && !item.isCatchUp && plan && plan.remainingDates.length > 1 ? `<button class="agenda-postpone" data-action="postpone-today" data-id="${escapeAttr(task.id)}" title="오늘은 건너뛰고 남은 날에 나눠 담기">미루기</button>` : ''}
       </div>
@@ -6763,6 +6912,12 @@ function renderAgendaList(elementId, items, targetDate, isToday) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       copyToClipboard(btn.dataset.copy, btn);
+    });
+  });
+  el.querySelectorAll('[data-action="split-copy"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSplitModal(btn.dataset.id, btn.dataset.date);
     });
   });
   el.querySelectorAll('[data-action="postpone-today"]').forEach(btn => {
@@ -10355,6 +10510,7 @@ function init() {
   setupExtraModal();
   setupSkipModal();
   setupPinModal();
+  setupSplitModal();
   setupPostponeModal();
   setupSettings();
   try { rerender(); } catch (e) { console.error(e); showToast('일부 목표를 표시하지 못했어요 · 백업 파일로 다시 가져오기를 해보세요'); }
