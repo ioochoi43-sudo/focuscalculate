@@ -2,14 +2,15 @@
 # "기준 버전과 100% 같은가" (계산 정리·버그 수정 확인용 — CLAUDE.md 7장, 11장)
 # Uses the app at random for many days (t/trace.js) and compares everything it computed — saved data, every plan,
 # every screen's text — with the record in baseline/v410-trace.json.gz. The record was first made from v4.10 (before
-# the cleanup) and re-made from v4.10.2, whose plans and saved data equal v4.10's (only three screen texts changed).
+# the cleanup), re-made from v4.10.2 (three screen texts changed) and from v4.11 (the "나눠 복사" button on the
+# 오늘·내일 rows): each time the plans and the saved data stayed equal to v4.10's.
 #   ./same.sh            compare, seeds 1..80 (about 6 minutes on 4 cores)
 #   ./same.sh 16         only the first 16 seeds (a quick check while working)
 #   ./same.sh why 7      show what differs for seed 7 (needs the old version in git: see REF below)
 #   ./same.sh make       write the record again from the current app — ONLY after a calculation was changed on purpose
 cd "$(dirname "$0")" || exit 1
 HTML="${FC_HTML:-$(pwd)/../index.html}"
-REF="${FC_REF:-ac3a948}"   # v4.10.2, the version the record was made from
+REF="${FC_REF:-41b4295}"   # v4.11, the version the record was made from
 JOBS=4
 mkdir -p out
 if [ "$1" = "why" ]; then
