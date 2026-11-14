@@ -496,6 +496,7 @@
   .review-table td.num { text-align: right; white-space: nowrap; }
   .review-bar { height: 5px; border-radius: 999px; background: rgba(255,255,255,0.8); overflow: hidden; min-width: 50px; }
   .review-bar span { display: block; height: 100%; background: #9DCBA6; }
+  .skip-wait-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; word-break: keep-all; }
   .pace-line { font-size: 12px; color: var(--text-soft); background: #F3F7FB; padding: 8px 12px; border-radius: var(--radius-sm); margin-top: -4px; line-height: 1.6; }
   .pace-line.late { background: #FCEAE6; color: #a4473a; }
   .cm-time-row { margin-top: 12px; }
@@ -2043,7 +2044,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.10.1 · 최근 업데이트 2026-11-13</div>
+      <div class="build-badge" id="buildBadge">v4.10.2 · 최근 업데이트 2026-11-14</div>
     </div>
   </aside>
 
@@ -2638,8 +2639,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.10.1';
-const APP_BUILD_DATE = '2026-11-13';
+const APP_VERSION = 'v4.10.2';
+const APP_BUILD_DATE = '2026-11-14';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -3426,7 +3427,8 @@ function sanitizeCompleted(entries) {
     if (typeof k !== 'string' || !/^.+\|\d{4}-\d{2}-\d{2}$/.test(k)) return;
     if (!v || typeof v !== 'object' || Array.isArray(v)) v = { amount: 0 };
     const amt = Number(v.amount);
-    const rec = Object.assign({}, v, { amount: isFinite(amt) && amt > 0 ? amt : 0 });
+    // (amounts are whole numbers; a hand-edited file with e.g. 2.5 used to break the page plan)
+    const rec = Object.assign({}, v, { amount: isFinite(amt) && amt > 0 ? Math.round(amt) : 0 });
     if (rec.part && (typeof rec.part !== 'object' || !(rec.part.item > 0) || !(rec.part.of > 1))) delete rec.part;
     m.set(k, rec);
   });
@@ -5521,6 +5523,22 @@ function annotateExtras(task, sched, anchor, startFrac, tdyStr) {
     }
   });
 }
+// 진도 표시 (카드): a chapter taken out (건너뛰기) isn't done when the position passes it — its work waits
+// at the end ("건너뛴 ○장"), or is dropped ("안 하기": then it isn't to do at all). So the bar counts
+// the chapters really finished out of those to do. waiting = passed chapters whose work still waits.
+// Goals without 건너뛰기: exactly the plan's own numbers.
+function skipProgress(task, plan) {
+  const z = skippedSet(task);
+  if (!z) return { pct: plan.pct, expectedPct: plan.expectedPct, waiting: 0 };
+  const pend = new Set();
+  (task.extras || []).forEach(x => { if (x && x.sk != null && extraW(task, x, z) > 0) pend.add(Math.floor(Number(x.sk))); });
+  let dropped = 0; z.forEach(k => { if (!pend.has(k)) dropped++; });
+  const tot = task.total - dropped;
+  const doneAt = (pos) => { let n = 0; z.forEach(k => { if (k < pos) n++; }); return pos - n + (pos >= task.total ? pend.size : 0); };
+  const pc = (v) => (tot > 0 ? Math.max(0, Math.min(100, Math.round((v / tot) * 100))) : 0);
+  let waiting = 0; if (task.progress < task.total) pend.forEach(k => { if (k < task.progress) waiting++; });
+  return { pct: pc(doneAt(task.progress)), expectedPct: pc(doneAt(plan.expectedProgress)), waiting };
+}
 // Is this extra done? (the review before chapter k: once chapter k got past it)
 function extraDone(task, x) {
   const a = extraPos(task, x), sn = task.startNum || 0;
@@ -6880,6 +6898,25 @@ function fixedLabel(g) {
   const why = { auto: '자동 고정', refresh: '↻로 다시 고정', edit: '목표 수정으로 다시 고정', settings: '설정 변경으로 다시 고정', lock: '확정', copy: '복사해서 확정' }[g.fixedBy] || '고정';
   return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${why}`;
 }
+// Why the live plan no longer lands on this week's frozen goal g — for the hint under the goal:
+// "(미루기 반영)", "(계획 변경 반영)" (수정, 복습 추가·지우기, 건너뛰기), "(직접 정한 양 반영)", "(일시중단 반영)",
+// several joined with "·", or "(실제 진도 반영)" when none of those happened since the goal was fixed
+// (more or less was done than planned). Things done on the day the goal was fixed count when the goal
+// was fixed automatically (that happens first thing) or when their time is known to be later.
+function weekGoalDriftWhy(task, g, weekStartStr, weekEndStr) {
+  const tStr = fmtDate(today()), fa = g && validDateStr(g.fixedAt) ? g.fixedAt : weekStartStr;
+  const inWeek = (d) => d >= weekStartStr && d <= weekEndStr;
+  const after = (d, ts) => d > fa || (d === fa && (!g || g.fixedBy === 'auto' || !!(ts && g.fixedTs && ts > g.fixedTs)));
+  const pause = new Set(task.pauseDays || []), why = [];
+  const ppTs = (d) => (task.ppUndo && task.ppUndo.date === d ? task.ppUndo.ts : 0);
+  if ((task.skipDates || []).some(d => inWeek(d) && !pause.has(d) && after(d, ppTs(d)))) why.push('미루기');
+  const rb = task.rebase, pe = task.preEdit && task.preEdit.date === tStr ? task.preEdit : null;
+  const editTs = pe ? Math.max(pe.ts || 0, ...(pe.more || []).map(x => x.ts || 0)) : 0;
+  if (rb && validDateStr(rb.set) && inWeek(rb.set) && after(rb.set, rb.set === tStr ? editTs : 0)) why.push('계획 변경');
+  if (task.dayPins && Object.keys(task.dayPins).some(d => d >= tStr && inWeek(d))) why.push('직접 정한 양');
+  if ((task.pauseDays || []).some(d => inWeek(d) && after(d, 0))) why.push('일시중단');
+  return `(${why.length ? why.join('·') : '실제 진도'} 반영)`;
+}
 function computeWeekGoal(task, weekStartStr, weekEndStr, onlyFromStr) {
   const plan = buildSchedule(task);
   const inWeek = plan.schedule.filter(s => {
@@ -7039,7 +7076,8 @@ function renderWeekGoals(weekStart, weekEnd) {
     }
     if (hasPages(task) && pFrom != null && pTo == null) pTo = task.itemPages[Math.max(0, Math.min(task.total - 1, g.to - (task.startNum || 0) - 1))][1];
     if (!hasPages(task)) pFrom = pTo = undefined;
-    goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live, fixed: frozen ? fixedLabel(g) : '', pFrom, pTo, rv: g.rv, noPg: !!g.noPg });
+    goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live, fixed: frozen ? fixedLabel(g) : '', pFrom, pTo, rv: g.rv, noPg: !!g.noPg,
+      why: frozen && isCurrentWeek ? weekGoalDriftWhy(task, g, weekStartStr, weekEndStr) : '' });
   });
 
   if (goals.length === 0) { container.innerHTML = ''; return; }
@@ -7050,7 +7088,7 @@ function renderWeekGoals(weekStart, weekEnd) {
   const titleSuffix = isCurrentWeek ? muted('고정한 날 기준 · 새로고침해도 그대로, ↻ 누르면 오늘 계획으로 다시 고정')
     : isFutureWeek ? (allFrozen ? muted('📌 확정됨') : muted('미리보기 · 복사하거나 📌 누르면 고정돼요') + `<button class="week-goal-lock" data-action="lock-week-goals">📌 이 목표로 확정</button>`)
     : '';
-  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, part, frozen, live, fixed, pFrom, pTo, rv, noPg }) => {
+  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, part, frozen, live, fixed, pFrom, pTo, rv, noPg, why }) => {
     const ti = typeInfo(task.type);
     const color = getTaskColor(task);
     const hasRange = to >= from;
@@ -7075,7 +7113,7 @@ function renderWeekGoals(weekStart, weekEnd) {
     if (frozen && isCurrentWeek) {
       const holding = !!getWeekHold(task, today());
       if (holding) hint = `<div class="week-goal-hint hold">📌 이번 주 목표에 맞춰 나누는 중</div>`;
-      else if (live && live.to !== to && live.to >= live.from) hint = `<div class="week-goal-hint">지금 계획대로면 ${formatRangeDisplay(task, live.from, live.to)}${hasPages(task) ? ` (p.${liveEndPage(task, live)})` : ''}까지 (미루기 반영)</div>`;
+      else if (live && live.to !== to && live.to >= live.from) hint = `<div class="week-goal-hint">지금 계획대로면 ${formatRangeDisplay(task, live.from, live.to)}${hasPages(task) ? ` (p.${liveEndPage(task, live)})` : ''}까지 ${why}</div>`;
     }
     return `
       <div class="week-goal-item" style="--item-color: ${escapeAttr(color)};">
@@ -7253,6 +7291,7 @@ function renderTasks() {
       todayRangeText = '✓';
     }
 
+    const shownP = skipProgress(task, plan); // (건너뛴 챕터는 지나가도 끝난 걸로 세지 않아요)
     let perSessionText;
     if (isArchived || plan.status === 'done') {
       perSessionText = '—';
@@ -7404,12 +7443,13 @@ function renderTasks() {
         <div class="progress-block">
           <div class="progress-row">
             <div class="num">${startNum + task.progress} <span class="denom">/ ${startNum + task.total}${ti.unitShort}</span></div>
-            <div class="pct">${plan.pct}%</div>
+            <div class="pct">${shownP.pct}%</div>
           </div>
           <div class="progress-bar">
-            <div class="progress-fill" style="width: ${plan.pct}%"></div>
-            ${!isArchived && plan.expectedPct > 0 && plan.expectedPct < 100 ? `<div class="progress-target" style="left: ${plan.expectedPct}%"></div>` : ''}
+            <div class="progress-fill" style="width: ${shownP.pct}%"></div>
+            ${!isArchived && shownP.expectedPct > 0 && shownP.expectedPct < 100 ? `<div class="progress-target" style="left: ${shownP.expectedPct}%"></div>` : ''}
           </div>
+          ${shownP.waiting > 0 ? `<div class="skip-wait-note">건너뛴 ${shownP.waiting}개는 아직 남아 있어요 · 맨 뒤에서 해요 (진행률에는 안 넣었어요)</div>` : ''}
         </div>
 
         ${isArchived ? `
@@ -7438,7 +7478,7 @@ function renderTasks() {
           </div>
           <div class="plan-info-item">
             <div class="l">진행률</div>
-            <div class="v">${plan.pct}<span class="small">%</span></div>
+            <div class="v">${shownP.pct}<span class="small">%</span></div>
           </div>
           <div class="plan-info-item ${plan.remainingDates.length === 0 && plan.status !== 'done' ? 'alert' : ''}">
             <div class="l">남은 횟수</div>

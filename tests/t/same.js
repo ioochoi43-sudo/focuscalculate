@@ -14,7 +14,7 @@ if (mode === 'make') {
   process.exit(0);
 }
 const base = JSON.parse(zlib.gunzipSync(fs.readFileSync(BASE)));
-if (base.fp !== fp) { console.log('same: 기록기(t/trace.js 등)가 기준을 뜬 뒤에 바뀌었어요 — 비교할 수 없어요. 정리 전 버전으로 기준을 다시 떠야 해요 (README 참고)'); process.exit(2); }
+if (base.fp !== fp) { console.log('same: 기록기(t/trace.js 등)가 기준을 뜬 뒤에 바뀌었어요 — 비교할 수 없어요. 기준 버전의 파일로 기준을 다시 떠야 해요 (README 참고)'); process.exit(2); }
 const cur = read(process.argv.slice(3));
 const seeds = new Set(Object.keys(cur).map(k => k.split('|')[0]));
 const keys = Object.keys(base.rec).filter(k => seeds.has(k.split('|')[0]));
@@ -30,6 +30,6 @@ keys.forEach(k => {
   badSeeds.add(s);
 });
 Object.keys(cur).forEach(k => { if (!(k in base.rec)) { diffs++; badSeeds.add(k.split('|')[0]); if (lines.length < 12) lines.push(`  ${k}: 기준에 없는 기록`); } });
-console.log(`same (정리 전 ${base.ref}과 비교): ${seeds.size} seeds, ${keys.length} steps, ${diffs} diffs`);
+console.log(`same (기준 ${base.ref}과 비교): ${seeds.size} seeds, ${keys.length} steps, ${diffs} diffs`);
 if (diffs) { console.log(lines.slice(0, 12).join('\n')); console.log(`  → 자세히: ./same.sh why ${[...badSeeds][0]}`); }
 process.exit(diffs ? 1 : 0);

@@ -17,7 +17,7 @@ base() { # name script args...
     const zlib = require("zlib"), fs = require("fs");
     const a = JSON.parse(zlib.gunzipSync(fs.readFileSync("baseline/" + process.argv[1] + ".json.gz")));
     const b = JSON.parse(fs.readFileSync("out/" + process.argv[1] + ".json"));
-    const norm = (v) => JSON.stringify(v).replace(/＋복습\s*/g, "").replace(/↷건너뛰기\s*/g, "").replace(/양 정하기\s*/g, "").replace(/v4\.[\d.]+ · 최근 업데이트 \d{4}-\d\d-\d\d/g, "V");
+    const norm = (v) => JSON.stringify(v).replace(/＋복습\s*/g, "").replace(/↷건너뛰기\s*/g, "").replace(/양 정하기\s*/g, "").replace(/\([^()]{1,30} 반영\)/g, "(반영)").replace(/v4\.[\d.]+ · 최근 업데이트 \d{4}-\d\d-\d\d/g, "V");
     const ks = Object.keys(a).filter(k => !k.endsWith(" today") && norm(a[k]) !== norm(b[k]));
     console.log("baseline " + process.argv[1] + ": " + Object.keys(a).length + " keys, " + ks.length + " diffs" + (b.errors ? " ERRORS " + JSON.stringify(b.errors).slice(0, 200) : ""), ks.slice(0, 5).join(", "));
     process.exit(ks.length || b.errors ? 1 : 0);
@@ -29,7 +29,7 @@ base v47-yearend-newrule t/baseline2.js "$HTML" new &
 wait
 
 # 2) Scenario suites (each prints "passes N fails M")
-SUITES="t/ext.js t/ext2.js t/ext3.js t/skip.js t/skip2.js t/skipcur.js t/skipcur2.js t/yday.js t/ydayno.js t/pin.js t/pinui.js"
+SUITES="t/ext.js t/ext2.js t/ext3.js t/skip.js t/skip2.js t/skipcur.js t/skipcur2.js t/yday.js t/ydayno.js t/pin.js t/pinui.js t/small.js"
 for f in $SUITES; do
   ( n=$(basename "$f" .js); timeout 1200 node "$f" > "out/suite-$n.out" 2>&1; tail -n1 "out/suite-$n.out" | sed "s/^/$n: /" ) &
 done
