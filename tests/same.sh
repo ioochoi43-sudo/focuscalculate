@@ -11,7 +11,7 @@
 #   ./same.sh make       write the record again from the current app — ONLY after a calculation was changed on purpose
 cd "$(dirname "$0")" || exit 1
 HTML="${FC_HTML:-$(pwd)/../index.html}"
-REF="${FC_REF:-78de1a3}"   # v4.11.1, the version the record was made from
+REF="${FC_REF:-7b0fba4}"   # v4.11.2, the version the record was made from
 JOBS=4
 mkdir -p out
 if [ "$1" = "why" ]; then
