@@ -1127,6 +1127,24 @@
     font-variant-numeric: tabular-nums;
     margin-top: 1px;
   }
+  /* 요일 칸 (v4.11.3): the copy button sits in the corner so the text gets the whole width, words aren't cut in the
+     middle, and a long pill (＋건너뛴 …, ＋복습 …, ↷ … 건너뜀) is a small box on a line of its own */
+  .week-day-item { position: relative; }
+  .week-day-item-copy { position: absolute; top: 3px; right: 3px; }
+  .week-day-item-title { padding-right: 20px; }
+  .week-day-item-range { word-break: keep-all; overflow-wrap: anywhere; }
+  .week-day-item-range .page-pill { margin-left: 0; }
+  .week-day-item-range .rev-pill, .week-day-item-range .skip-pill {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin-top: 3px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1.4;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
   .week-day-empty {
     font-size: 10px;
     color: var(--text-muted);
@@ -2062,7 +2080,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.11.2 · 최근 업데이트 2026-11-15</div>
+      <div class="build-badge" id="buildBadge">v4.11.3 · 최근 업데이트 2026-11-15</div>
     </div>
   </aside>
 
@@ -2670,7 +2688,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.11.2';
+const APP_VERSION = 'v4.11.3';
 const APP_BUILD_DATE = '2026-11-15';
 
 // ===== STATE =====
