@@ -17,7 +17,7 @@ const split = (app, id, ds) => JSON.parse(app.ev(`(() => { const t = tasks.find(
   if (!row) return 'null'; const i = copySplitInfo(t, row); const L = {}; if (i) i.modes.forEach(m => { L[m.k] = i.lines(m.k); });
   return JSON.stringify({ whole: buildCopyText(t, row), split: !!i, modes: i ? i.modes.map(m => m.label) : [], def: i ? i.def : null, lines: L }); })()`));
 
-const { CHECK } = require('./split_check');
+const { CHECK, CHECK_WEEK } = require('./split_check');
 
 (async () => {
   // --- 1) the texts: named chapters with parts, lectures, pages of a book ---
@@ -223,8 +223,9 @@ const { CHECK } = require('./split_check');
       { id: 'cntO', title: 'cntO', type: 'other', total: 200, startNum: 0, progress: 0, start: '2026-11-09', end: '2026-12-05', pace: 'daily', paceValue: null, reviewDays: [6], skipDates: [] },
     ]);
     const app = mk(T);
-    let rowsSeen = 0, splitSeen = 0;
-    const check = (tag) => { const r = JSON.parse(app.ev(CHECK)); rowsSeen += r.rowsSeen; splitSeen += r.splitSeen; ok(r.out.length === 0, `${tag}: ${r.out.length} problems — ${r.out.slice(0, 4).join(' || ')}`); };
+    let rowsSeen = 0, splitSeen = 0, goalsSeen = 0, goalsSplit = 0;
+    const check = (tag) => { const r = JSON.parse(app.ev(CHECK)); rowsSeen += r.rowsSeen; splitSeen += r.splitSeen; ok(r.out.length === 0, `${tag}: ${r.out.length} problems — ${r.out.slice(0, 4).join(' || ')}`);
+      const w = JSON.parse(app.ev(CHECK_WEEK)); goalsSeen += w.goalsSeen; goalsSplit += w.splitSeen; ok(w.out.length === 0, `${tag} (week goals): ${w.out.length} problems — ${w.out.slice(0, 4).join(' || ')}`); };
     days('2026-11-09', 36).forEach((ds, i) => {
       app.setDay(ds);
       check(ds + ' am');
@@ -239,12 +240,93 @@ const { CHECK } = require('./split_check');
       if (i % 4 === 1) check(ds + ' pm'); // (today's row once checked)
     });
     ok(rowsSeen > 3000 && splitSeen > 1000, `rows looked at: ${rowsSeen}, splittable: ${splitSeen}`);
-    console.log(`rows looked at: ${rowsSeen}, splittable: ${splitSeen}`);
+    console.log(`rows looked at: ${rowsSeen}, splittable: ${splitSeen} · week goals looked at: ${goalsSeen}, splittable: ${goalsSplit}`);
+    ok(goalsSeen > 500 && goalsSplit > 300, `week goals looked at: ${goalsSeen}, splittable: ${goalsSplit}`);
     // the buttons on the screen match
     app.setDay('2026-11-10'); app.view('today');
     const shown = JSON.parse(app.ev(`JSON.stringify(['todayList', 'tomorrowList'].map((L, i) => { const ds = fmtDate(addDays(today(), i)); return [...document.querySelectorAll('#' + L + ' .agenda-item')].map(el => { const t = tasks.find(x => x.id === el.dataset.id), row = buildSchedule(t).schedule.find(s => fmtDate(s.date) === ds); return [t.id, !!el.querySelector('[data-action="split-copy"]'), !!copySplitInfo(t, row)]; }); }))`));
     ok(shown[0].length + shown[1].length > 0 && shown.flat().every(x => x[1] === x[2]), 'buttons match what can be split ' + JSON.stringify(shown.flat().filter(x => x[1] !== x[2])));
+    // …and on the week view: 나눠 복사 where a goal can be split, and ⧉ 복사 = its 전체
+    app.view('week');
+    const wk = JSON.parse(app.ev(`JSON.stringify([...document.querySelectorAll('#weekGoals .week-goal-item')].map(el => { const id = el.querySelector('[data-action="copy-week-goal"]').dataset.id, ws = fmtDate(startOfWeek(today()));
+      const g = weekGoalsFor(ws, fmtDate(addDays(startOfWeek(today()), 6)), id)[0], i = weekGoalSplit(g); return [id, !!el.querySelector('[data-action="split-week-goal"]'), !!i, el.querySelector('[data-action="copy-week-goal"]').dataset.copy === (i ? i.lines('all')[0] : weekGoalTexts(g).copyText)]; }))`));
+    ok(wk.length > 5 && wk.every(x => x[1] === x[2] && x[3]), 'week view: buttons match what can be split, ⧉ 복사 = 전체 ' + JSON.stringify(wk.filter(x => x[1] !== x[2] || !x[3])));
     ok(app.errors.length === 0, 'no errors (sweep) ' + app.errors.slice(0, 2));
+    app.close();
+  }
+
+  // --- 4) 이번 주 목표 (v4.11.1) ---
+  {
+    const names = ['Ch1', 'Ch2', 'Ch3', 'Ch4', 'Ch5', 'Ch6', 'Ch7', 'Ch1', 'Ch2', 'Ch3', 'Ch4', 'Ch5', 'Ch6', 'Ch7'], parts = names.map((_, i) => (i < 7 ? 'Part1' : 'Part2'));
+    const T = [
+      base('nmW', { title: '긴 강의 이름', copyTitle: '강의', total: 14, end: '2026-11-15', showNames: true, itemNames: names, itemParts: parts }),
+      base('lecW', { type: 'lecture', total: 40, end: '2026-11-22' }),
+      base('bkW', { type: 'book', total: 300, startNum: 10, end: '2026-11-29' }),
+      pageTask('pgW', { total: 3, end: '2026-11-20', itemPages: [[1, 10], [11, 20], [21, 100]], lectureDurations: [10, 10, 80], itemDifficulty: ['medium', 'medium', 'medium'], itemAmount: ['medium', 'medium', 'medium'], itemDays: [0, 0, 8] }),
+      weightTask('wRv', { itemDays: undefined, end: '2026-11-22', extras: [{ id: 'v1', t: '단어', w: 2, at: 2, d: '2026-11-09' }, { id: 'v2', t: '오답', w: 2, at: 4, d: '2026-11-09' }] }),
+      base('one', { type: 'lecture', total: 1, end: '2026-11-15' }),
+    ];
+    const app = mk(T);
+    const wsplit = (id, w = 0) => JSON.parse(app.ev(`(() => { const ws = fmtDate(addDays(startOfWeek(today()), ${7 * w})), g = weekGoalsFor(ws, fmtDate(addDays(parseDate(ws), 6)), ${JSON.stringify(id)})[0];
+      if (!g) return 'null'; const i = weekGoalSplit(g), L = {}; if (i) i.modes.forEach(m => { L[m.k] = i.lines(m.k); });
+      return JSON.stringify({ whole: weekGoalTexts(g).copyText, split: !!i, modes: i ? i.modes.map(m => m.label) : [], def: i ? i.def : null, lines: L, g: { from: g.from, to: g.to, part: g.part || null, rv: g.rv || 0 } }); })()`));
+    let s = wsplit('nmW');
+    eq(s.whole, '강의 Part1 Ch1 ~ Part2 Ch7 (완료)', 'week, named: ⧉ 복사 text');
+    eq(s.modes, ['전체', '2조각', '3조각', '4조각', '5조각', '6조각', '7조각', '각각'], 'week: choices up to 7조각');
+    eq(s.def, 'each', 'week: opens on 각각');
+    eq(s.lines.each, names.map((c, i) => `강의 ${parts[i]} ${c}` + (i === 13 ? ' (완료)' : '')), 'week, named: 각각');
+    eq(s.lines[2], ['강의 Part1 Ch1~Ch7', '강의 Part2 Ch1~Ch7 (완료)'], 'week, named: 2조각 (one per part here)');
+    eq(s.lines[7], ['강의 Part1 Ch1, Ch2', '강의 Part1 Ch3, Ch4', '강의 Part1 Ch5, Ch6', '강의 Part1 Ch7 ~ Part2 Ch1', '강의 Part2 Ch2, Ch3', '강의 Part2 Ch4, Ch5', '강의 Part2 Ch6, Ch7 (완료)'], 'week, named: 7조각');
+    s = wsplit('lecW');
+    ok(s.split && s.g.to - s.g.from + 1 > 15 && !s.modes.includes('각각') && s.def === 2, 'week of more than 15 lectures: pieces only ' + JSON.stringify(s.modes) + ' ' + JSON.stringify(s.g));
+    ok(s.lines[2].length === 2 && s.lines[2][0].startsWith(`lecW ${s.g.from}`) && s.lines[2][1].endsWith(`${s.g.to}강`), 'week, lectures: 2조각 ' + JSON.stringify(s.lines[2]));
+    s = wsplit('bkW');
+    ok(/^bkW p\.11~\d+$/.test(s.whole) && !s.modes.includes('각각') && s.modes.includes('7조각'), 'week, book: pages in pieces ' + s.whole + ' ' + JSON.stringify(s.modes));
+    const pp = s.lines[7].map(x => x.match(/p\.(\d+)~(\d+)$/).slice(1).map(Number));
+    ok(pp[0][0] === 11 && pp.every((q, i) => !i || q[0] === pp[i - 1][1] + 1) && 'p.' + pp[0][0] + '~' + pp[6][1] === s.whole.split(' ')[1], 'week, book: 7조각 cover the pages once ' + JSON.stringify(s.lines[7]));
+    s = wsplit('pgW');
+    ok(s.g.part && s.g.to >= s.g.from, 'pgW: chapters this week + one that carries over ' + JSON.stringify(s.g));
+    const partLine = s.lines.each[s.lines.each.length - 1];
+    ok(/^pgW 3장 1~\d\/\d일차 \(p\.21~\d+\)$/.test(partLine) && s.whole.endsWith(' + ' + partLine.slice(4)), 'carry-over chapter: a line of its own, at the end ' + JSON.stringify(s.lines.each) + ' / ' + s.whole);
+    ok(s.lines.each.slice(0, -1).every((x, i) => x === `pgW ${s.g.from + i}장 p.${[[1, 10], [11, 20]][s.g.from + i - 1].join('~')}`), 'chapters with their pages ' + JSON.stringify(s.lines.each));
+    s = wsplit('wRv');
+    ok(s.g.rv === 2 && s.lines.each[s.lines.each.length - 1] === 'wRv 복습 2개' && s.whole.endsWith(' + 복습 2개'), 'reviews this week: "복습 2개" as the last line ' + JSON.stringify(s.lines.each));
+    ok(s.lines[2].length === 2 + (s.g.part ? 1 : 0) + 1 && s.lines[2][s.lines[2].length - 1] === 'wRv 복습 2개' && (!s.g.part || /일차$/.test(s.lines[2][2])), 'reviews: after the pieces (and the carry-over chapter) too ' + JSON.stringify(s.lines[2]));
+    ok(wsplit('one').split === false, 'one lecture this week: nothing to split');
+
+    // the week view and the window
+    app.view('week');
+    const M = app.doc.getElementById('splitModal'), open = () => M.classList.contains('show');
+    const lines = () => [...M.querySelectorAll('.sp-line')].map(b => b.querySelector('.sp-text').textContent);
+    const wbtn = (id) => app.doc.querySelector(`#weekGoals [data-action="split-week-goal"][data-id="${id}"]`);
+    ['nmW', 'lecW', 'bkW', 'pgW', 'wRv'].forEach(id => ok(wbtn(id), `${id}: 나눠 복사 on the week goal`));
+    ok(!wbtn('one'), 'one: no 나눠 복사 on the week goal');
+    const copied = []; app.win.isSecureContext = true; app.win.navigator.clipboard.writeText = async (t) => { copied.push(t); };
+    const saved = () => JSON.stringify(['focus-calculate-tasks-v1', 'focus-calculate-completed-v2', 'focus-calculate-weekgoals-v1', 'focus-calculate-settings-v1'].map(k => app.win.localStorage.getItem(k)));
+    const before = saved();
+    wbtn('nmW').click();
+    ok(open() && /긴 강의 이름/.test(M.querySelector('#sp-sub').textContent) && /이번 주 목표/.test(M.querySelector('#sp-sub').textContent), 'window: ' + M.querySelector('#sp-sub').textContent);
+    eq(lines().length, 14, 'window: 14 lines (각각)');
+    M.querySelectorAll('.sp-line')[2].click(); await tick();
+    eq(copied, ['강의 Part1 Ch3'], 'a line copies just that line');
+    ok(open(), 'stays open');
+    app.doc.getElementById('sp-close').click();
+    ok(saved() === before, 'this week: nothing saved changed');
+    // next week, not fixed yet: copying a piece fixes it like ⧉ 복사
+    app.doc.getElementById('btn-week-next').click();
+    const key = 'lecW|2026-11-16';
+    ok(!app.ev(`weekGoalsMap.has('${key}')`), 'next week: not fixed yet');
+    ok(wbtn('lecW'), 'next week: 나눠 복사 on the goal');
+    wbtn('lecW').click();
+    ok(/다음 주 목표/.test(M.querySelector('#sp-sub').textContent), 'window says next week: ' + M.querySelector('#sp-sub').textContent);
+    const shown = lines();
+    ok(!app.ev(`weekGoalsMap.has('${key}')`), 'opening the window fixes nothing');
+    M.querySelectorAll('.sp-line')[0].click(); await tick(); await tick();
+    ok(app.ev(`weekGoalsMap.has('${key}') && weekGoalsMap.get('${key}').fixedBy === 'copy'`), 'copying a piece fixed next week\'s goal');
+    eq(copied[copied.length - 1], shown[0], 'it copied the line');
+    eq(lines(), shown, 'the lines stay the same after fixing');
+    app.doc.getElementById('sp-close').click();
+    ok(app.errors.length === 0, 'no errors (week goals) ' + app.errors.slice(0, 2));
     app.close();
   }
   console.log(`passes ${passes} fails ${fails}`);

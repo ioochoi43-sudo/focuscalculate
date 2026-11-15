@@ -1,16 +1,18 @@
 // 나눠서 복사 under random use: the 기록기 (t/trace.js) drives the app at random — checks, 미루기, 수정, 복습,
 // 건너뛰기, 양 정하기, 일시중단 … — on a copy of the app that, after every few redraws, splits every row of
-// every plan in every way and reports what isn't right (t/split_check.js). Nothing is compared with a record.
+// every plan, and this week's and next week's goals, in every way and reports what isn't right
+// (t/split_check.js). Nothing is compared with a record.
 //   node r/split_sweep.js <firstSeed> <count>      → "split sweep: N seeds, M problems"
 const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
-const { CHECK } = require('../t/split_check');
+const { CHECK, CHECK_WEEK } = require('../t/split_check');
 const HTML = process.env.FC_HTML || path.join(__dirname, '..', '..', 'index.html');
 const first = parseInt(process.argv[2] || '1'), count = parseInt(process.argv[3] || '4');
 const out = path.join(__dirname, '..', 'out'); fs.mkdirSync(out, { recursive: true });
 const hook = `
-;(() => { const check = () => ${CHECK}; const draw = rerender; let n = 0; window.__split = { rows: 0, split: 0 };
+;(() => { const check = () => ${CHECK}; const checkWeek = () => ${CHECK_WEEK}; const draw = rerender; let n = 0;
   rerender = function () { const v = draw.apply(this, arguments);
-    if (++n % 4 === 0) { try { const r = JSON.parse(check()); window.__split.rows += r.rowsSeen; window.__split.split += r.splitSeen; r.out.slice(0, 3).forEach(x => console.error('SPLIT ' + x)); } catch (e) { console.error('SPLIT THROW ' + (e && e.message)); } }
+    if (++n % 4 === 0) { try { const r = JSON.parse(check()); r.out.slice(0, 3).forEach(x => console.error('SPLIT ' + x)); } catch (e) { console.error('SPLIT THROW ' + (e && e.message)); } }
+    if (n % 4 === 2) { try { const r = JSON.parse(checkWeek()); r.out.slice(0, 3).forEach(x => console.error('SPLIT WEEK ' + x)); } catch (e) { console.error('SPLIT WEEK THROW ' + (e && e.message)); } }
     return v; }; })();
 `;
 const src = fs.readFileSync(HTML, 'utf8'), at = src.lastIndexOf('</script>');

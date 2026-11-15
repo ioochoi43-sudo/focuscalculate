@@ -573,7 +573,13 @@
     #todayList .agenda-item .agenda-copy, #tomorrowList .agenda-item .agenda-copy { margin-left: auto; }
   }
   /* 나눠서 복사 (v4.11) */
-  .agenda-postpone.agenda-split:hover { background: #E1F0E4; color: #3f7a4b; border-color: #c4e0ca; }
+  .agenda-postpone.agenda-split:hover, .week-goal-copy.week-goal-split:hover { background: #E1F0E4; color: #3f7a4b; border-color: #c4e0ca; }
+  @media (max-width: 640px) {
+    /* 이번 주 목표 with 나눠 복사: the buttons go on a line of their own, so the text keeps its width */
+    .week-goal-item.has-split { flex-wrap: wrap; row-gap: 8px; }
+    .week-goal-item.has-split .week-goal-info { flex: 1 1 calc(100% - 50px); }
+    .week-goal-item.has-split .week-goal-info + * { margin-left: auto; }
+  }
   .sp-modes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .sp-modes .chip { padding: 6px 14px; white-space: nowrap; }
   .sp-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; }
@@ -2056,7 +2062,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.11 · 최근 업데이트 2026-11-14</div>
+      <div class="build-badge" id="buildBadge">v4.11.1 · 최근 업데이트 2026-11-15</div>
     </div>
   </aside>
 
@@ -2664,8 +2670,8 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.11';
-const APP_BUILD_DATE = '2026-11-14';
+const APP_VERSION = 'v4.11.1';
+const APP_BUILD_DATE = '2026-11-15';
 
 // ===== STATE =====
 const STORAGE_KEY = 'focus-calculate-tasks-v1';
@@ -3349,20 +3355,24 @@ function buildCopyText(task, item) {
 //  · The "완강" label goes on the last line.
 // Returns null when there's nothing to split, else { modes: [{k, label}], def, rows(k), lines(k) → [text…] }
 // (k: 'all' = the row as ⧉ copies it · 2 / 3 / 4 = that many even pieces · 'each' = every unit;
-//  rows(k) = [{ t: text, it: the piece as a small row | x: the 따로 할 것 }]).
+//  rows(k) = [{ t: text, it: the piece as a small row | x: the 따로 할 것 | tail: true }]).
+// ext (이번 주 목표, v4.11.1): { all: the ⧉ text, tail: [lines that follow the content], pieces: [n…], preferEach }
 const SPLIT_EACH_MAX = 15; // no "각각" beyond this many units
-function copySplitInfo(task, item) {
-  if (!task || !item || !(item.to >= item.from)) return null;
+function copySplitInfo(task, item, ext) {
+  if (!task || !item) return null;
+  const tail = (ext && ext.tail) || [], noRange = !(item.to >= item.from);
+  if (noRange && !tail.length) return null;
   const sn = task.startNum || 0, pg = hasPages(task), P = task.itemPages;
-  const name = copyName(task), fin = isFinalSession(task, item), zAll = pg ? skippedSet(task) : null;
+  const name = copyName(task), fin = !noRange && isFinalSession(task, item), zAll = pg ? skippedSet(task) : null;
   const revs = item.revs || [];
-  const bare = pg && item.pFrom == null; // 복습만 하는 날 (no new page): only its 따로 할 것 are lines
   // units: the row's numbers, without chapters taken out (건너뛰기)
   const skipsIn = new Set(item.skips || []);
   let units = null; // (null: every number from..to)
   if (skipsIn.size || zAll) { units = []; for (let a = item.from; a <= item.to; a++) if (!skipsIn.has(a) && !(zAll && zAll.has(a - sn - 1))) units.push(a); }
-  const nU = units ? units.length : item.to - item.from + 1;
+  const nU = units ? units.length : Math.max(0, item.to - item.from + 1);
   const unit = (i) => (units ? units[i] : item.from + i);
+  // 복습만 하는 날 (no new page), or nothing left in place (only 건너뛴 챕터): only the other lines
+  const bare = noRange || (pg && item.pFrom == null) || nU === 0;
   let pages = null; // one chapter with pages: its pages are the units
   if (pg && !bare && nU <= 1) {
     pages = [];
@@ -3391,7 +3401,7 @@ function copySplitInfo(task, item) {
   };
   const rows = (k) => {
     const out = [], add = (it) => out.push({ t: buildCopyText(task, it), it }), addRev = (x) => out.push({ t: revLine(x), x });
-    if (k === 'all') { add(item); return out; }
+    if (k === 'all') { if (ext && ext.all != null) out.push({ t: ext.all, it: item }); else add(item); return out; }
     const n = k === 'each' ? nEach : Math.min(k, nC);
     const front = revs.filter(x => revAt(x) !== Infinity), end = revs.filter(x => revAt(x) === Infinity);
     if (n > 1) {
@@ -3404,39 +3414,68 @@ function copySplitInfo(task, item) {
     front.forEach(addRev);
     if (n === 1) add(Object.assign({}, item, { revs: null, _fin: false })); // the row without its 따로 할 것
     end.forEach(addRev);
+    tail.forEach(t => out.push({ t, tail: true }));
     if (fin && out.length) out[out.length - 1].t += ` (${getCompletionLabel(task.type)})`;
     return out;
   };
   const lines = (k) => rows(k).map(r => r.t);
-  const eachN = nEach + revs.length, eachOk = eachN >= 2 && nEach <= SPLIT_EACH_MAX;
+  const eachN = nEach + revs.length + tail.length, eachOk = eachN >= 2 && nEach <= SPLIT_EACH_MAX;
   const modes = [{ k: 'all', label: '전체' }];
-  [2, 3, 4].forEach(n => { if (n <= nC && !(eachOk && !byPage && n === nC)) modes.push({ k: n, label: `${n}조각` }); }); // (not the same as 각각)
+  ((ext && ext.pieces) || [2, 3, 4]).forEach(n => { if (n <= nC && !(eachOk && !byPage && n === nC)) modes.push({ k: n, label: `${n}조각` }); }); // (not the same as 각각)
   if (eachOk) modes.push({ k: 'each', label: '각각' });
   if (modes.length < 2) return null;
-  return { modes, def: eachOk && eachN <= 6 ? 'each' : modes[1].k, rows, lines, n: nC, byPage, nEach };
+  return { modes, def: eachOk && (eachN <= 6 || (ext && ext.preferEach)) ? 'each' : modes[1].k, rows, lines, n: nC, byPage, nEach };
 }
-// (never lets a slip here break the 오늘·내일 list: no button instead)
+// 이번 주 목표 (v4.11.1): the week's range as the ⧉ 복사 text has it, cut the same way. The chapter that
+// carries over into next week ("Ch5 1~3/6일차") and "복습 n개" are lines of their own after the range.
+function weekGoalSplit(goal) {
+  const { task, from, to, pFrom, pTo, part, rv } = goal;
+  const tx = weekGoalTexts(goal), name = copyName(task), tail = [];
+  if (part) tail.push(`${name} ${tx.partText}`);
+  if (rv > 0) tail.push(`${name} 복습 ${rv}개`);
+  const item = { from, to, pFrom, pTo };
+  const z = to >= from ? skippedSet(task) : null; // 건너뛴 챕터 in the range: not a piece of their own
+  if (z) { const sn = task.startNum || 0, sk = []; for (let a = from; a <= to; a++) if (z.has(a - sn - 1)) sk.push(a); if (sk.length) item.skips = sk; }
+  return copySplitInfo(task, item, { all: tx.copyText, tail, pieces: [2, 3, 4, 5, 6, 7], preferEach: true });
+}
+// (never lets a slip here break the 오늘·내일 list or the week view: no button instead)
 function copySplit(task, item) { try { return copySplitInfo(task, item); } catch (e) { console.error(e); return null; } }
-let splitModalCtx = null; // { taskId, dS, mode, done: lines copied so far, lines }
+function weekGoalSplitSafe(goal) { try { return weekGoalSplit(goal); } catch (e) { console.error(e); return null; } }
+// "이번 주" / "다음 주" / "지난 주" / "12/7~12/13" for a week's Monday
+function weekWordOf(ws) {
+  const off = Math.round(daysBetween(startOfWeek(today()), parseDate(ws)) / 7);
+  if (off === 0) return '이번 주';
+  if (off === 1) return '다음 주';
+  if (off === -1) return '지난 주';
+  const a = parseDate(ws), b = addDays(a, 6);
+  return `${a.getMonth() + 1}/${a.getDate()}~${b.getMonth() + 1}/${b.getDate()}`;
+}
+let splitModalCtx = null; // { taskId, dS (a day's row) | ws (that week's goal), mode, done: lines copied so far, lines }
 function splitModalRender() {
   const c = splitModalCtx, m = document.getElementById('splitModal');
   let r = null;
   try {
     const task = c && tasks.find(t => t.id === c.taskId);
-    const item = task && buildSchedule(task).schedule.find(s => fmtDate(s.date) === c.dS);
-    const info = item ? copySplitInfo(task, item) : null;
+    let info = null;
+    if (task && c.ws) {
+      const goal = weekGoalsFor(c.ws, fmtDate(addDays(parseDate(c.ws), 6)), c.taskId)[0];
+      info = goal ? weekGoalSplit(goal) : null;
+    } else if (task) {
+      const item = buildSchedule(task).schedule.find(s => fmtDate(s.date) === c.dS);
+      info = item ? copySplitInfo(task, item) : null;
+    }
     if (info) { const mode = info.modes.some(x => x.k === c.mode) ? c.mode : info.def; r = { task, info, mode, lines: info.lines(mode) }; }
   } catch (e) { console.error(e); r = null; }
   if (!r) { m.classList.remove('show'); splitModalCtx = null; return false; }
   c.mode = r.mode; c.lines = r.lines;
-  const dayWord = c.dS === fmtDate(today()) ? '오늘' : c.dS === fmtDate(addDays(today(), 1)) ? '내일' : c.dS;
-  document.getElementById('sp-sub').innerHTML = `<strong>${escapeHtml(r.task.title)}</strong> · ${dayWord} 할 일`;
+  const dayWord = c.ws ? '' : c.dS === fmtDate(today()) ? '오늘' : c.dS === fmtDate(addDays(today(), 1)) ? '내일' : c.dS;
+  document.getElementById('sp-sub').innerHTML = `<strong>${escapeHtml(r.task.title)}</strong> · ${c.ws ? `${weekWordOf(c.ws)} 목표` : `${dayWord} 할 일`}`;
   document.getElementById('sp-modes').innerHTML = r.info.modes.map(x => `<button class="chip${x.k === c.mode ? ' active' : ''}" data-mode="${x.k}">${x.label}</button>`).join('');
   document.getElementById('sp-list').innerHTML = c.lines.map((t, i) => `<button class="sp-line${c.done.has(t) ? ' copied' : ''}" data-i="${i}"><span class="sp-text">${escapeHtml(t)}</span><span class="sp-ic">${c.done.has(t) ? flatIcon('ok') : '⧉'}</span></button>`).join('');
   return true;
 }
-function openSplitModal(taskId, dS) {
-  splitModalCtx = { taskId, dS, mode: null, done: new Set(), lines: [] };
+function openSplitModal(taskId, dS, ws) {
+  splitModalCtx = { taskId, dS, ws: ws || null, mode: null, done: new Set(), lines: [] };
   if (!splitModalRender()) { showToast('지금은 나눠서 복사할 수 없어요'); rerender(); return; }
   document.getElementById('splitModal').classList.add('show');
 }
@@ -3458,6 +3497,7 @@ function setupSplitModal() {
     if (!ok || splitModalCtx !== c) return;
     c.done.add(text); // stays ticked while the window is open (also after switching 전체 / 조각 / 각각)
     if (b.isConnected) { b.classList.add('copied'); b.querySelector('.sp-ic').innerHTML = flatIcon('ok'); }
+    if (c.ws) fixWeekGoalOnCopy(c.taskId, c.ws); // a FUTURE week's goal: copying a piece fixes it, like ⧉ 복사
   });
 }
 
@@ -7203,15 +7243,12 @@ function lockWeekGoals(weekStartStr) {
   persistWeekGoals();
 }
 
-function renderWeekGoals(weekStart, weekEnd) {
-  const container = document.getElementById('weekGoals');
-  const weekStartStr = fmtDate(weekStart);
-  const weekEndStr = fmtDate(weekEnd);
+// The goals shown under "이번 주 목표" for one week: the frozen one when stored (this week and later),
+// else the live plan's, with their pages. onlyId: just that goal (나눠서 복사).
+function weekGoalsFor(weekStartStr, weekEndStr, onlyId) {
   const isCurrentWeek = weekStartStr === fmtDate(startOfWeek(today()));
-
-  if (isCurrentWeek) ensureWeekGoalSnapshots();
-
   let candidates = filterByCategory(tasks.filter(isTaskActive));
+  if (onlyId) candidates = candidates.filter(t => t.id === onlyId);
   const goals = [];
 
   const isFutureWeek = weekStartStr > fmtDate(startOfWeek(today()));
@@ -7234,6 +7271,46 @@ function renderWeekGoals(weekStart, weekEnd) {
     goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live, fixed: frozen ? fixedLabel(g) : '', pFrom, pTo, rv: g.rv, noPg: !!g.noPg,
       why: frozen && isCurrentWeek ? weekGoalDriftWhy(task, g, weekStartStr, weekEndStr) : '' });
   });
+  return goals;
+}
+// A week goal's ⧉ 복사 text, and the line of the chapter that carries over into next week
+function weekGoalTexts({ task, from, to, part, pFrom, pTo, rv }) {
+  const hasRange = to >= from;
+  // A chapter started this week but finished next week: "+ Ch5 1~3/6일차"
+  const partText = part
+    ? `${formatRangePlain(task, part.item, part.item)} ${part.firstN === part.n ? part.n : part.firstN + '~' + part.n}/${part.of}일차${part.pTo != null && hasPages(task) ? ` (${pagesText(part.pFrom, part.pTo)})` : ''}`
+    : '';
+  const copyText = (hasRange
+    ? buildCopyText(task, { from, to, pFrom, pTo }) + (part ? ` + ${partText}` : '')
+    : `${copyName(task)} ${partText}`) + (rv > 0 ? ` + 복습 ${rv}개` : '');
+  return { partText, copyText };
+}
+// ⧉ 복사 of a FUTURE week's goal (e.g. Sunday, writing next week into a planner) fixes it right
+// away — so postponing afterwards can't change the numbers you wrote down.
+function fixWeekGoalOnCopy(id, weekStartStr) {
+  const weekEndStr = fmtDate(addDays(parseDate(weekStartStr), 6));
+  const isFutureWeek = weekStartStr > fmtDate(startOfWeek(today()));
+  if (isFutureWeek && id && !weekGoalsMap.has(id + '|' + weekStartStr)) {
+    const t = tasks.find(x => x.id === id);
+    const g = t && computeWeekGoal(t, weekStartStr, weekEndStr);
+    if (g) {
+      weekGoalsMap.set(id + '|' + weekStartStr, stampGoal(g, 'copy'));
+      persistWeekGoals();
+      showToast('📌 복사한 목표로 확정했어요 · 미뤄도 안 바뀌어요');
+      setTimeout(rerender, 900);
+    }
+  }
+}
+function renderWeekGoals(weekStart, weekEnd) {
+  const container = document.getElementById('weekGoals');
+  const weekStartStr = fmtDate(weekStart);
+  const weekEndStr = fmtDate(weekEnd);
+  const isCurrentWeek = weekStartStr === fmtDate(startOfWeek(today()));
+
+  if (isCurrentWeek) ensureWeekGoalSnapshots();
+
+  const goals = weekGoalsFor(weekStartStr, weekEndStr);
+  const isFutureWeek = weekStartStr > fmtDate(startOfWeek(today()));
 
   if (goals.length === 0) { container.innerHTML = ''; return; }
 
@@ -7243,20 +7320,16 @@ function renderWeekGoals(weekStart, weekEnd) {
   const titleSuffix = isCurrentWeek ? muted('고정한 날 기준 · 새로고침해도 그대로, ↻ 누르면 오늘 계획으로 다시 고정')
     : isFutureWeek ? (allFrozen ? muted('📌 확정됨') : muted('미리보기 · 복사하거나 📌 누르면 고정돼요') + `<button class="week-goal-lock" data-action="lock-week-goals">📌 이 목표로 확정</button>`)
     : '';
-  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map(({ task, from, to, amount, part, frozen, live, fixed, pFrom, pTo, rv, noPg, why }) => {
+  container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map((goal) => {
+    const { task, from, to, amount, part, frozen, live, fixed, pFrom, pTo, rv, noPg, why } = goal;
     const ti = typeInfo(task.type);
     const color = getTaskColor(task);
     const hasRange = to >= from;
-    // A chapter started this week but finished next week: "+ Ch5 1~3/6일차"
-    const partText = part
-      ? `${formatRangePlain(task, part.item, part.item)} ${part.firstN === part.n ? part.n : part.firstN + '~' + part.n}/${part.of}일차${part.pTo != null && hasPages(task) ? ` (${pagesText(part.pFrom, part.pTo)})` : ''}`
-      : '';
+    const { partText, copyText } = weekGoalTexts(goal);
+    const canSplit = !!weekGoalSplitSafe(goal);
     const pagePill = hasRange && pFrom != null ? ` <span class="page-pill">${pagesTextT(task, pFrom, pTo)}</span>` : '';
     const rangeDisplay = (hasRange ? formatRangeDisplay(task, from, to) + pagePill : '') + (part ? `${hasRange ? ' + ' : ''}<span class="part-pill">⏳ ${escapeHtml(partText)}</span>` : '')
       + (rv > 0 ? ` <span class="rev-pill">＋복습 ${rv}개</span>` : '');
-    const copyText = (hasRange
-      ? buildCopyText(task, { from, to, pFrom, pTo }) + (part ? ` + ${partText}` : '')
-      : `${copyName(task)} ${partText}`) + (rv > 0 ? ` + 복습 ${rv}개` : '');
     const isFinal = hasRange && isFinalSession(task, { from, to });
     const finalPill = isFinal ? `<span class="week-goal-final-pill">🎉 ${getCompletionLabel(task.type)}</span>` : '';
     const refreshBtn = frozen
@@ -7271,7 +7344,7 @@ function renderWeekGoals(weekStart, weekEnd) {
       else if (live && live.to !== to && live.to >= live.from) hint = `<div class="week-goal-hint">지금 계획대로면 ${formatRangeDisplay(task, live.from, live.to)}${hasPages(task) ? ` (p.${liveEndPage(task, live)})` : ''}까지 ${why}</div>`;
     }
     return `
-      <div class="week-goal-item" style="--item-color: ${escapeAttr(color)};">
+      <div class="week-goal-item${canSplit ? ' has-split' : ''}" style="--item-color: ${escapeAttr(color)};">
         <div class="week-goal-icon">${ti.icon}</div>
         <div class="week-goal-info">
           <div class="week-goal-title">${escapeHtml(task.title)}${finalPill}</div>
@@ -7281,6 +7354,7 @@ function renderWeekGoals(weekStart, weekEnd) {
         </div>
         ${refreshBtn}
         <button class="week-goal-copy" data-action="copy-week-goal" data-id="${escapeAttr(task.id)}" data-copy="${escapeAttr(copyText)}" title="이번 주 전체 복사">⧉ 복사</button>
+        ${canSplit ? `<button class="week-goal-copy week-goal-split" data-action="split-week-goal" data-id="${escapeAttr(task.id)}" title="${escapeAttr(weekName)} 목표를 여러 줄로 나눠서 복사해요">나눠 복사</button>` : ''}
       </div>
     `;
   }).join('');
@@ -7289,19 +7363,13 @@ function renderWeekGoals(weekStart, weekEnd) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       copyToClipboard(btn.dataset.copy, btn);
-      // Copying a FUTURE week's goal (e.g. Sunday, writing next week into a planner) fixes
-      // it right away — so postponing afterwards can't change the numbers you wrote down.
-      const id = btn.dataset.id;
-      if (isFutureWeek && id && !weekGoalsMap.has(id + '|' + weekStartStr)) {
-        const t = tasks.find(x => x.id === id);
-        const g = t && computeWeekGoal(t, weekStartStr, weekEndStr);
-        if (g) {
-          weekGoalsMap.set(id + '|' + weekStartStr, stampGoal(g, 'copy'));
-          persistWeekGoals();
-          showToast('📌 복사한 목표로 확정했어요 · 미뤄도 안 바뀌어요');
-          setTimeout(rerender, 900);
-        }
-      }
+      fixWeekGoalOnCopy(btn.dataset.id, weekStartStr);
+    });
+  });
+  container.querySelectorAll('[data-action="split-week-goal"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSplitModal(btn.dataset.id, null, weekStartStr);
     });
   });
   container.querySelectorAll('[data-action="refresh-week-goal"]').forEach(btn => {
