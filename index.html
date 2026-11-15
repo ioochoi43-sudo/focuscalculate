@@ -2062,7 +2062,7 @@
       <div class="storage-status">
         <span class="dot"></span> 자동 저장 중
       </div>
-      <div class="build-badge" id="buildBadge">v4.11.1 · 최근 업데이트 2026-11-15</div>
+      <div class="build-badge" id="buildBadge">v4.11.2 · 최근 업데이트 2026-11-15</div>
     </div>
   </aside>
 
@@ -2670,7 +2670,7 @@
 <script>
 // ===== VERSION =====
 // Bump this whenever you upload a new build so you can confirm the deployed version.
-const APP_VERSION = 'v4.11.1';
+const APP_VERSION = 'v4.11.2';
 const APP_BUILD_DATE = '2026-11-15';
 
 // ===== STATE =====
@@ -3339,11 +3339,15 @@ function buildCopyText(task, item) {
   if (item.pFrom != null && item.pTo != null) text += ` ${item.pText || pagesTextT(task, item.pFrom, item.pTo)}`;
   if (item.partOf > 1) text += ` (${item.partN}/${item.partOf})`;
   if (item.skips && item.skips.length) text += ` (${item.skipTxt || ''} 건너뜀)`;
-  { const R = (item.revs || []).filter(x => x.sk == null), K = (item.revs || []).filter(x => x.sk != null);
-    if (R.length) text += ` + 복습(${R.map(x => x.t).join(', ')})`;
-    if (K.length) text += ` + 건너뛴 ${K.map(skName).join(', ')}`; }
+  text += revsCopyText(item.revs);
   if (item._fin != null ? item._fin : isFinalSession(task, item)) text += ` (${getCompletionLabel(task.type)})`; // (_fin: a piece of a row — 나눠서 복사)
   return text;
+}
+
+// " + 복습(a, b) + 건너뛴 c" — the 따로 할 것 of a row (or of a week goal, v4.11.2) in a copy text
+function revsCopyText(revs) {
+  const R = (revs || []).filter(x => x.sk == null), K = (revs || []).filter(x => x.sk != null);
+  return (R.length ? ` + 복습(${R.map(x => x.t).join(', ')})` : '') + (K.length ? ` + 건너뛴 ${K.map(skName).join(', ')}` : '');
 }
 
 // ===== 나눠서 복사 (v4.11) =====
@@ -3361,7 +3365,7 @@ const SPLIT_EACH_MAX = 15; // no "각각" beyond this many units
 function copySplitInfo(task, item, ext) {
   if (!task || !item) return null;
   const tail = (ext && ext.tail) || [], noRange = !(item.to >= item.from);
-  if (noRange && !tail.length) return null;
+  if (noRange && !tail.length && !(ext && (item.revs || []).length)) return null;
   const sn = task.startNum || 0, pg = hasPages(task), P = task.itemPages;
   const name = copyName(task), fin = !noRange && isFinalSession(task, item), zAll = pg ? skippedSet(task) : null;
   const revs = item.revs || [];
@@ -3427,13 +3431,15 @@ function copySplitInfo(task, item, ext) {
   return { modes, def: eachOk && (eachN <= 6 || (ext && ext.preferEach)) ? 'each' : modes[1].k, rows, lines, n: nC, byPage, nEach };
 }
 // 이번 주 목표 (v4.11.1): the week's range as the ⧉ 복사 text has it, cut the same way. The chapter that
-// carries over into next week ("Ch5 1~3/6일차") and "복습 n개" are lines of their own after the range.
+// carries over into next week ("Ch5 1~3/6일차") is a line of its own after the range; the week's 따로 할 것 are
+// lines of their own by name (v4.11.2), or one "복습 n개" line when the goal doesn't know which ones they are.
 function weekGoalSplit(goal) {
-  const { task, from, to, pFrom, pTo, part, rv } = goal;
+  const { task, from, to, pFrom, pTo, part, rv, revs } = goal;
   const tx = weekGoalTexts(goal), name = copyName(task), tail = [];
   if (part) tail.push(`${name} ${tx.partText}`);
-  if (rv > 0) tail.push(`${name} 복습 ${rv}개`);
+  if (rv > 0 && !revs) tail.push(`${name} 복습 ${rv}개`);
   const item = { from, to, pFrom, pTo };
+  if (revs) item.revs = revs;
   const z = to >= from ? skippedSet(task) : null; // 건너뛴 챕터 in the range: not a piece of their own
   if (z) { const sn = task.startNum || 0, sk = []; for (let a = from; a <= to; a++) if (z.has(a - sn - 1)) sk.push(a); if (sk.length) item.skips = sk; }
   return copySplitInfo(task, item, { all: tx.copyText, tail, pieces: [2, 3, 4, 5, 6, 7], preferEach: true });
@@ -3624,7 +3630,10 @@ function sanitizeCompleted(entries) {
 }
 function sanitizeWeekGoals(entries) {
   const m = new Map();
-  entries.forEach(([k, v]) => { if (typeof k === 'string' && k.includes('|') && v && typeof v === 'object' && typeof v.from === 'number' && typeof v.to === 'number') m.set(k, v); });
+  entries.forEach(([k, v]) => { if (typeof k === 'string' && k.includes('|') && v && typeof v === 'object' && typeof v.from === 'number' && typeof v.to === 'number') {
+    if (v.rvi !== undefined && !(Array.isArray(v.rvi) && v.rvi.every(x => typeof x === 'string'))) delete v.rvi; // (which 따로 할 것, v4.11.2)
+    m.set(k, v);
+  } });
   return m;
 }
 function loadAll() {
@@ -7144,7 +7153,7 @@ function computeWeekGoal(task, weekStartStr, weekEndStr, onlyFromStr) {
     const P = task.itemPages, sn0 = task.startNum || 0;
     g.pTo = P[Math.max(0, Math.min(task.total - 1, to - sn0 - 1))][1];
   }
-  { const rv = new Set(); inWeek.forEach(s => (s.revs || []).forEach(x => rv.add(x.id))); if (rv.size) g.rv = rv.size; } // 따로 할 것
+  { const rv = new Set(); inWeek.forEach(s => (s.revs || []).forEach(x => rv.add(x.id))); if (rv.size) { g.rv = rv.size; g.rvi = [...rv]; } } // 따로 할 것 (rvi: which ones, to show their names — v4.11.2)
   return g;
 }
 
@@ -7186,7 +7195,7 @@ function refreshWeekGoal(taskId, weekStartStr, why, taskObj) {
     const to = fut ? Math.max(fut.to, startPos) : startPos;
     const from = Math.min(old.from, to + 1);
     g = { from, to, amount: Math.max(0, to - from + 1) };
-    if (fut && fut.rv) g.rv = fut.rv;
+    if (fut && fut.rv) { g.rv = fut.rv; if (fut.rvi) g.rvi = fut.rvi; }
     // a multi-day chapter under way: count its part days already done this week too
     const item = fut && fut.part && fut.part.item > to ? fut.part.item : to + 1;
     let minN = null, maxN = null, recOf = 0;
@@ -7268,13 +7277,21 @@ function weekGoalsFor(weekStartStr, weekEndStr, onlyId) {
     }
     if (hasPages(task) && pFrom != null && pTo == null) pTo = task.itemPages[Math.max(0, Math.min(task.total - 1, g.to - (task.startNum || 0) - 1))][1];
     if (!hasPages(task)) pFrom = pTo = undefined;
-    goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live, fixed: frozen ? fixedLabel(g) : '', pFrom, pTo, rv: g.rv, noPg: !!g.noPg,
+    goals.push({ task, from: g.from, to: g.to, amount: g.amount, part: g.part, frozen, live, fixed: frozen ? fixedLabel(g) : '', pFrom, pTo, rv: g.rv, revs: weekGoalRevs(task, g, live), noPg: !!g.noPg,
       why: frozen && isCurrentWeek ? weekGoalDriftWhy(task, g, weekStartStr, weekEndStr) : '' });
   });
   return goals;
 }
+// The 따로 할 것 of a week goal, to show by name (v4.11.2): the ones stored with the goal (rvi). A goal fixed
+// before that has only their number: the live plan's for that week when it has as many. null: not known → "복습 n개".
+function weekGoalRevs(task, g, live) {
+  if (!g || !(g.rv > 0)) return null;
+  const byId = new Map((task.extras || []).map(x => [x.id, x]));
+  const pick = (ids) => { if (!Array.isArray(ids) || ids.length !== g.rv) return null; const L = ids.map(i => byId.get(i)); return L.every(Boolean) ? L : null; };
+  return g.rvi ? pick(g.rvi) : pick(live && live.rvi);
+}
 // A week goal's ⧉ 복사 text, and the line of the chapter that carries over into next week
-function weekGoalTexts({ task, from, to, part, pFrom, pTo, rv }) {
+function weekGoalTexts({ task, from, to, part, pFrom, pTo, rv, revs }) {
   const hasRange = to >= from;
   // A chapter started this week but finished next week: "+ Ch5 1~3/6일차"
   const partText = part
@@ -7282,7 +7299,7 @@ function weekGoalTexts({ task, from, to, part, pFrom, pTo, rv }) {
     : '';
   const copyText = (hasRange
     ? buildCopyText(task, { from, to, pFrom, pTo }) + (part ? ` + ${partText}` : '')
-    : `${copyName(task)} ${partText}`) + (rv > 0 ? ` + 복습 ${rv}개` : '');
+    : `${copyName(task)} ${partText}`) + (revs ? revsCopyText(revs) : rv > 0 ? ` + 복습 ${rv}개` : '');
   return { partText, copyText };
 }
 // ⧉ 복사 of a FUTURE week's goal (e.g. Sunday, writing next week into a planner) fixes it right
@@ -7321,7 +7338,7 @@ function renderWeekGoals(weekStart, weekEnd) {
     : isFutureWeek ? (allFrozen ? muted('📌 확정됨') : muted('미리보기 · 복사하거나 📌 누르면 고정돼요') + `<button class="week-goal-lock" data-action="lock-week-goals">📌 이 목표로 확정</button>`)
     : '';
   container.innerHTML = `<div class="week-goals-title">${weekName} 목표${titleSuffix}</div>` + goals.map((goal) => {
-    const { task, from, to, amount, part, frozen, live, fixed, pFrom, pTo, rv, noPg, why } = goal;
+    const { task, from, to, amount, part, frozen, live, fixed, pFrom, pTo, rv, revs, noPg, why } = goal;
     const ti = typeInfo(task.type);
     const color = getTaskColor(task);
     const hasRange = to >= from;
@@ -7329,7 +7346,7 @@ function renderWeekGoals(weekStart, weekEnd) {
     const canSplit = !!weekGoalSplitSafe(goal);
     const pagePill = hasRange && pFrom != null ? ` <span class="page-pill">${pagesTextT(task, pFrom, pTo)}</span>` : '';
     const rangeDisplay = (hasRange ? formatRangeDisplay(task, from, to) + pagePill : '') + (part ? `${hasRange ? ' + ' : ''}<span class="part-pill">⏳ ${escapeHtml(partText)}</span>` : '')
-      + (rv > 0 ? ` <span class="rev-pill">＋복습 ${rv}개</span>` : '');
+      + (revs ? revPillHtml({ revs }) : rv > 0 ? ` <span class="rev-pill">＋복습 ${rv}개</span>` : '');
     const isFinal = hasRange && isFinalSession(task, { from, to });
     const finalPill = isFinal ? `<span class="week-goal-final-pill">🎉 ${getCompletionLabel(task.type)}</span>` : '';
     const refreshBtn = frozen

@@ -3,7 +3,8 @@
 # Uses the app at random for many days (t/trace.js) and compares everything it computed — saved data, every plan,
 # every screen's text — with the record in baseline/v410-trace.json.gz. The record was first made from v4.10 (before
 # the cleanup), re-made from v4.10.2 (three screen texts changed), v4.11 (the "나눠 복사" button on the 오늘·내일
-# rows) and v4.11.1 (the same button on 이번 주 목표): each time the plans and the saved data stayed equal to v4.10's.
+# rows), v4.11.1 (the same button on 이번 주 목표) and v4.11.2 (이번 주 목표 names its 따로 할 것; the week goals
+# also store which ones — rvi): each time the plans stayed equal to v4.10's (and the saved data, but for rvi).
 #   ./same.sh            compare, seeds 1..80 (about 6 minutes on 4 cores)
 #   ./same.sh 16         only the first 16 seeds (a quick check while working)
 #   ./same.sh why 7      show what differs for seed 7 (needs the old version in git: see REF below)

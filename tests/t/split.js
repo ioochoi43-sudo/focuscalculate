@@ -290,8 +290,28 @@ const { CHECK, CHECK_WEEK } = require('./split_check');
     ok(/^pgW 3장 1~\d\/\d일차 \(p\.21~\d+\)$/.test(partLine) && s.whole.endsWith(' + ' + partLine.slice(4)), 'carry-over chapter: a line of its own, at the end ' + JSON.stringify(s.lines.each) + ' / ' + s.whole);
     ok(s.lines.each.slice(0, -1).every((x, i) => x === `pgW ${s.g.from + i}장 p.${[[1, 10], [11, 20]][s.g.from + i - 1].join('~')}`), 'chapters with their pages ' + JSON.stringify(s.lines.each));
     s = wsplit('wRv');
-    ok(s.g.rv === 2 && s.lines.each[s.lines.each.length - 1] === 'wRv 복습 2개' && s.whole.endsWith(' + 복습 2개'), 'reviews this week: "복습 2개" as the last line ' + JSON.stringify(s.lines.each));
-    ok(s.lines[2].length === 2 + (s.g.part ? 1 : 0) + 1 && s.lines[2][s.lines[2].length - 1] === 'wRv 복습 2개' && (!s.g.part || /일차$/.test(s.lines[2][2])), 'reviews: after the pieces (and the carry-over chapter) too ' + JSON.stringify(s.lines[2]));
+    // 따로 할 것 of the week: by name (v4.11.2), each a line of its own
+    const rvOf = (L) => L.filter(x => /복습/.test(x));
+    ok(s.g.rv === 2 && s.whole.endsWith(' + 복습(단어, 오답)') && !/복습 2개/.test(s.whole), 'reviews this week: their names in the ⧉ text ' + s.whole);
+    eq(rvOf(s.lines.each), ['wRv 복습(단어)', 'wRv 복습(오답)'], 'reviews this week: a line each, by name ' + JSON.stringify(s.lines.each));
+    eq(rvOf(s.lines[2]), ['wRv 복습(단어)', 'wRv 복습(오답)'], 'reviews: with the pieces too ' + JSON.stringify(s.lines[2]));
+    ok(s.lines[2].length === 2 + (s.g.part ? 1 : 0) + 2 && (!s.g.part || /일차$/.test(s.lines[2][s.lines[2].length - 1])), 'reviews: pieces + reviews (+ the carry-over chapter last) ' + JSON.stringify(s.lines[2]));
+    { // a goal fixed before v4.11.2 has only the number: the names come from the plan when it has as many, else "복습 n개"
+      const key = `'wRv|' + fmtDate(startOfWeek(today()))`;
+      ok(app.ev(`Array.isArray(weekGoalsMap.get(${key}).rvi) && weekGoalsMap.get(${key}).rvi.join() === 'v1,v2'`), 'the fixed goal keeps which 따로 할 것 it holds (rvi)');
+      app.ev(`delete weekGoalsMap.get(${key}).rvi`);
+      const o = wsplit('wRv');
+      eq([o.whole, o.lines.each], [s.whole, s.lines.each], 'old goal (no rvi), plan has as many: the same names');
+      app.ev(`weekGoalsMap.get(${key}).rv = 1`);
+      const c = wsplit('wRv');
+      ok(c.whole.endsWith(' + 복습 1개') && c.lines.each[c.lines.each.length - 1] === 'wRv 복습 1개' && rvOf(c.lines.each).length === 1, 'old goal, plan differs: "복습 1개" as before ' + JSON.stringify(c.lines.each));
+      app.ev(`weekGoalsMap.get(${key}).rv = 2; weekGoalsMap.get(${key}).rvi = ['v1', 'gone']`);
+      ok(wsplit('wRv').whole.endsWith(' + 복습 2개'), 'a stored name that is no longer there: "복습 2개"');
+      app.ev(`weekGoalsMap.get(${key}).rvi = ['v1', 'v2']`);
+      eq(wsplit('wRv').whole, s.whole, '(put back)');
+      ok(app.ev(`(() => { const m = sanitizeWeekGoals([['a|2026-11-09', { from: 1, to: 2, rv: 1, rvi: 'x' }], ['b|2026-11-09', { from: 1, to: 2, rv: 1, rvi: ['x'] }], ['c|2026-11-09', { from: 1, to: 2 }]]);
+        return !('rvi' in m.get('a|2026-11-09')) && m.get('b|2026-11-09').rvi.join() === 'x' && !('rvi' in m.get('c|2026-11-09')) && m.size === 3; })()`), 'loading: a bad rvi is dropped, the goal stays');
+    }
     ok(wsplit('one').split === false, 'one lecture this week: nothing to split');
 
     // the week view and the window
