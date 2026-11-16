@@ -6,6 +6,7 @@ const CHECK = `(() => { const out = []; let rowsSeen = 0, splitSeen = 0;
       if (row.isPast || !(row.to >= row.from)) return;
       rowsSeen++;
       const whole = buildCopyText(t, row), tag = t.id + ' ' + fmtDate(row.date) + ' [' + whole + ']', revs = row.revs || [];
+      if (/  |\\s$/.test(whole)) out.push(tag + ': ⧉ text has extra spaces');
       const units = []; for (let a = row.from; a <= row.to; a++) if (!(row.skips || []).includes(a) && !(zAll && zAll.has(a - sn - 1))) units.push(a);
       const bare = (pg && row.pFrom == null) || !units.length; // 복습만 하는 날 · only 건너뛴 챕터
       const pagePath = pg && !bare && units.length <= 1;    // one chapter with pages
@@ -71,6 +72,7 @@ const CHECK_WEEK = `(() => { const out = []; let goalsSeen = 0, splitSeen = 0;
       const t = goal.task, sn = t.startNum || 0, pg = hasPages(t), z = skippedSet(t);
       goalsSeen++;
       const tx = weekGoalTexts(goal), name = copyName(t), tag = t.id + ' week ' + ws + ' [' + tx.copyText + ']';
+      if (/  |\\s$/.test(tx.copyText) || (!tx.allSk && / \\(건너뜀\\)/.test(tx.copyText))) out.push(tag + ': ⧉ 복사 text has extra spaces / a stray 건너뜀');
       // 따로 할 것: by name, a line each (v4.11.2) — or one "복습 n개" line when the goal doesn't know which ones
       const revs = goal.revs || [];
       if (goal.revs && goal.revs.length !== goal.rv) out.push(tag + ': ' + goal.revs.length + ' names for 복습 ' + goal.rv + '개');

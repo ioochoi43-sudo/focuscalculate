@@ -349,6 +349,41 @@ const { CHECK, CHECK_WEEK } = require('./split_check');
     ok(app.errors.length === 0, 'no errors (week goals) ' + app.errors.slice(0, 2));
     app.close();
   }
+
+  // --- 6) v4.11.4: a week goal fixed before its chapter was skipped (only 건너뛴 챕터 left in its range) ---
+  {
+    const P = pageTask('x').itemPages, dP = pageTask('x').lectureDurations;
+    const sk = (id, rel, x) => pageTask(id, Object.assign({ end: '2026-11-22', progress: 1, skipped: [rel], extras: [{ id: 'k' + id, t: String(rel + 1), w: dP[rel], at: 100000, sk: rel }] }, x || {}));
+    const T = [sk('sPart', 1), sk('sCnt', 1), sk('sOnly', 1), sk('sMid', 1), pageTask('plain', { end: '2026-11-22' })];
+    const G = {
+      'sPart|2026-11-09': { from: 2, to: 2, amount: 1, pFrom: 13, pTo: 30, part: { item: 3, firstN: 1, n: 2, of: 3, pFrom: 31, pTo: 35 }, rv: 1, rvi: ['ksPart'], fixedAt: '2026-11-09', fixedBy: 'auto' },
+      'sCnt|2026-11-09': { from: 2, to: 2, amount: 1, pFrom: 13, pTo: 30, rv: 2, rvi: ['gone1', 'gone2'], fixedAt: '2026-11-09', fixedBy: 'auto' },
+      'sOnly|2026-11-09': { from: 2, to: 2, amount: 1, pFrom: 13, pTo: 30, fixedAt: '2026-11-09', fixedBy: 'auto' },
+      'sMid|2026-11-09': { from: 2, to: 4, amount: 3, pFrom: 13, pTo: 60, fixedAt: '2026-11-09', fixedBy: 'auto' },
+    };
+    const app = mk(T, '2026-11-10', { 'focus-calculate-weekgoals-v1': G });
+    const tx = (id) => JSON.parse(app.ev(`(() => { const ws = fmtDate(startOfWeek(today())), g = weekGoalsFor(ws, fmtDate(addDays(startOfWeek(today()), 6)), '${id}')[0]; const x = weekGoalTexts(g), i = weekGoalSplit(g); return JSON.stringify(Object.assign(x, { each: i && i.modes.some(m => m.k === 'each') ? i.lines('each') : null })); })()`));
+    app.view('week');
+    const row = (id) => { const el = [...app.doc.querySelectorAll('#weekGoals .week-goal-item')].find(e => e.querySelector(`[data-id="${id}"]`)); return el ? { range: el.querySelector('.week-goal-range').textContent.replace(/\s+/g, ' ').trim(), copy: el.querySelector('[data-action="copy-week-goal"]').dataset.copy, emptyPill: !!el.querySelector('.page-pill:empty') } : null; };
+    let x = tx('sPart'), r = row('sPart');
+    eq(x.copyText, 'sPart 3장 1~2/3일차 (p.31~35) + 건너뛴 2', 'only a 건너뛴 챕터 + carry-over + its 따로 할 것: the skipped chapter\'s number is left out of the range');
+    ok(r && r.copy === x.copyText && !/^2장|^sPart 2장/.test(r.range) && !/총/.test(r.range) && !r.emptyPill && /3장 1~2\/3일차/.test(r.range), 'screen: no "2장" range, no empty page pill ' + JSON.stringify(r));
+    eq((x.each || []).slice().sort(), ['sPart 3장 1~2/3일차 (p.31~35)', 'sPart 건너뛴 2'].sort(), 'split: the carry-over chapter and the 건너뛴 챕터 line');
+    x = tx('sCnt'); r = row('sCnt');
+    eq(x.copyText, 'sCnt 복습 2개', 'only a 건너뛴 챕터 + "복습 n개" (names not known): no double space');
+    ok(r && r.copy === x.copyText && !r.emptyPill, 'screen ' + JSON.stringify(r));
+    x = tx('sOnly'); r = row('sOnly');
+    eq(x.copyText, 'sOnly 2장 (건너뜀)', 'only a 건너뛴 챕터 and nothing else: kept, marked 건너뜀');
+    ok(r && r.copy === x.copyText && /2장/.test(r.range) && /↷ 건너뜀/.test(r.range) && !/총/.test(r.range) && !r.emptyPill, 'screen: "2장 ↷ 건너뜀", no amount ' + JSON.stringify(r));
+    ok(!app.doc.querySelector('[data-action="split-week-goal"][data-id="sOnly"]'), 'nothing to split');
+    x = tx('sMid'); r = row('sMid');
+    eq(x.copyText, `sMid 2~4장 p.${P[2][0]}~${P[3][1]}`, 'a 건너뛴 챕터 inside a longer range: as before (its pages left out)');
+    ok(r && r.copy === x.copyText && !r.emptyPill, 'screen as before ' + JSON.stringify(r));
+    // a plan row whose pages are all a 건너뛴 챕터's: no trailing space
+    eq(JSON.parse(app.ev(`JSON.stringify(buildCopyText(tasks.find(t => t.id === 'sOnly'), { from: 2, to: 2, pFrom: 13, pTo: 30 }))`)), 'sOnly 2장', 'copy text: no trailing space when no page is left');
+    ok(app.errors.length === 0, 'no errors (v4.11.4) ' + app.errors.slice(0, 2));
+    app.close();
+  }
   console.log(`passes ${passes} fails ${fails}`);
   process.exit(fails ? 1 : 0);
 })();
